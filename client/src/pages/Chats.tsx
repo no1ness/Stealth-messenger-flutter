@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import ChatListItem from "@/components/ChatListItem";
@@ -10,14 +10,22 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Phone } from "lucide-react";
 
+const INITIAL_MESSAGES = [
+  { id: "1", message: "Hi! How are you?", timestamp: "10:30", isSent: false },
+  { id: "2", message: "I'm good, thanks! The encryption is working great.", timestamp: "10:31", isSent: true, isDelivered: true, isRead: true },
+  { id: "3", message: "Yes, all our messages are secure 🔒", timestamp: "10:32", isSent: false },
+];
+
 export default function Chats() {
-  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [selectedChat, setSelectedChat] = useState<string | null>(() => {
+    return localStorage.getItem("selectedChat") || null;
+  });
   const [searchQuery, setSearchQuery] = useState("");
-  const [messages, setMessages] = useState([
-    { id: "1", message: "Hi! How are you?", timestamp: "10:30", isSent: false },
-    { id: "2", message: "I'm good, thanks! The encryption is working great.", timestamp: "10:31", isSent: true, isDelivered: true, isRead: true },
-    { id: "3", message: "Yes, all our messages are secure 🔒", timestamp: "10:32", isSent: false },
-  ]);
+  const [messages, setMessages] = useState(() => {
+    const chatId = localStorage.getItem("selectedChat") || "1";
+    const stored = localStorage.getItem(`messages_${chatId}`);
+    return stored ? JSON.parse(stored) : INITIAL_MESSAGES;
+  });
 
   const chats = [
     { id: "1", name: "Alice Johnson", lastMessage: "Yes, all our messages are secure", timestamp: "10:32", unreadCount: 0 },
@@ -25,12 +33,30 @@ export default function Chats() {
     { id: "3", name: "Carol Williams", lastMessage: "See you tomorrow!", timestamp: "2 days ago", unreadCount: 0 },
   ];
 
+  useEffect(() => {
+    if (selectedChat) {
+      localStorage.setItem("selectedChat", selectedChat);
+      const stored = localStorage.getItem(`messages_${selectedChat}`);
+      if (stored) {
+        setMessages(JSON.parse(stored));
+      } else {
+        setMessages(INITIAL_MESSAGES);
+      }
+    }
+  }, [selectedChat]);
+
+  useEffect(() => {
+    if (selectedChat) {
+      localStorage.setItem(`messages_${selectedChat}`, JSON.stringify(messages));
+    }
+  }, [messages, selectedChat]);
+
   const filteredChats = chats.filter(chat =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSendMessage = (message: string) => {
-    setMessages([
+    const newMessages = [
       ...messages,
       {
         id: Date.now().toString(),
@@ -40,7 +66,8 @@ export default function Chats() {
         isDelivered: false,
         isRead: false,
       },
-    ]);
+    ];
+    setMessages(newMessages);
   };
 
   const currentChat = chats.find(c => c.id === selectedChat);
