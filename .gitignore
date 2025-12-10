@@ -1,6 +1,72 @@
+# Node.js (старые остатки)
 node_modules
-dist
+
+# macOS
 .DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# Android
+mobile/android/.gradle/
+mobile/android/captures/
+mobile/android/gradlew
+mobile/android/gradlew.bat
+mobile/android/local.properties
+mobile/android/.idea/
+mobile/android/**/GeneratedPluginRegistrant.java
+mobile/android/key.properties
+*.jks
+*.keystore
+
+# iOS/XCode
+mobile/ios/.symlinks/
+mobile/ios/Flutter/App.framework
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/.generated/
+mobile/ios/Flutter/ephemeral
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Runner.xcworkspace/
+mobile/ios/Pods/
+mobile/ios/.idea/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.hmap
+*.ipa
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Web
+mobile/web/.dart_tool/
+
+# Windows
+mobile/windows/flutter/ephemeral/
+
+# Linux
+mobile/linux/flutter/ephemeral/
+
+# VS Code
+.vscode/
+
+# IntelliJ
+.idea/
+*.ipr
+*.iws
+
+# Misc
+*.log
+*.swp
+.fvm/
+coverage/
+lib/generated_plugin_registrant.dart

@@ -1,0 +1,76 @@
+class AppSpacing {
+  AppSpacing._();
+
+  // Base spacing unit (4px)
+  static const double unit = 4.0;
+  
+  // Micro spacing
+  static const double xxxs = unit * 0.5; // 2px
+  static const double xxs = unit; // 4px
+  static const double xs = unit * 2; // 8px
+  
+  // Small spacing
+  static const double sm = unit * 3; // 12px
+  static const double md = unit * 4; // 16px
+  
+  // Medium spacing
+  static const double lg = unit * 5; // 20px
+  static const double xl = unit * 6; // 24px
+  
+  // Large spacing
+  static const double xxl = unit * 8; // 32px
+  static const double xxxl = unit * 10; // 40px
+  
+  // Extra large spacing
+  static const double huge = unit * 12; // 48px
+  static const double massive = unit * 16; // 64px
+  
+  // Screen padding (Apple standard)
+  static const double screenPadding = 16.0;
+  static const double screenPaddingLarge = 20.0;
+  
+  // Card and container spacing
+  static const double cardPadding = 16.0;
+  static const double cardMargin = 12.0;
+  
+  // List spacing
+  static const double listItemHeight = 44.0; // Apple standard touch target
+  static const double listItemPadding = 16.0;
+  static const double listSpacing = 8.0;
+  
+  // Border Radius (Apple style)
+  static const double radiusXs = 4.0;
+  static const double radiusSm = 8.0;
+  static const double radiusMd = 12.0;
+  static const double radiusLg = 16.0;
+  static const double radiusXl = 20.0;
+  static const double radiusXxl = 24.0;
+  static const double radiusRound = 999.0; // Fully rounded
+  
+  // Glass effect specific
+  static const double glassBlur = 20.0;
+  static const double glassBlurStrong = 40.0;
+  static const double glassBlurLight = 10.0;
+  
+  // Icon sizes
+  static const double iconXs = 16.0;
+  static const double iconSm = 20.0;
+  static const double iconMd = 24.0;
+  static const double iconLg = 32.0;
+  static const double iconXl = 40.0;
+  static const double iconXxl = 48.0;
+  
+  // Button heights (Apple standard)
+  static const double buttonHeightSmall = 32.0;
+  static const double buttonHeightMedium = 44.0; // Apple standard
+  static const double buttonHeightLarge = 50.0;
+  
+  // Navigation bar height
+  static const double navBarHeight = 44.0;
+  static const double navBarLargeHeight = 96.0;
+  static const double tabBarHeight = 49.0; // Apple standard
+  
+  // Safe area additions
+  static const double bottomSafeArea = 34.0; // iPhone bottom notch
+  static const double topSafeArea = 44.0; // iPhone top notch
+}

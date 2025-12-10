@@ -1,0 +1,31 @@
+# Flutter
+flutter/ephemeral/
+flutter/generated_plugins/
+
+# Android
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+build/
+*.apk
+*.aab
+*.ipa
+
+# Logs
+*.log
+
+# Supabase keys (никогда не коммитьте!)
+supabase_keys.dart
