@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:stealth/test_account_selection_screen.dart';
 import 'package:stealth/main_tabs.dart';
+import 'package:stealth/registration_screen.dart';
 import 'package:stealth/supabase_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'minimal_test_app.dart'; // Для тестирования
+import 'package:stealth/ui/screens/startup_error_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Полная версия STEALTH с Supabase и всеми функциями
   runApp(const MyApp());
-
-  // Для тестирования минимальной версии без Supabase:
-  // runApp(const MinimalTestApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -30,6 +25,7 @@ class _MyAppState extends State<MyApp> {
   bool _isLoading = true;
   SupabaseService? _supabaseService;
   ThemeMode _themeMode = ThemeMode.system;
+  String? _startupError;
 
   @override
   void initState() {
@@ -40,75 +36,91 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? 2; // 2 = ThemeMode.system
-    _themeMode = ThemeMode.values[themeIndex];
-    if (mounted) setState(() {});
+    final themeIndex = prefs.getInt('themeMode') ?? ThemeMode.system.index;
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _themeMode = ThemeMode.values[themeIndex];
+    });
   }
 
   Future<void> _initializeSupabase() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _startupError = null;
+      });
+    }
+
     try {
-      // Load environment variables (optional for web)
-      try {
-        await dotenv.load(fileName: ".env");
-      } catch (e) {
-        debugPrint('Warning: Could not load .env file: $e');
+      // Env loading stays explicit so `flutter run` behaves the same on every target.
+      await dotenv.load(fileName: '.env');
+      final supabaseUrl = dotenv.env['SUPABASE_URL'];
+      final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+      if (supabaseUrl == null ||
+          supabaseUrl.isEmpty ||
+          supabaseAnonKey == null ||
+          supabaseAnonKey.isEmpty) {
+        throw Exception(
+          'Missing SUPABASE_URL or SUPABASE_ANON_KEY in client/.env.',
+        );
       }
 
-      // Initialize Supabase with environment variables
       await Supabase.initialize(
-        url: dotenv.env['SUPABASE_URL']!,
-        anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
       );
 
-      // Теперь создаем SupabaseService после успешной инициализации
       _supabaseService = SupabaseService();
-      await _autoLoginAsGeekom();
-    } catch (e) {
-      debugPrint('Error initializing Supabase: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _autoLoginAsGeekom() async {
-    if (_supabaseService == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Автоматический вход как GEEKOM
-      await _supabaseService!.loginAsTestUser(
-        userId: '22222222-2222-2222-2222-222222222222',
-        nickname: 'GEEKOM'
-      );
-
+      await _checkRegistration();
+    } catch (error) {
+      debugPrint('Error initializing Supabase: $error');
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
-        _isUserRegistered = true;
         _isLoading = false;
+        _startupError = '$error';
       });
-    } catch (e) {
-      debugPrint('Auto-login failed: $e');
-      setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _checkRegistration() async {
+    final userId = await _supabaseService?.getUserId();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isUserRegistered = userId != null && userId.isNotEmpty;
+      _isLoading = false;
+      _startupError = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Stealth',
+      debugShowCheckedModeBanner: false,
       themeMode: _themeMode,
-      theme: LiquidTheme.theme, // Liquid Glass theme!
-      darkTheme: LiquidTheme.darkTheme, // Темная версия темы
+      theme: LiquidTheme.theme,
+      darkTheme: LiquidTheme.darkTheme,
       home: _isLoading
           ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             )
+          : _startupError != null
+              ? StartupErrorScreen(
+                  message: _startupError!,
+                  onRetry: _initializeSupabase,
+                )
           : _isUserRegistered
-              ? const MainTabs() // Сразу на главный экран
-              : const TestAccountSelectionScreen(), // Экран выбора тестового аккаунта
+              ? const MainTabs()
+              : const RegistrationScreen(),
     );
   }
 }

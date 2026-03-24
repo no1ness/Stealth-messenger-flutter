@@ -1,8 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:stealth/supabase_service.dart';
-import 'package:stealth/test_account_selection_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stealth/registration_screen.dart';
+import 'package:stealth/supabase_service.dart';
+import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
+import 'package:stealth/webrtc_support.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,389 +21,364 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final SupabaseService _supabaseService = SupabaseService();
-  bool _e2eEncryption = true; // Always enabled
+  ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
   bool _contactVerification = true;
   bool _newMessageNotifications = true;
   bool _callNotifications = true;
-  ThemeMode _themeMode = ThemeMode.system;
+  Timer? _previewTimer;
+  int _countdown = 24;
+  int _messageCount = 0;
+  int _callCount = 0;
+  int _chatCount = 0;
+  bool _bucketReady = false;
+  String _webrtcSummary = 'Checking...';
+  String _webrtcPlatformLabel = 'Checking...';
+  int _webrtcAudioInputs = 0;
+  List<double> _diagnosticBars = const [0.12, 0.12, 0.12, 0.12];
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _startPreviewTimer();
   }
 
-  Future<void> _logout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Выйти из аккаунта?'),
-        content: const Text('Вы вернетесь на экран выбора тестового аккаунта.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Выйти', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Выходим
-    await _supabaseService.logout();
-
-    if (!mounted) return;
-
-    // Переходим на экран выбора аккаунта
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (context) => const TestAccountSelectionScreen(),
-      ),
-      (route) => false, // Удаляем все предыдущие маршруты
-    );
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
-    // _autoDeleteMessages = await _supabaseService.getBoolSetting('autoDeleteMessages');
-    // _contactVerification = await _supabaseService.getBoolSetting('contactVerification', defaultValue: true);
-    // _newMessageNotifications = await _supabaseService.getBoolSetting('newMessageNotifications', defaultValue: true);
-    // _callNotifications = await _supabaseService.getBoolSetting('callNotifications', defaultValue: true);
-    
-    // Загружаем сохраненную тему
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? 2; // 2 = ThemeMode.system
-    _themeMode = ThemeMode.values[themeIndex];
-    
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  Future<void> _changeTheme(ThemeMode newTheme) async {
-    _themeMode = newTheme;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', newTheme.index);
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  String _getThemeModeText() {
-    switch (_themeMode) {
-      case ThemeMode.system:
-        return 'System default';
-      case ThemeMode.light:
-        return 'Light';
-      case ThemeMode.dark:
-        return 'Dark';
+    final dashboard = await _supabaseService.getDashboardSummary();
+    final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
+    final webrtcSupport = await getWebRTCSupport();
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
+      _messageCount = dashboard['messageCount'] as int? ?? 0;
+      _callCount = dashboard['callCount'] as int? ?? 0;
+      _chatCount = dashboard['chatCount'] as int? ?? 0;
+      _bucketReady = dashboard['bucketReady'] as bool? ?? false;
+      _webrtcSummary = webrtcSupport.summary;
+      _webrtcPlatformLabel = webrtcSupport.platformLabel;
+      _webrtcAudioInputs = webrtcSupport.audioInputCount;
+      _diagnosticBars = [
+        _chatCount == 0 ? 0.12 : (_chatCount.clamp(1, 10) / 10),
+        _messageCount == 0 ? 0.12 : (_messageCount.clamp(1, 40) / 40),
+        _callCount == 0 ? 0.12 : (_callCount.clamp(1, 10) / 10),
+        weeklyActivity.fold<double>(0.12, (max, value) => value > max ? value : max),
+      ];
+    });
+  }
+
+  Future<void> _changeTheme(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('themeMode', mode.index);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _themeMode = mode;
+    });
+  }
+
+  void _startPreviewTimer() {
+    // This timer is only a UX preview for ephemeral messages.
+    _previewTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _countdown = _countdown == 0 ? 24 : _countdown - 1;
+      });
+    });
+  }
+
+  Future<void> _logout() async {
+    await _supabaseService.logout();
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cards = [
+      _buildSecurityCard(),
+      _buildNotificationCard(),
+      _buildAppearanceCard(),
+      _buildDiagnosticsCard(),
+    ];
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Settings'),
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: GlassAppBar(title: 'Settings'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+      body: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth >= 1100) {
+              return GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.md,
+                mainAxisSpacing: AppSpacing.md,
+                childAspectRatio: 1.4,
+                children: cards,
+              );
+            }
+
+            return ListView.separated(
+              itemCount: cards.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, index) => cards[index],
+            );
+          },
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: FilledButton.icon(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Sign out'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecurityCard() {
+    return GlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Privacy & security', style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          SwitchListTile.adaptive(
+            value: true,
+            onChanged: null,
+            title: const Text('End-to-end encryption'),
+            subtitle: const Text('Always enabled for private chats'),
+          ),
+          SwitchListTile.adaptive(
+            value: _autoDeleteMessages,
+            onChanged: (value) => setState(() => _autoDeleteMessages = value),
+            title: const Text('Auto-delete preview'),
+          ),
+          SwitchListTile.adaptive(
+            value: _contactVerification,
+            onChanged: (value) => setState(() => _contactVerification = value),
+            title: const Text('Contact verification'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          LinearProgressIndicator(
+            value: _countdown / 24,
+            minHeight: 10,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Preview timer: ${_countdown}s',
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard() {
+    return GlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Notifications', style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          SwitchListTile.adaptive(
+            value: _newMessageNotifications,
+            onChanged: (value) =>
+                setState(() => _newMessageNotifications = value),
+            title: const Text('New messages'),
+          ),
+          SwitchListTile.adaptive(
+            value: _callNotifications,
+            onChanged: (value) => setState(() => _callNotifications = value),
+            title: const Text('Calls'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _webrtcSummary,
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _webrtcPlatformLabel,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption1.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(child: _MiniStat(label: 'Messages', value: '$_messageCount')),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(child: _MiniStat(label: 'Calls', value: '$_callCount')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppearanceCard() {
+    return GlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Appearance', style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+              ButtonSegment(value: ThemeMode.system, label: Text('System')),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+            ],
+            selected: {_themeMode},
+            onSelectionChanged: (selection) => _changeTheme(selection.first),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Current mode: ${_themeMode.name}',
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiagnosticsCard() {
+    return GlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Diagnostics', style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: 120,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: _diagnosticBars
+                  .map(
+                    (value) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.systemBlue.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: SizedBox(height: 100 * value),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(child: _MiniStat(label: 'Chats', value: '$_chatCount')),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _MiniStat(
+                  label: 'Media bucket',
+                  value: _bucketReady ? 'Ready' : 'Check',
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _MiniStat(
+                  label: 'Audio inputs',
+                  value: '$_webrtcAudioInputs',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const WebRTCDiagnosticsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.network_check),
+            label: const Text('Open WebRTC diagnostics'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: _loadSettings,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh diagnostics'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.glassLight.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Информация о текущем аккаунте
-            FutureBuilder<String?>(
-              future: _supabaseService.getNickname(),
-              builder: (context, snapshot) {
-                final nickname = snapshot.data ?? 'Unknown';
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        child: Text(
-                          nickname.isNotEmpty ? nickname[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Текущий аккаунт',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              nickname,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Configure your privacy and notification preferences',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-
-            // Privacy & Security Card
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Privacy & Security',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('End-to-End Encryption'),
-                      subtitle: const Text('Always enabled for all messages'),
-                      value: _e2eEncryption,
-                      onChanged: (bool value) {
-                        setState(() {
-                          _e2eEncryption = value;
-                        });
-                      },
-                    ),
-                    SwitchListTile(
-                      title: const Text('Auto-delete messages'),
-                      subtitle: const Text('Automatically delete old messages'),
-                      value: _autoDeleteMessages,
-                      onChanged: (bool value) async {
-                        // await _supabaseService.setBoolSetting('autoDeleteMessages', value);
-                        setState(() {
-                          _autoDeleteMessages = value;
-                        });
-                      },
-                    ),
-                    SwitchListTile(
-                      title: const Text('Contact verification'),
-                      subtitle: const Text('Verify new contacts before chatting'),
-                      value: _contactVerification,
-                      onChanged: (bool value) async {
-                        // await _supabaseService.setBoolSetting('contactVerification', value);
-                        setState(() {
-                          _contactVerification = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Notifications Card
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Notifications',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('New message notifications'),
-                      subtitle: const Text('Get notified of new messages'),
-                      value: _newMessageNotifications,
-                      onChanged: (bool value) async {
-                        // await _supabaseService.setBoolSetting('newMessageNotifications', value);
-                        setState(() {
-                          _newMessageNotifications = value;
-                        });
-                      },
-                    ),
-                    SwitchListTile(
-                      title: const Text('Call notifications'),
-                      subtitle: const Text('Get notified of incoming calls'),
-                      value: _callNotifications,
-                      onChanged: (bool value) async {
-                        // await _supabaseService.setBoolSetting('callNotifications', value);
-                        setState(() {
-                          _callNotifications = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Appearance Card
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Appearance',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      title: const Text('Theme'),
-                      subtitle: Text(_getThemeModeText()),
-                      trailing: PopupMenuButton<ThemeMode>(
-                        onSelected: _changeTheme,
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: ThemeMode.system,
-                            child: Text('System default'),
-                          ),
-                          const PopupMenuItem(
-                            value: ThemeMode.light,
-                            child: Text('Light'),
-                          ),
-                          const PopupMenuItem(
-                            value: ThemeMode.dark,
-                            child: Text('Dark'),
-                          ),
-                        ],
-                        child: const Icon(Icons.arrow_forward_ios, size: 16),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Diagnostics Card
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Diagnostics',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    ListTile(
-                      title: const Text('WebRTC Diagnostics'),
-                      subtitle: const Text('Test voice calling functionality'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        // Navigate to diagnostics screen
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => Scaffold(
-                              appBar: AppBar(title: Text('WebRTC Diagnostics')),
-                              body: Center(child: Text('WebRTC Diagnostics - Coming Soon')),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 24),
-            
-            // Кнопка выхода из аккаунта
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _logout,
-                icon: const Icon(Icons.logout, color: Colors.red),
-                label: const Text(
-                  'Выйти из аккаунта',
-                  style: TextStyle(color: Colors.red, fontSize: 16),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: Colors.red, width: 2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Подсказка
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.orange.withOpacity(0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Используйте выход для переключения между POCO и GEEKOM',
-                      style: TextStyle(
-                        color: Colors.orange[200],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
+            Text(value, style: AppTypography.title2),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption1.copyWith(
+                color: AppColors.textSecondary,
               ),
             ),
           ],

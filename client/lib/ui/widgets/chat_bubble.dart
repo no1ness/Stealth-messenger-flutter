@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'voice_message_player.dart';
-import 'package:stealth/supabase_service.dart';
 
 class ChatBubble extends StatelessWidget {
   final String message;
@@ -186,7 +185,12 @@ class ChatBubble extends StatelessWidget {
                   Icon(
                     isRead ? Icons.done_all : (isDelivered ? Icons.done_all : Icons.done),
                     size: 14,
-                    color: isRead ? Theme.of(context).colorScheme.primary.withOpacity(0.7) : timestampColor,
+                    color: isRead
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.7)
+                        : timestampColor,
                   ),
                 ],
               ],

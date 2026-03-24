@@ -80,7 +80,7 @@ class _CircuitBoardBackgroundState extends State<CircuitBoardBackground>
               radius: 1.0,
               colors: [
                 Colors.transparent,
-                const Color(0xFF0A0E1A).withOpacity(0.5),
+                const Color(0xFF0A0E1A).withValues(alpha: 0.5),
               ],
             ),
           ),
@@ -110,9 +110,9 @@ class CircuitBoardPainter extends CustomPainter {
     final random = math.Random(42); // Фиксированный seed для консистентности
 
     // Цвета для circuit lines
-    final lineColor = const Color(0xFF1E3A8A).withOpacity(0.3); // Темно-синий
-    final accentColor = const Color(0xFF3B82F6).withOpacity(0.15); // Синий
-    final glowColor = const Color(0xFF60A5FA).withOpacity(0.1); // Светло-синий
+    final lineColor = const Color(0xFF1E3A8A).withValues(alpha: 0.3); // Темно-синий
+    final accentColor = const Color(0xFF3B82F6).withValues(alpha: 0.15); // Синий
+    final glowColor = const Color(0xFF60A5FA).withValues(alpha: 0.1); // Светло-синий
 
     // Рисуем горизонтальные линии
     for (int i = 0; i < 20; i++) {
@@ -130,7 +130,7 @@ class CircuitBoardPainter extends CustomPainter {
 
       // Параллельная thin линия для эффекта PCB
       paint.strokeWidth = 0.5;
-      paint.color = lineColor.withOpacity(0.5);
+      paint.color = lineColor.withValues(alpha: 0.5);
       canvas.drawLine(
         Offset(0, y + offset + 2),
         Offset(size.width, y + offset + 2),
@@ -163,7 +163,7 @@ class CircuitBoardPainter extends CustomPainter {
       final chipRect = Rect.fromLTWH(x, y, width, height);
       
       // Корпус чипа
-      paint.color = const Color(0xFF1E3A8A).withOpacity(0.2);
+      paint.color = const Color(0xFF1E3A8A).withValues(alpha: 0.2);
       paint.style = PaintingStyle.fill;
       canvas.drawRRect(
         RRect.fromRectAndRadius(chipRect, const Radius.circular(3)),
@@ -173,7 +173,7 @@ class CircuitBoardPainter extends CustomPainter {
       // Обводка чипа
       paint.style = PaintingStyle.stroke;
       paint.strokeWidth = 1.5;
-      paint.color = const Color(0xFF3B82F6).withOpacity(0.4);
+      paint.color = const Color(0xFF3B82F6).withValues(alpha: 0.4);
       canvas.drawRRect(
         RRect.fromRectAndRadius(chipRect, const Radius.circular(3)),
         paint,
@@ -208,15 +208,15 @@ class CircuitBoardPainter extends CustomPainter {
       final pulseOpacity = 0.2 + (math.sin(pulsePhase * math.pi * 2) * 0.1);
 
       // Внешний glow
-      dotPaint.color = glowColor.withOpacity(pulseOpacity * 0.5);
+      dotPaint.color = glowColor.withValues(alpha: pulseOpacity * 0.5);
       canvas.drawCircle(Offset(x, y), 4, dotPaint);
 
       // Средний круг
-      dotPaint.color = accentColor.withOpacity(pulseOpacity);
+      dotPaint.color = accentColor.withValues(alpha: pulseOpacity);
       canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
 
       // Внутренний яркий центр
-      dotPaint.color = const Color(0xFF60A5FA).withOpacity(pulseOpacity * 1.5);
+      dotPaint.color = const Color(0xFF60A5FA).withValues(alpha: pulseOpacity * 1.5);
       canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
     }
 

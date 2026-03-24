@@ -203,14 +203,14 @@ class _GlassButtonState extends State<GlassButton>
                       ),
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       border: Border.all(
-                        color: AppColors.glassLight.withOpacity(0.3),
+                        color: AppColors.glassLight.withValues(alpha: 0.3),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: (widget.gradient ?? AppColors.liquidGradient1)
                               .first
-                              .withOpacity(0.4),
+                               .withValues(alpha: 0.4),
                           blurRadius: 20,
                           spreadRadius: 0,
                           offset: const Offset(0, 8),

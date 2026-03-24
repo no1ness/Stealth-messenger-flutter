@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
-import '../constants/glass_styles.dart';
 
 class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
@@ -11,7 +10,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final Widget? leading;
   final bool showBackButton;
-  final VoidCallback? onBackPressed;
+  final VoidCallback? onBack;
   final bool isLargeTitle;
   final double? elevation;
 
@@ -22,14 +21,14 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.leading,
     this.showBackButton = false,
-    this.onBackPressed,
+    this.onBack,
     this.isLargeTitle = false,
     this.elevation,
   });
 
   @override
   Size get preferredSize => Size.fromHeight(
-        isLargeTitle ? AppSpacing.navBarLargeHeight : AppSpacing.navBarHeight,
+        isLargeTitle ? 56 : 56, // Fixed height for now
       );
 
   @override
@@ -39,87 +38,46 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.darkGray2.withOpacity(0.8),
-            border: const Border(
+            color: AppColors.glassUltraDark,
+            border: Border(
               bottom: BorderSide(
-                color: AppColors.separator,
+                color: AppColors.glassLight.withValues(alpha: 0.1),
                 width: 0.5,
               ),
             ),
           ),
           child: SafeArea(
             bottom: false,
-            child: Container(
-              height: isLargeTitle
-                  ? AppSpacing.navBarLargeHeight
-                  : AppSpacing.navBarHeight,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
+            child: SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  if (showBackButton)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                      color: AppColors.systemBlue,
+                      onPressed: onBack ?? () => Navigator.of(context).pop(),
+                    ),
+                  if (leading != null && !showBackButton) leading!,
+                  Expanded(
+                    child: titleWidget ?? 
+                      Text(
+                        title ?? '',
+                        style: AppTypography.headline.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                  ),
+                  if (actions != null) ...actions!,
+                  if (actions == null && showBackButton) const SizedBox(width: 48), // Balance for back button
+                ],
               ),
-              child: isLargeTitle ? _buildLargeTitleBar() : _buildStandardBar(),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStandardBar() {
-    return Row(
-      children: [
-        if (showBackButton || leading != null)
-          leading ??
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: AppColors.systemBlue,
-                  size: AppSpacing.iconMd,
-                ),
-                onPressed: onBackPressed,
-              ),
-        Expanded(
-          child: Center(
-            child: titleWidget ??
-                Text(
-                  title ?? '',
-                  style: AppTypography.headline.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-          ),
-        ),
-        if (actions != null) ...actions!,
-        if (actions == null) const SizedBox(width: AppSpacing.huge),
-      ],
-    );
-  }
-
-  Widget _buildLargeTitleBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (actions != null)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: actions!,
-          ),
-        const SizedBox(height: AppSpacing.xs),
-        Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.xs,
-            bottom: AppSpacing.xs,
-          ),
-          child: titleWidget ??
-              Text(
-                title ?? '',
-                style: AppTypography.largeTitle.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-        ),
-      ],
     );
   }
 }
@@ -174,7 +132,7 @@ class GlassSliverAppBar extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.darkGray2.withOpacity(0.8),
+               color: AppColors.darkGray2.withValues(alpha: 0.8),
               border: const Border(
                 bottom: BorderSide(
                   color: AppColors.separator,

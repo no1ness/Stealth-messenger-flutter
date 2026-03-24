@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/supabase_service.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
+import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
+import 'package:stealth/webrtc_support.dart';
 
-/// Глобальный менеджер для обработки входящих звонков
+/// Глобальный слушатель, направляющий входящие звонки в UI.
 class CallManager extends StatefulWidget {
   final Widget child;
-  
+
   const CallManager({super.key, required this.child});
 
   @override
@@ -16,7 +18,10 @@ class _CallManagerState extends State<CallManager> {
   final SupabaseService _supabaseService = SupabaseService();
   String? _currentUserId;
   bool _isInCall = false;
-  
+  bool _answeringCall = false;
+  String _incomingCallSupportSummary = 'Checking call support...';
+  List<String> _incomingCallBlockingIssues = const <String>[];
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +30,9 @@ class _CallManagerState extends State<CallManager> {
 
   Future<void> _initGlobalCallListener() async {
     _currentUserId = await _supabaseService.getUserId();
-    if (_currentUserId == null || !mounted) return;
+    if (_currentUserId == null || !mounted) {
+      return;
+    }
 
     _supabaseService.subscribeToUserCalls(
       userId: _currentUserId!,
@@ -35,52 +42,88 @@ class _CallManagerState extends State<CallManager> {
     );
   }
 
-  void _handleCallInitiation(Map<String, dynamic> payload) {
-    if (_isInCall || !mounted) return;
-    final String? chatId = payload['chat_id'] as String?;
-    final String? fromUserId = payload['from_user_id'] as String?;
-    final String? fromNickname = payload['from_nickname'] as String?;
-
-    if (chatId != null && fromUserId != null && fromNickname != null && fromUserId != _currentUserId) {
-      _showIncomingCallDialog(
-        chatId: chatId,
-        fromUserId: fromUserId,
-        fromNickname: fromNickname,
-      );
+  void _handleCallInitiation(Map<String, dynamic> payload) async {
+    if (_isInCall || !mounted) {
+      return;
     }
+
+    final chatId = payload['chat_id'] as String?;
+    final fromUserId = payload['from_user_id'] as String?;
+    final fromNickname = payload['from_nickname'] as String?;
+    if (chatId == null ||
+        fromUserId == null ||
+        fromNickname == null ||
+        fromUserId == _currentUserId) {
+      return;
+    }
+
+    await _supabaseService.recordIncomingCall(
+      chatId: chatId,
+      fromUserId: fromUserId,
+      fromNickname: fromNickname,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    _showIncomingCallDialog(
+      chatId: chatId,
+      fromUserId: fromUserId,
+      fromNickname: fromNickname,
+    );
   }
 
   void _handleCallAccepted(Map<String, dynamic> payload) async {
-    if (!mounted) return;
-    final String chatId = payload['chat_id'];
-    final String peerName = await _supabaseService.getNicknameForUser(
-          (await _supabaseService.getChats())
-              .firstWhere((c) => c['id'] == chatId)['members']
-              .firstWhere((m) => m != _currentUserId),
-        ) ?? 'Собеседник';
-
-    // Close any open dialogs (like "calling...")
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+    if (!mounted) {
+      return;
     }
 
-    // Navigate to the call screen for the caller
-    Navigator.of(context, rootNavigator: true).push(
+    final chatId = payload['chat_id'] as String;
+    final chats = await _supabaseService.getChats();
+    final chat = chats.firstWhere((item) => item['id'] == chatId);
+    final peerId = (chat['members'] as List<dynamic>)
+        .cast<String>()
+        .firstWhere((member) => member != _currentUserId);
+    final peerName =
+        await _supabaseService.getNicknameForUser(peerId) ?? 'Peer';
+
+    if (!mounted) {
+      return;
+    }
+
+    final navigator = Navigator.of(context);
+    final navigatorRoot = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+
+    navigatorRoot.push(
       MaterialPageRoute(
         builder: (_) => WebRTCCallScreen(
           peerName: peerName,
           chatId: chatId,
-          isCaller: true, // This is the caller
+          isCaller: true,
         ),
       ),
     );
   }
 
-  void _handleCallEnded(Map<String, dynamic> payload) {
-    if (!mounted) return;
-    // If there is a dialog or call screen, pop it.
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+  void _handleCallEnded(Map<String, dynamic> payload) async {
+    if (!mounted) {
+      return;
+    }
+
+    final chatId = payload['chat_id'] as String?;
+    if (chatId != null) {
+      await _supabaseService.markCurrentUserCallEnded(chatId: chatId);
+      if (!mounted) {
+        return;
+      }
+    }
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
     }
     setState(() => _isInCall = false);
   }
@@ -90,95 +133,176 @@ class _CallManagerState extends State<CallManager> {
     required String fromUserId,
     required String fromNickname,
   }) {
-    if (!mounted) return;
-    
-    showDialog(
+    if (!mounted) {
+      return;
+    }
+
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.phone_in_talk, color: Colors.green, size: 32),
-            const SizedBox(width: 12),
-            const Text('Входящий звонок'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 40,
-              child: Text(
-                fromNickname.isNotEmpty ? fromNickname[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 32),
-              ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> refreshSupport() async {
+            final support = await getWebRTCSupport();
+            if (!dialogContext.mounted) {
+              return;
+            }
+            setDialogState(() {
+              _incomingCallSupportSummary = support.summary;
+              _incomingCallBlockingIssues = support.blockingIssues;
+            });
+          }
+
+          if (_incomingCallSupportSummary == 'Checking call support...') {
+            refreshSupport();
+          }
+
+          final canAnswer = _incomingCallBlockingIssues.isEmpty && !_answeringCall;
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.phone_in_talk, color: Colors.green, size: 32),
+                SizedBox(width: 12),
+                Text('Incoming call'),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              fromNickname,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Хочет начать звонок',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        actions: [
-          // Кнопка отклонить
-          TextButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Отправляем сигнал об отклонении
-              _supabaseService.sendCallEnd(chatId: chatId);
-            },
-            icon: const Icon(Icons.call_end, color: Colors.red),
-            label: const Text('Отклонить', style: TextStyle(color: Colors.red)),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-          ),
-          
-          // Кнопка ответить
-          ElevatedButton.icon(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final navigatorRoot = Navigator.of(context, rootNavigator: true);
-              
-              navigator.pop();
-              setState(() => _isInCall = true);
-              
-              // Отправляем accept
-              await _supabaseService.sendCallAccept(chatId: chatId);
-              
-              if (!mounted) return;
-              
-              // Открываем экран звонка
-              await navigatorRoot.push(
-                MaterialPageRoute(
-                  builder: (_) => WebRTCCallScreen(
-                    peerName: fromNickname,
-                    chatId: chatId,
-                    isCaller: false, // Мы принимаем звонок
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  child: Text(
+                    fromNickname.isNotEmpty ? fromNickname[0].toUpperCase() : '?',
+                    style: const TextStyle(fontSize: 32),
                   ),
                 ),
-              );
-              
-              if (mounted) {
-                setState(() => _isInCall = false);
-              }
-            },
-            icon: const Icon(Icons.phone),
-            label: const Text('Ответить'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                const SizedBox(height: 16),
+                Text(
+                  fromNickname,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Wants to start a secure audio call',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _incomingCallSupportSummary,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                if (_incomingCallBlockingIssues.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _incomingCallBlockingIssues.join('\n'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
             ),
-          ),
-        ],
-        actionsAlignment: MainAxisAlignment.spaceBetween,
+            actionsAlignment: MainAxisAlignment.spaceBetween,
+            actions: [
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WebRTCDiagnosticsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.network_check),
+                label: const Text('Diagnostics'),
+              ),
+              TextButton.icon(
+                onPressed: () async {
+                  Navigator.of(dialogContext).pop();
+                  await _supabaseService.markIncomingCallDeclined(
+                    chatId: chatId,
+                    fromUserId: fromUserId,
+                  );
+                  await _supabaseService.sendCallEnd(chatId: chatId);
+                },
+                icon: const Icon(Icons.call_end, color: Colors.red),
+                label: const Text(
+                  'Decline',
+                  style: TextStyle(color: Colors.red),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: !canAnswer
+                    ? null
+                    : () async {
+                        final navigatorRoot = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        );
+                        final dialogNavigator = Navigator.of(dialogContext);
+                        final messenger = ScaffoldMessenger.of(dialogContext);
+
+                        setDialogState(() => _answeringCall = true);
+                        final preflightError = await requestWebRTCAudioPreflight();
+                        if (preflightError != null) {
+                          if (dialogContext.mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(preflightError)),
+                            );
+                            setDialogState(() => _answeringCall = false);
+                          }
+                          return;
+                        }
+
+                        dialogNavigator.pop();
+                        setState(() => _isInCall = true);
+                        await _supabaseService.sendCallAccept(chatId: chatId);
+
+                        if (!mounted) {
+                          return;
+                        }
+
+                        await navigatorRoot.push(
+                          MaterialPageRoute(
+                            builder: (_) => WebRTCCallScreen(
+                              peerName: fromNickname,
+                              chatId: chatId,
+                              isCaller: false,
+                            ),
+                          ),
+                        );
+
+                        if (mounted) {
+                          setState(() => _isInCall = false);
+                          _answeringCall = false;
+                        }
+                      },
+                icon: _answeringCall
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.phone),
+                label: Text(canAnswer ? 'Answer' : 'Unavailable'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

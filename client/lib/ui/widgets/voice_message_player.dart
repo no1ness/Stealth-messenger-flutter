@@ -121,7 +121,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
-    return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -145,7 +145,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isSent
-            ? theme.colorScheme.primary.withOpacity(0.1)
+            ? theme.colorScheme.primary.withValues(alpha: 0.1)
             : theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
@@ -227,7 +227,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: theme.dividerColor.withOpacity(0.3),
+                color: theme.dividerColor.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

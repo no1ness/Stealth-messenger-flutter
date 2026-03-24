@@ -110,7 +110,7 @@ class StealthBlurPainter extends CustomPainter {
       size.width * 0.2 + (size.width * 0.3 * animation),
       size.height * 0.3,
     );
-    paint.color = AppColors.systemBlue.withOpacity(0.1);
+    paint.color = AppColors.systemBlue.withValues(alpha: 0.1);
     canvas.drawCircle(offset1, 150, paint);
 
     // Второе пятно (фиолетовое)
@@ -118,7 +118,7 @@ class StealthBlurPainter extends CustomPainter {
       size.width * 0.7 - (size.width * 0.2 * animation),
       size.height * 0.6,
     );
-    paint.color = AppColors.systemPurple.withOpacity(0.08);
+    paint.color = AppColors.systemPurple.withValues(alpha: 0.08);
     canvas.drawCircle(offset2, 200, paint);
 
     // Третье пятно (синее темное)
@@ -126,7 +126,7 @@ class StealthBlurPainter extends CustomPainter {
       size.width * 0.5,
       size.height * 0.8 - (size.height * 0.3 * animation),
     );
-    paint.color = const Color(0xFF1E3A8A).withOpacity(0.12);
+    paint.color = const Color(0xFF1E3A8A).withValues(alpha: 0.12);
     canvas.drawCircle(offset3, 180, paint);
   }
 

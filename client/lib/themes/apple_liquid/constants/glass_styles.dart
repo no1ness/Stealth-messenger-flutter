@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_spacing.dart';
@@ -13,7 +12,7 @@ class GlassStyles {
     color: AppColors.glassLight,
     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
     border: Border.all(
-      color: AppColors.glassLight.withOpacity(0.5),
+      color: AppColors.glassLight.withValues(alpha: 0.5),
       width: 1.5,
     ),
     boxShadow: [
@@ -24,7 +23,7 @@ class GlassStyles {
         offset: const Offset(0, 8),
       ),
       BoxShadow(
-        color: AppColors.systemBlue.withOpacity(0.15),
+        color: AppColors.systemBlue.withValues(alpha: 0.15),
         blurRadius: 30,
         spreadRadius: 0,
         offset: const Offset(0, 0),
@@ -37,7 +36,7 @@ class GlassStyles {
     color: AppColors.glassMedium,
     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
     border: Border.all(
-      color: AppColors.glassMedium.withOpacity(0.5),
+      color: AppColors.glassMedium.withValues(alpha: 0.5),
       width: 1,
     ),
     boxShadow: [
@@ -61,7 +60,7 @@ class GlassStyles {
     color: AppColors.glassDark,
     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
     border: Border.all(
-      color: AppColors.glassMedium.withOpacity(0.3),
+      color: AppColors.glassMedium.withValues(alpha: 0.3),
       width: 0.5,
     ),
     boxShadow: [
@@ -109,7 +108,7 @@ class GlassStyles {
     color: AppColors.glassMedium,
     borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
     border: Border.all(
-      color: AppColors.glassLight.withOpacity(0.2),
+      color: AppColors.glassLight.withValues(alpha: 0.2),
       width: 1,
     ),
     boxShadow: [
@@ -134,16 +133,16 @@ class GlassStyles {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: gradientColors.map((c) => c.withOpacity(0.3)).toList(),
+        colors: gradientColors.map((c) => c.withValues(alpha: 0.3)).toList(),
       ),
       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       border: Border.all(
-        color: AppColors.glassLight.withOpacity(0.3),
+        color: AppColors.glassLight.withValues(alpha: 0.3),
         width: 1,
       ),
       boxShadow: [
         BoxShadow(
-          color: gradientColors.first.withOpacity(0.3),
+          color: gradientColors.first.withValues(alpha: 0.3),
           blurRadius: 20,
           spreadRadius: 0,
           offset: const Offset(0, 8),
@@ -157,7 +156,7 @@ class GlassStyles {
     color: AppColors.glassMedium,
     borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
     border: Border.all(
-      color: AppColors.glassLight.withOpacity(0.3),
+      color: AppColors.glassLight.withValues(alpha: 0.3),
       width: 1.5,
     ),
     boxShadow: [
@@ -175,7 +174,7 @@ class GlassStyles {
     color: AppColors.glassLight,
     borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
     border: Border.all(
-      color: AppColors.glassLight.withOpacity(0.6),
+      color: AppColors.glassLight.withValues(alpha: 0.6),
       width: 1.5,
     ),
     boxShadow: [
@@ -199,7 +198,7 @@ class GlassStyles {
     color: AppColors.glassMedium,
     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
     border: Border.all(
-      color: AppColors.glassLight.withOpacity(0.4),
+      color: AppColors.glassLight.withValues(alpha: 0.4),
       width: 1,
     ),
     boxShadow: [
@@ -214,7 +213,7 @@ class GlassStyles {
   
   // Tab bar glass
   static BoxDecoration get tabBarGlass => BoxDecoration(
-    color: AppColors.darkGray2.withOpacity(0.8),
+    color: AppColors.darkGray2.withValues(alpha: 0.8),
     border: const Border(
       top: BorderSide(
         color: AppColors.separator,
@@ -244,12 +243,12 @@ class GlassStyles {
       color: color ?? AppColors.glassMedium,
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: borderColor ?? AppColors.glassLight.withOpacity(0.3),
+        color: borderColor ?? AppColors.glassLight.withValues(alpha: 0.3),
         width: borderWidth,
       ),
       boxShadow: [
         BoxShadow(
-          color: AppColors.shadow.withOpacity(shadowOpacity),
+          color: AppColors.shadow.withValues(alpha: shadowOpacity),
           blurRadius: blurRadius,
           spreadRadius: 0,
           offset: Offset(0, blurRadius / 4),

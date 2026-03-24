@@ -92,7 +92,7 @@ class _GlassTextFieldState extends State<GlassTextField> {
                 border: Border.all(
                   color: _isFocused
                       ? AppColors.systemBlue
-                      : AppColors.glassMedium.withOpacity(0.3),
+                      : AppColors.glassMedium.withValues(alpha: 0.3),
                   width: _isFocused ? 2 : 1,
                 ),
               ),
@@ -155,7 +155,7 @@ class GlassSearchField extends StatelessWidget {
             color: AppColors.glassMedium,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
-              color: AppColors.glassMedium.withOpacity(0.3),
+              color: AppColors.glassMedium.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

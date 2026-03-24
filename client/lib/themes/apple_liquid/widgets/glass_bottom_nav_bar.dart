@@ -23,7 +23,7 @@ class GlassBottomNavBar extends StatelessWidget {
         child: Container(
           height: AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
           decoration: BoxDecoration(
-            color: AppColors.darkGray2.withOpacity(0.8),
+            color: AppColors.darkGray2.withValues(alpha: 0.8),
             border: const Border(
               top: BorderSide(
                 color: AppColors.separator,

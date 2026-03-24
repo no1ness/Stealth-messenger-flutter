@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:stealth/supabase_service.dart';
+import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
+import 'package:stealth/webrtc_support.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -11,10 +17,13 @@ class ContactsScreen extends StatefulWidget {
   State<ContactsScreen> createState() => _ContactsScreenState();
 }
 
-class _ContactsScreenState extends State<ContactsScreen> with AutomaticKeepAliveClientMixin {
+class _ContactsScreenState extends State<ContactsScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _addContactController = TextEditingController();
   final SupabaseService _supabaseService = SupabaseService();
   bool _loading = true;
+  bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];
 
   @override
@@ -23,205 +32,98 @@ class _ContactsScreenState extends State<ContactsScreen> with AutomaticKeepAlive
   @override
   void initState() {
     super.initState();
-    setState(() => _loading = false); // Don't show loading
-    _loadContacts(); // Load in background
+    _loadContacts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _addContactController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadContacts() async {
-    debugPrint('DEBUG: _loadContacts() called');
-    // Don't show loading spinner for cached data
+    if (mounted) {
+      setState(() {
+        _loading = true;
+      });
+    }
     final rows = await _supabaseService.getContacts();
-    debugPrint('DEBUG: getContacts() returned ${rows.length} contacts');
-    if (!mounted) return;
-
-    // Show data immediately when available
-    if (rows.isNotEmpty) {
-      setState(() => _loading = false);
+    if (!mounted) {
+      return;
     }
 
     setState(() {
       _contacts = rows.cast<Map<String, dynamic>>();
       _loading = false;
     });
-    debugPrint('DEBUG: _contacts updated to ${_contacts.length} contacts');
   }
 
-  Future<void> _addDefaultContacts() async {
-    try {
-      // These methods are removed as they are not part of the core functionality
-      // and were causing issues with the original schema.
-      await _loadContacts();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Контакты по умолчанию добавлены'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка добавления контактов: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _startCallWithContact(Map<String, dynamic> contact) async {
-    // WebRTC calls are now supported on web platform
-    
-    final otherUserId = (contact['user_id'] as String?) ?? '';
-    if (otherUserId.isEmpty) return;
-    
-    // Check if trying to call yourself
-    final currentUserId = await _supabaseService.getUserId();
-    if (currentUserId != null && otherUserId == currentUserId) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Нельзя звонить самому себе'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+  Future<void> _deleteContact(Map<String, dynamic> contact) async {
+    final userId = contact['user_id'] as String?;
+    final name = contact['name'] as String? ?? 'Contact';
+    if (userId == null || userId.isEmpty) {
       return;
     }
-    
-    final chatId = await _supabaseService.findOrCreatePrivateChatWith(otherUserId);
-    if (!mounted || chatId == null) return;
-    // Calling feature is temporarily disabled.
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WebRTCCallScreen(
-          peerName: (contact['name'] as String?) ?? 'Звонок',
-          chatId: chatId,
-          isCaller: true,
-        ),
-      ),
+
+    await _supabaseService.deleteContact(userId);
+    await _loadContacts();
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$name removed')),
     );
   }
 
-  void _showDeleteContactDialog(String userId, String name) {
-    showDialog(
+  Future<void> _showContactActions(Map<String, dynamic> contact) async {
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить контакт?'),
-        content: Text('Удалить контакт "$name"?\n\nВсе чаты и сообщения с этим контактом будут удалены.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              
-              // Сохраняем ScaffoldMessenger ДО async операций
-              final messenger = ScaffoldMessenger.of(context);
-              
-              // Показываем индикатор загрузки
-              if (mounted) {
-                setState(() => _loading = true);
-              }
-              
-              try {
-                debugPrint('DEBUG: Starting contact deletion for userId: $userId, name: $name');
-                debugPrint('DEBUG: Contacts before deletion: ${_contacts.length}');
-
-                // Delete from database
-                await _supabaseService.deleteContact(userId);
-
-                // Remove from local list
-                setState(() {
-                  _contacts.removeWhere((c) => c['user_id'] == userId);
-                  _loading = false; // Make sure loading is false
-                });
-
-                debugPrint('DEBUG: Contacts after deletion: ${_contacts.length}');
-
-                if (!mounted) return;
-
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Контакт "$name" удален'),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                debugPrint('DEBUG: Error during contact deletion: $e');
-                if (!mounted) return;
-
-                setState(() => _loading = false);
-
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Ошибка удаления: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showContactCard(Map<String, dynamic> contact) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
+      builder: (context) {
+        final name = contact['name'] as String? ?? 'Unknown';
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(child: Text(_initials(contact['name'] as String?))),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text((contact['name'] as String?) ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                          Text('ID: ${(contact['user_id'] as String?) ?? ''}', style: TextStyle(color: Theme.of(context).hintColor)),
-                        ],
-                      ),
-                    ),
-                  ],
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline),
+                  title: const Text('Open chat'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _openChat(contact);
+                  },
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final chatId = await _supabaseService.findOrCreatePrivateChatWith((contact['user_id'] as String?) ?? '');
-                        if (!mounted || chatId == null) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ChatsScreen(initialChatId: chatId),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.chat),
-                      label: const Text('Написать'),
-                    ),
-                  ],
+                ListTile(
+                  leading: const Icon(Icons.security_rounded),
+                  title: const Text('Verify Safety Number'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _verifySafetyNumber(contact);
+                  },
                 ),
-                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.call),
+                  title: const Text('Start call'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _startCall(contact);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text('Remove $name'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _deleteContact(contact);
+                  },
+                ),
               ],
             ),
           ),
@@ -230,261 +132,436 @@ class _ContactsScreenState extends State<ContactsScreen> with AutomaticKeepAlive
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-    
-    final query = _searchController.text.trim().toLowerCase();
-    final filtered = query.isEmpty
-        ? _contacts
-        : _contacts.where((c) => (c['name'] as String? ?? '').toLowerCase().contains(query)).toList();
+  Future<void> _verifySafetyNumber(Map<String, dynamic> contact) async {
+    final userId = contact['user_id'] as String?;
+    final name = contact['name'] as String? ?? 'Contact';
+    if (userId == null) return;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Contacts'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _addDefaultContacts,
-            tooltip: 'Добавить контакты по умолчанию',
+    if (mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Generating fingerprint...'),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () async {
-              final controller = TextEditingController();
-              final userId = await showDialog<String>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Добавить контакт'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: controller,
-                        decoration: const InputDecoration(hintText: 'Вставьте User ID'),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text('Или выберите контакт по умолчанию:'),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              controller.text = '11111111-1111-1111-1111-111111111111';
-                            },
-                            child: const Text('POCO'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              controller.text = '22222222-2222-2222-2222-222222222222';
-                            },
-                            child: const Text('GEEKOM'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Отмена')),
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Добавить')),
-                  ],
-                ),
-              );
-              if (userId == null || userId.isEmpty) return;
-              
-              try {
-                // First, try to get the user's nickname
-                final nickname = await _supabaseService.getNicknameForUser(userId);
-                if (nickname == null) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Пользователь с таким ID не найден'),
-                        backgroundColor: Colors.red,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                  return;
-                }
-                
-                // Add contact
-                // Adding contacts is not supported in the simplified schema.
-                
-                // Create chat
-                final chatId = await _supabaseService.findOrCreatePrivateChatWith(userId);
-                if (!mounted || chatId == null) return;
-                
-                // Refresh contacts list
-                await _loadContacts();
-                
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Контакт $nickname добавлен'),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                  
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatsScreen(initialChatId: chatId),
-                      settings: const RouteSettings(name: '/chats'),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Ошибка добавления контакта: $e'),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search contacts...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+      );
+    }
+
+    final safetyNumber = await _supabaseService.getSafetyNumber(userId);
+    
+    if (mounted) {
+      Navigator.of(context).pop(); // Закрываем диалог загрузки
+      
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Safety Number - $name'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
+                style: AppTypography.caption1.copyWith(color: AppColors.textSecondary),
               ),
-              onChanged: (_) => _loadContacts(),
-            ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                safetyNumber ?? 'Error generating number',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                  fontFamily: 'Courier',
+                  color: AppColors.systemBlue,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(
-              child: filtered.isEmpty
-                  ? const Center(child: Text('No contacts yet.'))
-                  : ListView.separated(
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final contact = filtered[index];
-                      final bool isVerified = (contact['is_verified'] as bool?) ?? false;
-                      final contactId = (contact['user_id'] as String?) ?? '';
-                      final contactName = (contact['name'] as String?) ?? '';
-                      
-                      return Dismissible(
-                        key: Key(contactId),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (direction) async {
-                          _showDeleteContactDialog(contactId, contactName);
-                          return false; // Не удаляем сразу, ждём подтверждения
-                        },
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 16),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          leading: CircleAvatar(
-                            child: Text(_initials(contact['name'] as String?)),
-                          ),
-                          title: Text(
-                            (contact['name'] as String?) ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ID: ${(contact['user_id'] as String?) ?? ''}',
-                              style: TextStyle(color: Theme.of(context).hintColor),
-                            ),
-                            if (isVerified)
-                              Text(
-                                'Verified',
-                                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
-                              ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.chat_bubble_outline),
-                              onPressed: () async {
-                                final chatId = await _supabaseService
-                                    .findOrCreatePrivateChatWith((contact['user_id'] as String?) ?? '');
-                                if (!mounted || chatId == null) return;
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => ChatsScreen(initialChatId: chatId),
-                                    settings: const RouteSettings(name: '/chats'),
-                                  ),
-                                );
-                              },
-                            ),
-                            // В веб версии показываем кнопку удаления вместо звонка
-                            if (kIsWeb)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _showDeleteContactDialog(contactId, contactName),
-                                tooltip: 'Удалить контакт',
-                              ),
-                          ],
-                        ),
-                        onTap: () async {
-                          final chatId = await _supabaseService
-                              .findOrCreatePrivateChatWith((contact['user_id'] as String?) ?? '');
-                          if (!mounted || chatId == null) return;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ChatsScreen(initialChatId: chatId),
-                              settings: const RouteSettings(name: '/chats'),
-                            ),
-                          );
-                        },
-                        onLongPress: () => _showDeleteContactDialog(contactId, contactName),
-                        ),
-                      );
-                    },
-                  ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
             ),
-        ],
-      ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _showAddContactSheet() async {
+    final results = <Map<String, dynamic>>[];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> search() async {
+              final rows = await _supabaseService.searchUsers(
+                _addContactController.text,
+              );
+              setModalState(() {
+                results
+                  ..clear()
+                  ..addAll(rows.cast<Map<String, dynamic>>());
+              });
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: AppSpacing.md,
+                right: AppSpacing.md,
+                top: AppSpacing.md,
+                bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _addContactController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search users by nickname',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (_) => search(),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: 280,
+                    child: results.isEmpty
+                        ? const Center(child: Text('No users found'))
+                        : ListView.builder(
+                            itemCount: results.length,
+                            itemBuilder: (context, index) {
+                              final result = results[index];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  child: Text(
+                                    _initials(result['name'] as String?),
+                                  ),
+                                ),
+                                title: Text(result['name'] as String? ?? 'Unknown'),
+                                subtitle: Text(
+                                  result['user_id'] as String? ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: FilledButton(
+                                  onPressed: () async {
+                                    await _supabaseService.addContact(
+                                      result['user_id'] as String,
+                                    );
+                                    if (!context.mounted) {
+                                      return;
+                                    }
+                                    Navigator.of(context).pop();
+                                    await _loadContacts();
+                                  },
+                                  child: const Text('Add'),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  String _initials(String? name) {
-    if (name == null || name.trim().isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r"\s+"));
-    final a = parts.first.isNotEmpty ? parts.first[0] : '';
-    final b = parts.length > 1 && parts[1].isNotEmpty ? parts[1][0] : '';
-    return (a + b).toUpperCase();
+  Future<void> _openChat(Map<String, dynamic> contact) async {
+    final userId = contact['user_id'] as String?;
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    final chatId = await _supabaseService.findOrCreatePrivateChatWith(userId);
+    if (!mounted || chatId == null) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ChatsScreen(initialChatId: chatId)),
+    );
+  }
+
+  Future<void> _startCall(Map<String, dynamic> contact) async {
+    if (_startingCall) {
+      return;
+    }
+
+    setState(() => _startingCall = true);
+    final support = await getWebRTCSupport();
+    if (!support.isSupported) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(support.blockingIssues.join(' '))),
+        );
+      }
+      if (mounted) {
+        setState(() => _startingCall = false);
+      }
+      return;
+    }
+
+    final preflightError = await requestWebRTCAudioPreflight();
+    if (preflightError != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(preflightError)),
+        );
+        setState(() => _startingCall = false);
+      }
+      return;
+    }
+
+    final userId = contact['user_id'] as String?;
+    if (userId == null || userId.isEmpty) {
+      if (mounted) {
+        setState(() => _startingCall = false);
+      }
+      return;
+    }
+
+    final chatId = await _supabaseService.findOrCreatePrivateChatWith(userId);
+    if (!mounted || chatId == null) {
+      if (mounted) {
+        setState(() => _startingCall = false);
+      }
+      return;
+    }
+
+    await _supabaseService.sendCallInitiation(chatId: chatId);
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WebRTCCallScreen(
+          peerName: (contact['name'] as String?) ?? 'Contact',
+          chatId: chatId,
+          isCaller: true,
+        ),
+      ),
+    );
+    if (mounted) {
+      setState(() => _startingCall = false);
+    }
+  }
+
+  String _initials(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return '?';
+    }
+
+    final parts = value.trim().split(RegExp(r'\s+'));
+    final first = parts.first.isNotEmpty ? parts.first[0] : '';
+    final second = parts.length > 1 && parts[1].isNotEmpty ? parts[1][0] : '';
+    return (first + second).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? _contacts
+        : _contacts
+            .where(
+              (contact) => (contact['name'] as String? ?? '')
+                  .toLowerCase()
+                  .contains(query),
+            )
+            .toList();
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: GlassAppBar(title: 'Contacts'),
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Padding(
+            padding: EdgeInsets.all(
+              constraints.maxWidth >= 900 ? AppSpacing.xl : AppSpacing.md,
+            ),
+            child: Column(
+              children: [
+                GlassTextField(
+                  controller: _searchController,
+                  hintText: 'Search contacts',
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textSecondary,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _showAddContactSheet,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Add contact'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadContacts,
+                    child: _loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : filtered.isEmpty
+                            ? ListView(
+                                children: [
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height * 0.4,
+                                  ),
+                                  Center(
+                                    child: Text(
+                                      'No contacts found',
+                                      style: AppTypography.body.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : GridView.builder(
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: constraints.maxWidth >= 1200
+                                      ? 3
+                                      : (constraints.maxWidth >= 700 ? 2 : 1),
+                                  crossAxisSpacing: AppSpacing.md,
+                                  mainAxisSpacing: AppSpacing.md,
+                                  childAspectRatio: constraints.maxWidth >= 700
+                                      ? 2.3
+                                      : 2.8,
+                                ),
+                                itemCount: filtered.length,
+                                itemBuilder: (context, index) {
+                                  final contact = filtered[index];
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(18),
+                                    onLongPress: () => _showContactActions(contact),
+                                    child: GlassContainer(
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 24,
+                                            backgroundColor:
+                                                AppColors.systemBlue,
+                                            child: Text(
+                                              _initials(
+                                                contact['name'] as String?,
+                                              ),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: AppSpacing.md),
+                                          Expanded(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  (contact['name'] as String?) ??
+                                                      'Unknown',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style:
+                                                      AppTypography.body.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                const SizedBox(
+                                                  height: AppSpacing.xs,
+                                                ),
+                                                Text(
+                                                  (contact['user_id']
+                                                          as String?) ??
+                                                      '',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: AppTypography.caption1
+                                                      .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: _startingCall
+                                                ? null
+                                                : () => _openChat(contact),
+                                            icon: const Icon(
+                                              Icons.chat_bubble_outline,
+                                              color: AppColors.systemBlue,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: _startingCall
+                                                ? null
+                                                : () => _startCall(contact),
+                                            icon: _startingCall
+                                                ? const SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.call_outlined,
+                                                    color:
+                                                        AppColors.systemGreen,
+                                                  ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () =>
+                                                _showContactActions(contact),
+                                            icon: const Icon(
+                                              Icons.more_horiz,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }

@@ -16,6 +16,7 @@ class GlassChatBubble extends StatelessWidget {
   final bool? isRead;
   final bool? isDelivered;
   final Widget? attachmentWidget;
+  final Widget? replyPreview;
 
   const GlassChatBubble({
     super.key,
@@ -25,6 +26,7 @@ class GlassChatBubble extends StatelessWidget {
     this.isRead,
     this.isDelivered,
     this.attachmentWidget,
+    this.replyPreview,
   });
 
   @override
@@ -53,7 +55,7 @@ class GlassChatBubble extends StatelessWidget {
               ),
             ),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
@@ -70,14 +72,14 @@ class GlassChatBubble extends StatelessWidget {
                   color: isSent ? null : AppColors.glassMedium,
                   border: Border.all(
                     color: isSent
-                        ? AppColors.glassLight.withOpacity(0.3)
-                        : AppColors.glassMedium.withOpacity(0.5),
+                        ? AppColors.glassLight.withValues(alpha: 0.3)
+                        : AppColors.glassMedium.withValues(alpha: 0.5),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: isSent
-                          ? AppColors.systemBlue.withOpacity(0.2)
+                          ? AppColors.systemBlue.withValues(alpha: 0.2)
                           : AppColors.shadow,
                       blurRadius: 8,
                       offset: const Offset(0, 2),
@@ -87,6 +89,10 @@ class GlassChatBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (replyPreview != null) ...[
+                      replyPreview!,
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
                     if (attachmentWidget != null) ...[
                       attachmentWidget!,
                       const SizedBox(height: AppSpacing.xs),
@@ -186,7 +192,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.darkGray2.withOpacity(0.8),
+            color: AppColors.darkGray2.withValues(alpha: 0.8),
             border: const Border(
               top: BorderSide(
                 color: AppColors.separator,
@@ -222,7 +228,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusLg),
                             border: Border.all(
-                              color: AppColors.glassMedium.withOpacity(0.3),
+                              color: AppColors.glassMedium.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -265,7 +271,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
                         color: _hasText ? null : AppColors.glassMedium,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.glassLight.withOpacity(0.3),
+                          color: AppColors.glassLight.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
