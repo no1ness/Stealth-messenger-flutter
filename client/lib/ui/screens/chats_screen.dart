@@ -713,13 +713,29 @@ class _ChatsScreenState extends State<ChatsScreen>
         .from('messages')
         .stream(primaryKey: const ['id'])
         .eq('chat_id', chatId)
-        .listen((records) {
+        .listen((records) async {
       if (!mounted || _selectedChatId != chatId) {
         return;
       }
 
+      // Realtime возвращает сырые (зашифрованные) строки. Дешифруем каждое
+      // сообщение перед тем как мапить в UI — иначе в чате будут показываться
+      // только base64-пузыри для только что пришедших/отправленных сообщений.
+      final decrypted = await Future.wait(
+        records.map(
+          (row) => _supabaseService.decryptRawMessage(
+            Map<String, dynamic>.from(row),
+          ),
+        ),
+      );
+      if (!mounted || _selectedChatId != chatId) {
+        return;
+      }
       setState(() {
-        _messages = records.map(_toUiMessage).toList()
+        _messages = decrypted
+            .where((row) => row['deleted_at'] == null)
+            .map(_toUiMessage)
+            .toList()
           ..sort(
             (left, right) => (left['created_at'] as String)
                 .compareTo(right['created_at'] as String),

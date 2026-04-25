@@ -33,6 +33,6 @@ Future<WebRTCSupport> getWebRTCSupport() async {
   );
 }
 
-Future<String?> requestWebRTCAudioPreflight() async {
+Future<String?> requestWebRTCAudioPreflight({bool requireVideo = false}) async {
   return null;
 }

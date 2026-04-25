@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -5,14 +6,27 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:stealth/crypto/ratchet_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'storage_service.dart';
 
 class SupabaseService {
   static const String _attachmentsBucket = 'chat-media';
+
+  /// Глобальный broadcast для событий `call_accept`. Нужен, чтобы активный
+  /// `WebRTCCallScreen` у вызывающей стороны мог узнать о принятии звонка и
+  /// отправить offer уже после того, как принимающий клиент гарантированно
+  /// подписан на `chat_calls` канал. Без этого offer отправлялся до того, как
+  /// принимающая сторона успевала подписаться, и сигналинг терялся.
+  static final StreamController<Map<String, dynamic>> _callAcceptedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  static Stream<Map<String, dynamic>> get callAcceptedStream =>
+      _callAcceptedController.stream;
+
   final SupabaseClient supabase = Supabase.instance.client;
   final StorageService _storage = StorageService();
   final RatchetService _ratchet = RatchetService();
+  final Uuid _uuid = const Uuid();
   final Map<String, String?> _nicknameCache = {};
   final X25519 _algorithm = X25519();
   final AesGcm _aes = AesGcm.with256bits();
@@ -24,6 +38,12 @@ class SupabaseService {
         .replaceAll('\\', '\\\\')
         .replaceAll('%', '\\%')
         .replaceAll('_', '\\_');
+  }
+
+  static bool _looksLikeUuid(String input) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+    ).hasMatch(input);
   }
   final Map<String, SecretKey> _groupSecretCache = {};
   RealtimeChannel? _userCallsChannel;
@@ -130,7 +150,12 @@ class SupabaseService {
     return _encryptBytesWithSecret(Uint8List.fromList(utf8.encode(content)), key);
   }
 
-  Future<String> decryptMessage(String payload, String otherUserId, {int? ratchetIndex}) async {
+  Future<String> decryptMessage(
+    String payload,
+    String otherUserId, {
+    int? ratchetIndex,
+    bool senderIsMe = false,
+  }) async {
     try {
       if (!RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(payload)) {
         return payload;
@@ -141,7 +166,12 @@ class SupabaseService {
         final myId = (await getUserId())!;
         final sharedSecret = await _getSharedSecret(otherUserId);
         final chains = await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-        key = await _ratchet.getNthMessageKey(chains['theirSendChain']!, ratchetIndex);
+        // If the message was sent by me, its key came from `mySendChain`.
+        // Otherwise it's encrypted with the peer's send chain which for us is `theirSendChain`.
+        final chainKey = senderIsMe
+            ? chains['mySendChain']!
+            : chains['theirSendChain']!;
+        key = await _ratchet.getNthMessageKey(chainKey, ratchetIndex);
       } else {
         key = await _getSharedSecret(otherUserId);
       }
@@ -164,6 +194,45 @@ class SupabaseService {
         .select('user_id')
         .eq('chat_id', chatId);
     return rows.map<String>((row) => row['user_id'] as String).toList();
+  }
+
+  /// Расшифровывает одно сообщение из сырого ряда БД, учитывая тип шифрования
+  /// (групповое или парное) и роль отправителя. Безопасен для realtime-потока.
+  Future<Map<String, dynamic>> decryptRawMessage(
+    Map<String, dynamic> row,
+  ) async {
+    final result = Map<String, dynamic>.from(row);
+    final chatId = result['chat_id'] as String?;
+    if (chatId == null) {
+      return result;
+    }
+    final content = result['content'];
+    if (content is! String || content.isEmpty) {
+      return result;
+    }
+    final metadata = result['metadata'] as Map<String, dynamic>? ?? const {};
+    final encryption = metadata['encryption'] as String?;
+    final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+    final senderId = result['sender_id'] as String?;
+    final me = await getUserId();
+    try {
+      if (encryption == 'group_e2e') {
+        result['content'] = await _decryptGroupMessage(chatId, content);
+      } else {
+        final otherUserId = await _getOtherUserId(chatId);
+        if (otherUserId != null && otherUserId.isNotEmpty) {
+          result['content'] = await decryptMessage(
+            content,
+            otherUserId,
+            ratchetIndex: ratchetIndex,
+            senderIsMe: me != null && senderId == me,
+          );
+        }
+      }
+    } catch (error) {
+      debugPrint('decryptRawMessage error: $error');
+    }
+    return result;
   }
 
   Future<SecretKey> _loadOrCreateGroupSecretKey(String chatId) async {
@@ -330,15 +399,13 @@ class SupabaseService {
         }
       }
 
-      final newChat = await supabase
-          .from('chats')
-          .insert({
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .select('id')
-          .single();
-      final chatId = newChat['id'] as String;
+      final chatId = _uuid.v4();
+      await supabase.from('chats').insert({
+        'id': chatId,
+        'name': '',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
       await supabase.from('chat_members').insert([
         {'chat_id': chatId, 'user_id': me},
         {'chat_id': chatId, 'user_id': otherUserId},
@@ -366,17 +433,13 @@ class SupabaseService {
     }
 
     try {
-      final chat = await supabase
-          .from('chats')
-          .insert({
-            'name': name.trim().isEmpty ? 'New group' : name.trim(),
-            'is_private': false,
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .select('id')
-          .single();
-      final chatId = chat['id'] as String;
+      final chatId = _uuid.v4();
+      await supabase.from('chats').insert({
+        'id': chatId,
+        'name': name.trim().isEmpty ? 'New group' : name.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
 
       await supabase.from('chat_members').insert(
         uniqueMembers.map((userId) {
@@ -536,7 +599,7 @@ class SupabaseService {
           membership.map<String>((row) => row['chat_id'] as String).toList();
       final chatsResponse = await supabase
           .from('chats')
-          .select('id, name, is_private, created_at, updated_at, chat_members(user_id)')
+          .select('id, name, created_at, updated_at, chat_members(user_id)')
           .inFilter('id', chatIds)
           .order('updated_at', ascending: false);
 
@@ -544,10 +607,13 @@ class SupabaseService {
         final members = (chat['chat_members'] as List<dynamic>? ?? [])
             .map<String>((member) => member['user_id'] as String)
             .toList();
+        // Older live schemas do not expose chats.is_private, so infer it from
+        // the participant count and group naming convention.
+        final isPrivate = members.length <= 2;
         return {
           'id': chat['id'],
           'name': chat['name'],
-          'is_private': chat['is_private'],
+          'is_private': isPrivate,
           'created_at': chat['created_at'],
           'updated_at': chat['updated_at'],
           'members': members,
@@ -614,6 +680,7 @@ class SupabaseService {
   }) async {
     try {
       final otherUserId = await _getOtherUserId(chatId);
+      final me = await getUserId();
       final response = await supabase
           .from('messages')
           .select('*')
@@ -631,6 +698,7 @@ class SupabaseService {
         final metadata = message['metadata'] as Map<String, dynamic>? ?? const {};
         final encryption = metadata['encryption'] as String?;
         final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+        final senderId = message['sender_id'] as String?;
         if (encryption == 'group_e2e') {
           message['content'] = await _decryptGroupMessage(
             chatId,
@@ -641,6 +709,7 @@ class SupabaseService {
             message['content'] as String,
             otherUserId,
             ratchetIndex: ratchetIndex,
+            senderIsMe: me != null && senderId == me,
           );
         }
       }
@@ -786,7 +855,7 @@ class SupabaseService {
     try {
       final row = await supabase
           .from('pinned_messages')
-          .select('message_id, messages(id, content, message_type, metadata)')
+          .select('message_id, messages(id, content, message_type, metadata, sender_id)')
           .eq('chat_id', chatId)
           .order('created_at', ascending: false)
           .limit(1)
@@ -804,12 +873,19 @@ class SupabaseService {
       final metadata = message['metadata'] as Map<String, dynamic>? ?? const {};
       final encryption = metadata['encryption'] as String?;
       final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+      final senderId = message['sender_id'] as String?;
+      final me = await getUserId();
       final otherUserId = await _getOtherUserId(chatId);
       final decodedContent = encryption == 'group_e2e'
           ? await _decryptGroupMessage(chatId, content)
           : (otherUserId == null || otherUserId.isEmpty
               ? content
-              : await decryptMessage(content, otherUserId, ratchetIndex: ratchetIndex));
+              : await decryptMessage(
+                  content,
+                  otherUserId,
+                  ratchetIndex: ratchetIndex,
+                  senderIsMe: me != null && senderId == me,
+                ));
 
       return {
         'id': message['id'].toString(),
@@ -1022,6 +1098,7 @@ class SupabaseService {
   Future<Map<String, dynamic>?> fetchLastMessage(String chatId) async {
     try {
       final otherUserId = await _getOtherUserId(chatId);
+      final me = await getUserId();
       final response = await supabase
           .from('messages')
           .select('*')
@@ -1033,6 +1110,7 @@ class SupabaseService {
         final metadata = response['metadata'] as Map<String, dynamic>? ?? const {};
         final encryption = metadata['encryption'] as String?;
         final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+        final senderId = response['sender_id'] as String?;
         if (encryption == 'group_e2e') {
           response['content'] = await _decryptGroupMessage(
             chatId,
@@ -1043,6 +1121,7 @@ class SupabaseService {
             response['content'] as String,
             otherUserId,
             ratchetIndex: ratchetIndex,
+            senderIsMe: me != null && senderId == me,
           );
         }
       }
@@ -1198,6 +1277,7 @@ class SupabaseService {
     if (me == null || query.trim().isEmpty) {
       return [];
     }
+    final normalizedQuery = query.trim();
 
     final existingContacts = await supabase
         .from('contacts')
@@ -1209,11 +1289,36 @@ class SupabaseService {
           .map<String>((row) => row['contact_user_id'] as String),
     };
 
-    final rows = await supabase
+    final rows = <dynamic>[];
+    final seenIds = <String>{};
+
+    // Nickname search is the default discovery flow for nearby/manual adds.
+    final nicknameRows = await supabase
         .from('users')
         .select('id, nickname')
-        .ilike('nickname', '%${_escapeIlike(query.trim())}%')
+        .ilike('nickname', '%${_escapeIlike(normalizedQuery)}%')
         .limit(20);
+    for (final row in nicknameRows) {
+      final userId = row['id'] as String;
+      if (seenIds.add(userId)) {
+        rows.add(row);
+      }
+    }
+
+    // Exact ID search gives users a deterministic way to connect devices.
+    if (_looksLikeUuid(normalizedQuery)) {
+      final idRow = await supabase
+          .from('users')
+          .select('id, nickname')
+          .eq('id', normalizedQuery)
+          .maybeSingle();
+      if (idRow != null) {
+        final userId = idRow['id'] as String;
+        if (seenIds.add(userId)) {
+          rows.add(idRow);
+        }
+      }
+    }
 
     return rows
         .where((row) => !excludedIds.contains(row['id'] as String))
@@ -1315,15 +1420,21 @@ class SupabaseService {
     channel
         .onBroadcast(
           event: 'call_initiation',
-          callback: (payload) => onCallReceived(payload),
+          callback: (payload) => onCallReceived(_unwrapBroadcast(payload)),
         )
         .onBroadcast(
           event: 'call_accept',
-          callback: (payload) => onCallAccepted(payload),
+          callback: (payload) {
+            final unwrapped = _unwrapBroadcast(payload);
+            onCallAccepted(unwrapped);
+            // Пробрасываем событие активному WebRTCCallScreen, чтобы он
+            // отправил offer только после того, как callee подписан.
+            _callAcceptedController.add(unwrapped);
+          },
         )
         .onBroadcast(
           event: 'call_end',
-          callback: (payload) => onCallEnded(payload),
+          callback: (payload) => onCallEnded(_unwrapBroadcast(payload)),
         )
         .subscribe();
     _userCallsChannel = channel;
@@ -1345,14 +1456,33 @@ class SupabaseService {
     await unsubscribeCalls();
     final channel = supabase.channel('chat_calls:$chatId');
     channel
-        .onBroadcast(event: 'offer', callback: (payload) => onOfferReceived(payload))
-        .onBroadcast(event: 'answer', callback: (payload) => onAnswerReceived(payload))
+        .onBroadcast(
+          event: 'offer',
+          callback: (payload) => onOfferReceived(_unwrapBroadcast(payload)),
+        )
+        .onBroadcast(
+          event: 'answer',
+          callback: (payload) => onAnswerReceived(_unwrapBroadcast(payload)),
+        )
         .onBroadcast(
           event: 'ice_candidate',
-          callback: (payload) => onIceCandidateReceived(payload),
+          callback: (payload) =>
+              onIceCandidateReceived(_unwrapBroadcast(payload)),
         )
         .subscribe();
     _chatCallsChannel = channel;
+  }
+
+  /// Supabase Realtime оборачивает broadcast-сообщения в `{event, payload,
+  /// type}`. Нужные нам поля лежат во вложенном `payload`. Эта обёртка
+  /// возвращает именно их, чтобы downstream-код видел плоский payload
+  /// независимо от того, как его прислал сервер.
+  Map<String, dynamic> _unwrapBroadcast(Map<String, dynamic> payload) {
+    final inner = payload['payload'];
+    if (inner is Map) {
+      return Map<String, dynamic>.from(inner);
+    }
+    return payload;
   }
 
   Future<void> unsubscribeCalls() async {
@@ -1381,7 +1511,10 @@ class SupabaseService {
     return null;
   }
 
-  Future<void> sendCallInitiation({required String chatId}) async {
+  Future<void> sendCallInitiation({
+    required String chatId,
+    bool isVideoCall = false,
+  }) async {
     final me = await getUserId();
     final nickname = await getNickname();
     final otherUserId = await _getOtherUserId(chatId);
@@ -1396,6 +1529,7 @@ class SupabaseService {
         'chat_id': chatId,
         'from_user_id': me,
         'from_nickname': nickname,
+        'call_type': isVideoCall ? 'video' : 'audio',
       },
     );
     await _recordCallHistoryEvent(
@@ -1404,7 +1538,10 @@ class SupabaseService {
       recipientUserId: otherUserId,
       direction: 'outgoing',
       status: 'initiated',
-      metadata: {'from_nickname': nickname},
+      metadata: {
+        'from_nickname': nickname,
+        'call_type': isVideoCall ? 'video' : 'audio',
+      },
     );
   }
 
@@ -1530,26 +1667,35 @@ class SupabaseService {
     required String chatId,
     required Map<String, dynamic> offer,
   }) async {
+    final me = await getUserId();
     final channel = supabase.channel('chat_calls:$chatId');
-    await channel.sendBroadcastMessage(event: 'offer', payload: {'sdp': offer});
+    await channel.sendBroadcastMessage(
+      event: 'offer',
+      payload: {'sdp': offer, 'from_user_id': me},
+    );
   }
 
   Future<void> sendAnswer({
     required String chatId,
     required Map<String, dynamic> answer,
   }) async {
+    final me = await getUserId();
     final channel = supabase.channel('chat_calls:$chatId');
-    await channel.sendBroadcastMessage(event: 'answer', payload: {'sdp': answer});
+    await channel.sendBroadcastMessage(
+      event: 'answer',
+      payload: {'sdp': answer, 'from_user_id': me},
+    );
   }
 
   Future<void> sendIceCandidate({
     required String chatId,
     required Map<String, dynamic> candidate,
   }) async {
+    final me = await getUserId();
     final channel = supabase.channel('chat_calls:$chatId');
     await channel.sendBroadcastMessage(
       event: 'ice_candidate',
-      payload: {'candidate': candidate},
+      payload: {'candidate': candidate, 'from_user_id': me},
     );
   }
 

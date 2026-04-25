@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Stealth Messenger — кроссплатформенный безопасный мессенджер (Android, Web) на Flutter с бэкендом Supabase. Ключевые принципы: **минимум данных на сервере**, **E2E-шифрование**, **P2P-звонки через WebRTC**.
+Stealth Messenger — кроссплатформенный безопасный мессенджер (Android, Web) на Flutter с бэкендом Supabase. Ключевые принципы: **минимум данных на сервере**, **E2E-шифрование**, **P2P-аудио- и видеозвонки через WebRTC**.
 
 ## Архитектурные слои
 
@@ -81,12 +81,12 @@ erDiagram
     }
     
     messages {
-        bigserial id PK
+        uuid id PK
         uuid chat_id FK
         uuid sender_id
         text content
         text message_type
-        bigint reply_to_id
+        uuid reply_to_id
         timestamp created_at
         jsonb metadata
         timestamp edited_at
@@ -110,7 +110,7 @@ erDiagram
     
     pinned_messages {
         uuid chat_id FK
-        bigint message_id FK
+        uuid message_id FK
         uuid pinned_by_user_id
     }
     
@@ -155,12 +155,15 @@ erDiagram
 2. Шифрование: `AES-256-GCM(message, groupKey)`
 3. Метаданные: `{encryption: "group_e2e"}`
 
-### WebRTC-звонок
-1. Инициатор → Supabase Broadcast → получатель (`call_initiation`)
-2. Получатель отвечает → Broadcast → `call_accept`
-3. SDP offer/answer через Broadcast-канал `chat_calls:{chatId}`
-4. ICE-кандидаты через тот же канал
-5. Прямое P2P-соединение через STUN/TURN
+### WebRTC-звонок (аудио или видео)
+1. Старт из экрана **Контакты**: отдельные действия для голосового и видеозвонка; в событии `call_initiation` передаётся поле **`call_type`**: `audio` или `video` (см. `SupabaseService.sendCallInitiation`).
+2. Инициатор → Supabase Broadcast → получатель (`call_initiation`); при видеозвонке на стороне получателя учитывается `call_type` для префлайта разрешений (камера + микрофон).
+3. После подписки получателя на канал `chat_calls` получатель отправляет `call_accept` (чтобы не потерять SDP offer из-за гонки подписок).
+4. SDP offer/answer через Broadcast-канал `chat_calls:{chatId}`; для видео в SDP включаются видеотреки (`offerToReceiveVideo` и т.п. на клиенте).
+5. ICE-кандидаты через тот же канал.
+6. Прямое P2P-медиа через STUN/TURN. Для надёжности за NAT в `client/.env` задаются **`TURN_URL`**, **`TURN_USERNAME`**, **`TURN_PASSWORD`** (не коммитить секреты); при отсутствии TURN соединение может не установиться между разными сетями.
+
+**UI:** экран `WebRTCCallScreen` (реализации `webrtc_call_screen_native_impl.dart` / `webrtc_call_screen_web.dart`) — превью локального/удалённого видео, переключение камеры (где поддерживается), отключение видео во время звонка.
 
 ## Платформенная адаптация
 

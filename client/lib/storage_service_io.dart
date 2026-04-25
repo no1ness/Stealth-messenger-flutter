@@ -5,7 +5,14 @@ class StorageService {
   factory StorageService() => _instance;
   StorageService._internal();
 
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  // `resetOnError: true` makes the Android backend wipe EncryptedSharedPreferences
+  // instead of throwing `BAD_DECRYPT` when the Keystore master key is unusable
+  // (e.g. after reinstalling with a different signing key). Without this, even
+  // `deleteAll()` fails because the plugin still tries to decrypt the master
+  // key first.
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: true),
+  );
 
   Future<void> init() async {
     // The storage plugin itself is wasm-safe, so init is a no-op here.

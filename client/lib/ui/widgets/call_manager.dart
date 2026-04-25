@@ -50,6 +50,7 @@ class _CallManagerState extends State<CallManager> {
     final chatId = payload['chat_id'] as String?;
     final fromUserId = payload['from_user_id'] as String?;
     final fromNickname = payload['from_nickname'] as String?;
+    final isVideoCall = payload['call_type'] == 'video';
     if (chatId == null ||
         fromUserId == null ||
         fromNickname == null ||
@@ -70,45 +71,29 @@ class _CallManagerState extends State<CallManager> {
       chatId: chatId,
       fromUserId: fromUserId,
       fromNickname: fromNickname,
+      isVideoCall: isVideoCall,
     );
   }
 
   void _handleCallAccepted(Map<String, dynamic> payload) async {
-    if (!mounted) {
-      return;
-    }
-
-    final chatId = payload['chat_id'] as String;
-    final chats = await _supabaseService.getChats();
-    final chat = chats.firstWhere((item) => item['id'] == chatId);
-    final peerId = (chat['members'] as List<dynamic>)
-        .cast<String>()
-        .firstWhere((member) => member != _currentUserId);
-    final peerName =
-        await _supabaseService.getNicknameForUser(peerId) ?? 'Peer';
-
-    if (!mounted) {
-      return;
-    }
-
-    final navigator = Navigator.of(context);
-    final navigatorRoot = Navigator.of(context, rootNavigator: true);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
-
-    navigatorRoot.push(
-      MaterialPageRoute(
-        builder: (_) => WebRTCCallScreen(
-          peerName: peerName,
-          chatId: chatId,
-          isCaller: true,
-        ),
-      ),
-    );
+    // ВАЖНО: здесь НИЧЕГО не нужно делать с навигацией. Экран звонка у
+    // вызывающей стороны уже открыт из `contacts_screen.dart` с
+    // `isCaller: true`. Ранее эта функция делала `navigator.pop()`, а затем
+    // `push`, из-за чего срабатывал `PopScope` в `WebRTCCallScreen`,
+    // вызывался `_hangUp` и отправлялся `call_end`, который закрывал звонок
+    // у принимающей стороны (эмулятора) до того, как успевал установиться
+    // WebRTC-коннект.
+    //
+    // Событие `call_accept` пробрасывается в `SupabaseService.callAcceptedStream`,
+    // и уже активный `WebRTCCallScreen` сам отправит offer.
   }
 
   void _handleCallEnded(Map<String, dynamic> payload) async {
+    // ignore: avoid_print
+    print(
+      '[stealth-call] CallManager._handleCallEnded payload=$payload '
+      'isInCall=$_isInCall mounted=$mounted',
+    );
     if (!mounted) {
       return;
     }
@@ -123,6 +108,8 @@ class _CallManagerState extends State<CallManager> {
 
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
+      // ignore: avoid_print
+      print('[stealth-call] CallManager popping top route due to call_end');
       navigator.pop();
     }
     setState(() => _isInCall = false);
@@ -132,6 +119,7 @@ class _CallManagerState extends State<CallManager> {
     required String chatId,
     required String fromUserId,
     required String fromNickname,
+    required bool isVideoCall,
   }) {
     if (!mounted) {
       return;
@@ -184,7 +172,9 @@ class _CallManagerState extends State<CallManager> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Wants to start a secure audio call',
+                  isVideoCall
+                      ? 'Wants to start a secure video call'
+                      : 'Wants to start a secure audio call',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 12),
@@ -241,6 +231,8 @@ class _CallManagerState extends State<CallManager> {
                 onPressed: !canAnswer
                     ? null
                     : () async {
+                        // ignore: avoid_print
+                        print('[stealth-call] Answer pressed for chat=$chatId');
                         final navigatorRoot = Navigator.of(
                           context,
                           rootNavigator: true,
@@ -249,7 +241,13 @@ class _CallManagerState extends State<CallManager> {
                         final messenger = ScaffoldMessenger.of(dialogContext);
 
                         setDialogState(() => _answeringCall = true);
-                        final preflightError = await requestWebRTCAudioPreflight();
+                        final preflightError = await requestWebRTCAudioPreflight(
+                          requireVideo: isVideoCall,
+                        );
+                        // ignore: avoid_print
+                        print(
+                          '[stealth-call] preflight result: ${preflightError ?? 'OK'}',
+                        );
                         if (preflightError != null) {
                           if (dialogContext.mounted) {
                             messenger.showSnackBar(
@@ -262,21 +260,32 @@ class _CallManagerState extends State<CallManager> {
 
                         dialogNavigator.pop();
                         setState(() => _isInCall = true);
-                        await _supabaseService.sendCallAccept(chatId: chatId);
 
                         if (!mounted) {
+                          // ignore: avoid_print
+                          print('[stealth-call] not mounted after dialog pop');
                           return;
                         }
 
+                        // ВАЖНО: `call_accept` отправляет сам экран звонка у
+                        // принимающей стороны ПОСЛЕ того, как подписался на
+                        // chat_calls. Иначе вызывающая сторона получает
+                        // call_accept и шлёт offer в канал раньше, чем callee
+                        // успевает подписаться, и сигналинг теряется.
+                        // ignore: avoid_print
+                        print('[stealth-call] pushing WebRTCCallScreen');
                         await navigatorRoot.push(
                           MaterialPageRoute(
                             builder: (_) => WebRTCCallScreen(
                               peerName: fromNickname,
                               chatId: chatId,
                               isCaller: false,
+                              isVideoCall: isVideoCall,
                             ),
                           ),
                         );
+                        // ignore: avoid_print
+                        print('[stealth-call] call screen popped');
 
                         if (mounted) {
                           setState(() => _isInCall = false);

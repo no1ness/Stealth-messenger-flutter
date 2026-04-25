@@ -49,10 +49,13 @@
 
 ## Известные ограничения и риски
 
-### 🔴 Критические
-1. **Нет RLS** — Row Level Security не активирован. Любой клиент с `anon_key` может читать/модифицировать данные других пользователей через Supabase API
-2. **Web-хранилище ключей** — localStorage не защищает от XSS
-3. **Нет аутентификации Supabase** — используются локальные UUID, а не Supabase Auth
+### 🔴 Критические (Остались)
+1. **Web-хранилище ключей** — localStorage не защищает от XSS
+
+### ✅ Устраненные риски
+- **Включен RLS (Row Level Security)** — политики настроены через `auth.uid()`.
+- **Интегрирована Supabase Auth** — используется анонимная авторизация.
+- **Внедрен Rate Limiting** — ограничения на стороне базы данных.
 
 ### 🟡 Средние
 4. **Нет Forward Secrecy** — компрометация ключа раскрывает все прошлые сообщения. Нужно: Double Ratchet (Signal Protocol)
@@ -66,9 +69,9 @@
 
 ## Рекомендации по усилению
 
-1. **Включить RLS** в Supabase для всех таблиц
+1. ~~**Включить RLS** в Supabase для всех таблиц~~ (Выполнено)
 2. **Реализовать Double Ratchet** для Perfect Forward Secrecy
 3. **Мигрировать Web-хранилище** на Web Crypto API + IndexedDB
 4. **Добавить Safety Numbers** для верификации ключей
-5. **Внедрить Supabase Auth** или кастомный JWT вместо локальных UUID
-6. **Rate limiting** через Supabase Edge Functions или RLS-политики
+5. ~~**Внедрить Supabase Auth** или кастомный JWT вместо локальных UUID~~ (Выполнено)
+6. ~~**Rate limiting** через Supabase Edge Functions или RLS-политики~~ (Выполнено)

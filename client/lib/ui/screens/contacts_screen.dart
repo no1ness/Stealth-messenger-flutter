@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:stealth/supabase_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
@@ -113,7 +114,15 @@ class _ContactsScreenState extends State<ContactsScreen>
                   title: const Text('Start call'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _startCall(contact);
+                    await _startCall(contact, isVideoCall: false);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.videocam_outlined),
+                  title: const Text('Start video call'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await _startCall(contact, isVideoCall: true);
                   },
                 ),
                 ListTile(
@@ -214,6 +223,23 @@ class _ContactsScreenState extends State<ContactsScreen>
               });
             }
 
+            Future<void> pasteAndSearch() async {
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
+              final pastedText = data?.text?.trim() ?? '';
+              if (pastedText.isEmpty) {
+                if (!context.mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Clipboard is empty')),
+                );
+                return;
+              }
+
+              _addContactController.text = pastedText;
+              await search();
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: AppSpacing.md,
@@ -227,10 +253,26 @@ class _ContactsScreenState extends State<ContactsScreen>
                   TextField(
                     controller: _addContactController,
                     decoration: const InputDecoration(
-                      hintText: 'Search users by nickname',
+                      hintText: 'Search by nickname or full user ID',
                       prefixIcon: Icon(Icons.search),
                     ),
                     onChanged: (_) => search(),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Tip: open Profile on the other device and copy its User ID for exact search.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: pasteAndSearch,
+                      icon: const Icon(Icons.content_paste),
+                      label: const Text('Paste ID'),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   SizedBox(
@@ -295,7 +337,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     );
   }
 
-  Future<void> _startCall(Map<String, dynamic> contact) async {
+  Future<void> _startCall(
+    Map<String, dynamic> contact, {
+    required bool isVideoCall,
+  }) async {
     if (_startingCall) {
       return;
     }
@@ -314,7 +359,9 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    final preflightError = await requestWebRTCAudioPreflight();
+    final preflightError = await requestWebRTCAudioPreflight(
+      requireVideo: isVideoCall,
+    );
     if (preflightError != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -341,7 +388,10 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    await _supabaseService.sendCallInitiation(chatId: chatId);
+    await _supabaseService.sendCallInitiation(
+      chatId: chatId,
+      isVideoCall: isVideoCall,
+    );
     if (!mounted) {
       return;
     }
@@ -352,6 +402,7 @@ class _ContactsScreenState extends State<ContactsScreen>
           peerName: (contact['name'] as String?) ?? 'Contact',
           chatId: chatId,
           isCaller: true,
+          isVideoCall: isVideoCall,
         ),
       ),
     );
@@ -525,7 +576,10 @@ class _ContactsScreenState extends State<ContactsScreen>
                                           IconButton(
                                             onPressed: _startingCall
                                                 ? null
-                                                : () => _startCall(contact),
+                                                : () => _startCall(
+                                                      contact,
+                                                      isVideoCall: false,
+                                                    ),
                                             icon: _startingCall
                                                 ? const SizedBox(
                                                     width: 18,
@@ -540,6 +594,18 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                     color:
                                                         AppColors.systemGreen,
                                                   ),
+                                          ),
+                                          IconButton(
+                                            onPressed: _startingCall
+                                                ? null
+                                                : () => _startCall(
+                                                      contact,
+                                                      isVideoCall: true,
+                                                    ),
+                                            icon: const Icon(
+                                              Icons.videocam_outlined,
+                                              color: AppColors.systemBlue,
+                                            ),
                                           ),
                                           IconButton(
                                             onPressed: () =>

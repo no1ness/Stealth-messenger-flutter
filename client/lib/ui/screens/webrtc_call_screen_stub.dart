@@ -9,12 +9,14 @@ class WebRTCCallScreen extends StatelessWidget {
   final String peerName;
   final String chatId;
   final bool isCaller;
+  final bool isVideoCall;
 
   const WebRTCCallScreen({
     super.key,
     required this.peerName,
     required this.chatId,
     required this.isCaller,
+    this.isVideoCall = false,
   });
 
   @override

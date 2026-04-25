@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:stealth/supabase_service.dart';
@@ -15,12 +16,14 @@ class WebRTCCallScreen extends StatefulWidget {
   final String peerName;
   final String chatId;
   final bool isCaller;
+  final bool isVideoCall;
 
   const WebRTCCallScreen({
     super.key,
     required this.peerName,
     required this.chatId,
     required this.isCaller,
+    this.isVideoCall = false,
   });
 
   @override
@@ -29,6 +32,7 @@ class WebRTCCallScreen extends StatefulWidget {
 
 class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   final SupabaseService _supabaseService = SupabaseService();
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   final List<RTCIceCandidate> _pendingRemoteCandidates = [];
 
@@ -37,8 +41,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   MediaStream? _remoteStream;
   Timer? _connectionTimeout;
   Timer? _callTimer;
+  Timer? _statsTimer;
+  StreamSubscription<Map<String, dynamic>>? _callAcceptedSub;
 
   bool _microphoneEnabled = true;
+  bool _cameraEnabled = true;
   bool _speakerEnabled = true;
   bool _initializing = true;
   bool _connected = false;
@@ -55,8 +62,16 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   @override
   void dispose() {
+    // ignore: avoid_print
+    print(
+      '[stealth-call] dispose() isCaller=${widget.isCaller} '
+      'chat=${widget.chatId} connected=$_connected closing=$_closing',
+    );
     _connectionTimeout?.cancel();
     _callTimer?.cancel();
+    _statsTimer?.cancel();
+    _callAcceptedSub?.cancel();
+    _localRenderer.dispose();
     _remoteRenderer.dispose();
     _disposeMedia();
     _supabaseService.unsubscribeCalls();
@@ -68,6 +83,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     _startRequested = true;
     try {
       if (!kIsWeb) {
+        await _localRenderer.initialize();
         await _remoteRenderer.initialize();
       }
       final permissionsGranted =
@@ -82,7 +98,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
       await _createPeerConnection();
       await _createLocalStream();
-      await _attachLocalAudio();
+      await _attachLocalMedia();
+      await _applyAudioRouting();
 
       await _supabaseService.subscribeCalls(
         chatId: widget.chatId,
@@ -91,15 +108,35 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         onIceCandidateReceived: _handleRemoteCandidate,
       );
 
-      _connectionTimeout = Timer(const Duration(seconds: 30), () {
+      _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected && mounted) {
+          // ignore: avoid_print
+          print('[stealth-call] connection timeout fired');
           _showSnackBar('Connection timed out.');
           _hangUp();
         }
       });
 
+      // Для вызывающей стороны offer отправляем ТОЛЬКО после того, как
+      // принимающая сторона подтвердила приём звонка (`call_accept`). Иначе
+      // offer отправляется в канал ещё до того, как callee подписан на
+      // `chat_calls`, и сигналинг теряется (WebRTC навсегда остаётся в
+      // `have-local-offer`, звук не идёт).
       if (widget.isCaller) {
-        await _createOffer();
+        _callAcceptedSub = SupabaseService.callAcceptedStream.listen((payload) {
+          if (payload['chat_id'] != widget.chatId) return;
+          // ignore: avoid_print
+          print('[stealth-call] call_accept received — creating offer');
+          _createOffer();
+        });
+      } else {
+        // `call_accept` отправляем ИМЕННО ЗДЕСЬ — после того, как callee уже
+        // подписан на chat_calls. Раньше это делал CallManager сразу при
+        // нажатии Answer, но тогда caller получал call_accept и слал offer
+        // до того, как этот экран успевал подписаться на канал.
+        // ignore: avoid_print
+        print('[stealth-call] sending call_accept (subscription ready)');
+        await _supabaseService.sendCallAccept(chatId: widget.chatId);
       }
 
       if (mounted) {
@@ -114,13 +151,61 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
   }
 
+  /// Собирает список ICE-серверов. STUN идёт всегда, TURN — только если
+  /// указан через `.env` (`TURN_URL` + `TURN_USERNAME` + `TURN_PASSWORD`).
+  /// Без TURN звонок между устройствами за symmetric NAT (эмулятор, мобильный
+  /// интернет, VPN) не состоится — нужен TURN-relay.
+  List<Map<String, dynamic>> _buildIceServers() {
+    final servers = <Map<String, dynamic>>[
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+        ],
+      },
+    ];
+    final turnUrls = dotenv.env['TURN_URL']?.trim();
+    final turnUser = dotenv.env['TURN_USERNAME']?.trim();
+    final turnPass = dotenv.env['TURN_PASSWORD']?.trim();
+    if (turnUrls != null && turnUrls.isNotEmpty) {
+      servers.add({
+        'urls': turnUrls
+            .split(',')
+            .map((u) => u.trim())
+            .where((u) => u.isNotEmpty)
+            .toList(),
+        if (turnUser != null && turnUser.isNotEmpty) 'username': turnUser,
+        if (turnPass != null && turnPass.isNotEmpty) 'credential': turnPass,
+      });
+      // ignore: avoid_print
+      print('[stealth-call] TURN configured: $turnUrls');
+    } else {
+      // ignore: avoid_print
+      print(
+        '[stealth-call] WARNING: no TURN in .env — P2P will fail across NAT/VPN. '
+        'Set TURN_URL, TURN_USERNAME, TURN_PASSWORD.',
+      );
+    }
+    return servers;
+  }
+
   Future<bool> _requestMicrophonePermission() async {
     try {
-      final status = await Permission.microphone.request();
-      if (status.isGranted) return true;
-      if (!mounted) return false;
-      _showSnackBar('Enable microphone access in settings.');
-      return false;
+      final microphoneStatus = await Permission.microphone.request();
+      if (!microphoneStatus.isGranted) {
+        if (!mounted) return false;
+        _showSnackBar('Enable microphone access in settings.');
+        return false;
+      }
+      if (widget.isVideoCall) {
+        final cameraStatus = await Permission.camera.request();
+        if (!cameraStatus.isGranted) {
+          if (!mounted) return false;
+          _showSnackBar('Enable camera access in settings.');
+          return false;
+        }
+      }
+      return true;
     } catch (error) {
       debugPrint('Permission request error: $error');
       return true;
@@ -129,13 +214,10 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Future<void> _createPeerConnection() async {
     final configuration = <String, dynamic>{
-      'iceServers': [
-        {
-          'urls': ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'],
-        },
-      ],
+      'iceServers': _buildIceServers(),
       'sdpSemantics': 'unified-plan',
       'iceCandidatePoolSize': 4,
+      'iceTransportPolicy': 'all',
     };
 
     _peerConnection = await createPeerConnection(configuration, {
@@ -153,7 +235,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     };
 
     _peerConnection!.onTrack = (event) async {
-      if (event.track.kind != 'audio') return;
+      // ignore: avoid_print
+      print(
+        '[stealth-call] onTrack kind=${event.track.kind} id=${event.track.id} '
+        'enabled=${event.track.enabled} streams=${event.streams.length}',
+      );
       if (event.streams.isNotEmpty) {
         await _attachRemoteStream(event.streams.first, addedTrack: event.track);
         return;
@@ -166,6 +252,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     };
 
     _peerConnection!.onIceConnectionState = (state) {
+      // ignore: avoid_print
+      print('[stealth-call] iceState=$state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _markConnected();
@@ -173,6 +261,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         _showSnackBar('Connection failed.');
         _hangUp();
       }
+    };
+
+    _peerConnection!.onConnectionState = (state) {
+      // ignore: avoid_print
+      print('[stealth-call] peerState=$state');
     };
   }
 
@@ -184,35 +277,49 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
           'noiseSuppression': true,
           'autoGainControl': true,
         },
-        'video': false,
+        'video': widget.isVideoCall
+            ? {
+                'facingMode': 'user',
+                'width': {'ideal': 640},
+                'height': {'ideal': 480},
+              }
+            : false,
       });
-    } catch (_) {
+    } catch (error) {
+      // ignore: avoid_print
+      print('[stealth-call] getUserMedia strict failed: $error, falling back');
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
-        'video': false,
+        'video': widget.isVideoCall,
       });
+    }
+    final audioTracks = _localStream?.getAudioTracks() ?? const [];
+    // ignore: avoid_print
+    print(
+      '[stealth-call] local stream ready: audio=${audioTracks.length} '
+      'ids=${audioTracks.map((t) => t.id).toList()} '
+      'enabled=${audioTracks.map((t) => t.enabled).toList()}',
+    );
+    if (_localStream != null && widget.isVideoCall) {
+      _localRenderer.srcObject = _localStream;
     }
   }
 
-  Future<void> _attachLocalAudio() async {
+  Future<void> _attachLocalMedia() async {
     final connection = _peerConnection;
     final stream = _localStream;
     if (connection == null || stream == null) return;
     final audioTracks = stream.getAudioTracks();
     if (audioTracks.isEmpty) throw Exception('No microphone track available.');
-    final audioTrack = audioTracks.first;
-    if (kIsWeb) {
-      await connection.addTransceiver(
-        track: audioTrack,
-        kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
-        init: RTCRtpTransceiverInit(
-          direction: TransceiverDirection.SendRecv,
-          streams: [stream],
-        ),
-      );
-      return;
+    for (final track in audioTracks) {
+      await connection.addTrack(track, stream);
     }
-    await connection.addTrack(audioTrack, stream);
+    if (widget.isVideoCall) {
+      final videoTracks = stream.getVideoTracks();
+      for (final track in videoTracks) {
+        await connection.addTrack(track, stream);
+      }
+    }
   }
 
   Future<void> _createOffer() async {
@@ -221,7 +328,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     try {
       final offer = await connection.createOffer({
         'offerToReceiveAudio': 1,
-        'offerToReceiveVideo': 0,
+        'offerToReceiveVideo': widget.isVideoCall ? 1 : 0,
       });
       await connection.setLocalDescription(offer);
       await _supabaseService.sendOffer(chatId: widget.chatId, offer: offer.toMap());
@@ -231,9 +338,24 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
   }
 
+  /// Supabase Realtime возвращает broadcast отправителю тоже. Нам надо
+  /// игнорировать собственные offer/answer/ICE, иначе SDP state ломается
+  /// (`have-local-offer` → попытка setRemoteDescription с собственным offer).
+  Future<bool> _isFromSelf(Map<String, dynamic> payload) async {
+    final from = payload['from_user_id'] as String?;
+    if (from == null) return false;
+    final me = await _supabaseService.getUserId();
+    return me != null && me == from;
+  }
+
   Future<void> _handleOffer(Map<String, dynamic> payload) async {
     final connection = _peerConnection;
     if (connection == null) return;
+    if (await _isFromSelf(payload)) {
+      // ignore: avoid_print
+      print('[stealth-call] ignored own offer echo');
+      return;
+    }
     try {
       final offerMap = payload['offer'] ?? payload['sdp'];
       if (offerMap is! Map<String, dynamic>) return;
@@ -245,14 +367,22 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       final answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
       await _supabaseService.sendAnswer(chatId: widget.chatId, answer: answer.toMap());
+      // ignore: avoid_print
+      print('[stealth-call] answer sent');
     } catch (error) {
-      debugPrint('Offer handling error: $error');
+      // ignore: avoid_print
+      print('[stealth-call] Offer handling error: $error');
     }
   }
 
   Future<void> _handleAnswer(Map<String, dynamic> payload) async {
     final connection = _peerConnection;
     if (connection == null) return;
+    if (await _isFromSelf(payload)) {
+      // ignore: avoid_print
+      print('[stealth-call] ignored own answer echo');
+      return;
+    }
     try {
       final answerMap = payload['answer'] ?? payload['sdp'];
       if (answerMap is! Map<String, dynamic>) return;
@@ -261,14 +391,18 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (sdp == null || type == null) return;
       await connection.setRemoteDescription(RTCSessionDescription(sdp, type));
       await _flushPendingCandidates();
+      // ignore: avoid_print
+      print('[stealth-call] remote answer applied');
     } catch (error) {
-      debugPrint('Answer handling error: $error');
+      // ignore: avoid_print
+      print('[stealth-call] Answer handling error: $error');
     }
   }
 
   Future<void> _handleRemoteCandidate(Map<String, dynamic> payload) async {
     final connection = _peerConnection;
     if (connection == null) return;
+    if (await _isFromSelf(payload)) return;
     try {
       final candidateMap = payload['candidate'];
       if (candidateMap is! Map<String, dynamic>) return;
@@ -283,7 +417,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         _pendingRemoteCandidates.add(candidate);
       }
     } catch (error) {
-      debugPrint('Remote candidate error: $error');
+      // ignore: avoid_print
+      print('[stealth-call] Remote candidate error: $error');
     }
   }
 
@@ -301,22 +436,73 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     if (addedTrack != null && addedTrack.kind == 'audio') {
       addedTrack.enabled = true;
     }
-    for (final track in stream.getAudioTracks()) {
+    final audioTracks = stream.getAudioTracks();
+    final videoTracks = stream.getVideoTracks();
+    for (final track in audioTracks) {
       track.enabled = true;
     }
-    if (stream.getVideoTracks().isNotEmpty) {
+    // ignore: avoid_print
+    print(
+      '[stealth-call] remote stream attached: audioTracks=${audioTracks.length} '
+      'ids=${audioTracks.map((t) => t.id).toList()}',
+    );
+    if (videoTracks.isNotEmpty) {
       _remoteRenderer.srcObject = stream;
     }
-    _markConnected();
+    // Ремот-трек получен — ещё раз применяем маршрутизацию, чтобы реально
+    // услышать собеседника: по умолчанию flutter_webrtc отправляет аудио в
+    // earpiece. А реальный статус `connected` ждём от iceConnectionState —
+    // иначе UI покажет фейковое подключение до того, как ICE соберётся.
+    await _applyAudioRouting();
   }
 
   void _markConnected() {
     if (!mounted) return;
-    if (!_connected) _startTimer();
+    if (!_connected) {
+      _startTimer();
+      _startStatsLogger();
+    }
     _connectionTimeout?.cancel();
     setState(() {
       _connected = true;
       _initializing = false;
+    });
+  }
+
+  /// Периодически логируем аудио-статистику peer connection, чтобы понимать
+  /// идут ли RTP-пакеты и где именно пропадает звук. Вывод видно в logcat под
+  /// тегом `flutter`.
+  void _startStatsLogger() {
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final connection = _peerConnection;
+      if (connection == null) return;
+      try {
+        final reports = await connection.getStats();
+        for (final report in reports) {
+          final type = report.type;
+          if (type != 'outbound-rtp' &&
+              type != 'inbound-rtp' &&
+              type != 'media-source' &&
+              type != 'track') {
+            continue;
+          }
+          final kind = report.values['kind'] ?? report.values['mediaType'];
+          if (kind != null && kind != 'audio') continue;
+          debugPrint(
+            '[rtc-stats] $type id=${report.id} '
+            'bytesSent=${report.values['bytesSent']} '
+            'bytesReceived=${report.values['bytesReceived']} '
+            'packetsSent=${report.values['packetsSent']} '
+            'packetsReceived=${report.values['packetsReceived']} '
+            'audioLevel=${report.values['audioLevel']} '
+            'totalAudioEnergy=${report.values['totalAudioEnergy']} '
+            'totalSamplesDuration=${report.values['totalSamplesDuration']}',
+          );
+        }
+      } catch (error) {
+        debugPrint('[rtc-stats] error: $error');
+      }
     });
   }
 
@@ -337,11 +523,52 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     setState(() => _microphoneEnabled = !_microphoneEnabled);
   }
 
-  void _toggleSpeaker() {
-    setState(() => _speakerEnabled = !_speakerEnabled);
+  void _toggleCamera() {
+    final stream = _localStream;
+    if (stream == null) return;
+    for (final track in stream.getVideoTracks()) {
+      track.enabled = !track.enabled;
+    }
+    setState(() => _cameraEnabled = !_cameraEnabled);
+  }
+
+  Future<void> _switchCamera() async {
+    final stream = _localStream;
+    if (stream == null) return;
+    final videoTracks = stream.getVideoTracks();
+    if (videoTracks.isEmpty) return;
+    await Helper.switchCamera(videoTracks.first);
+  }
+
+  Future<void> _toggleSpeaker() async {
+    final next = !_speakerEnabled;
+    setState(() => _speakerEnabled = next);
+    await _applyAudioRouting();
+  }
+
+  /// Принудительно маршрутизирует аудио на громкий динамик / earpiece в
+  /// соответствии с `_speakerEnabled`. Без этого при audio-only звонке
+  /// flutter_webrtc оставляет вывод в earpiece, из-за чего собеседника может
+  /// быть не слышно (особенно на эмуляторе, где earpiece не озвучен).
+  Future<void> _applyAudioRouting() async {
+    if (kIsWeb) return;
+    try {
+      await Helper.setSpeakerphoneOn(_speakerEnabled);
+      // ignore: avoid_print
+      print('[stealth-call] speakerphone=$_speakerEnabled');
+    } catch (error) {
+      // ignore: avoid_print
+      print('[stealth-call] setSpeakerphoneOn error: $error');
+    }
   }
 
   Future<void> _hangUp() async {
+    // ignore: avoid_print
+    print(
+      '[stealth-call] _hangUp() isCaller=${widget.isCaller} '
+      'connected=$_connected closing=$_closing '
+      'stack=${StackTrace.current.toString().split("\n").take(6).join(" | ")}',
+    );
     if (_closing) return;
     _closing = true;
     await _supabaseService.sendCallEnd(chatId: widget.chatId);
@@ -374,6 +601,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
+        // ignore: avoid_print
+        print(
+          '[stealth-call] PopScope didPop=$didPop isCaller=${widget.isCaller} '
+          'connected=$_connected closing=$_closing',
+        );
         if (!didPop) await _hangUp();
       },
       child: Scaffold(
@@ -403,31 +635,83 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.glassLight.withValues(alpha: 0.1),
-                    border: Border.all(
-                      color: AppColors.glassLight.withValues(alpha: 0.2),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.systemBlue.withValues(alpha: 0.3),
-                        blurRadius: 30,
-                        spreadRadius: 5,
+                if (widget.isVideoCall)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        height: 260,
+                        color: Colors.black.withValues(alpha: 0.35),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (_remoteStream != null &&
+                                _remoteStream!.getVideoTracks().isNotEmpty)
+                              RTCVideoView(
+                                _remoteRenderer,
+                                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                              )
+                            else
+                              Center(
+                                child: Text(
+                                  'Waiting for video...',
+                                  style: AppTypography.body.copyWith(color: Colors.white70),
+                                ),
+                              ),
+                            Positioned(
+                              right: 12,
+                              top: 12,
+                              child: SizedBox(
+                                width: 100,
+                                height: 140,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    color: Colors.black54,
+                                    child: (_localStream != null &&
+                                            _localStream!.getVideoTracks().isNotEmpty)
+                                        ? RTCVideoView(
+                                            _localRenderer,
+                                            mirror: true,
+                                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
-                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  )
+                else
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.glassLight.withValues(alpha: 0.1),
+                      border: Border.all(
+                        color: AppColors.glassLight.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.systemBlue.withValues(alpha: 0.3),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
+                        style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   widget.peerName,
@@ -456,6 +740,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      if (widget.isVideoCall)
+                        _buildControlButton(
+                          icon: _cameraEnabled ? Icons.videocam : Icons.videocam_off,
+                          color: _cameraEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
+                          iconColor: _cameraEnabled ? Colors.white : Colors.black,
+                          onPressed: _toggleCamera,
+                        ),
                       _buildControlButton(
                         icon: _microphoneEnabled ? Icons.mic : Icons.mic_off,
                         color: _microphoneEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
@@ -475,6 +766,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                         iconColor: _speakerEnabled ? Colors.white : Colors.black,
                         onPressed: _toggleSpeaker,
                       ),
+                      if (widget.isVideoCall)
+                        _buildControlButton(
+                          icon: Icons.flip_camera_ios_outlined,
+                          color: Colors.white.withValues(alpha: 0.2),
+                          iconColor: Colors.white,
+                          onPressed: _switchCamera,
+                        ),
                     ],
                   ),
                 ),

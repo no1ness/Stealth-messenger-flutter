@@ -93,7 +93,7 @@ Future<WebRTCSupport> getWebRTCSupport() async {
   );
 }
 
-Future<String?> requestWebRTCAudioPreflight() async {
+Future<String?> requestWebRTCAudioPreflight({bool requireVideo = false}) async {
   final support = await getWebRTCSupport();
   if (!support.isSupported) {
     return support.blockingIssues.join(' ');
@@ -105,7 +105,7 @@ Future<String?> requestWebRTCAudioPreflight() async {
         .getUserMedia(
           web.MediaStreamConstraints(
             audio: true.toJS,
-            video: false.toJS,
+            video: requireVideo.toJS,
           ),
         )
         .toDart;

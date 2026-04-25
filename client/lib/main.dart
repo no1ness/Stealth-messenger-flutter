@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
+import 'package:stealth/storage_service.dart';
 import 'package:stealth/supabase_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
@@ -46,7 +48,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _initializeSupabase() async {
+  Future<void> _initializeSupabase({bool afterReset = false}) async {
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -76,6 +78,19 @@ class _MyAppState extends State<MyApp> {
       _supabaseService = SupabaseService();
       await _checkRegistration();
     } catch (error) {
+      // Corrupted secure storage (e.g. Android Keystore key rotated after a
+      // reinstall with a different signing key) manifests as a BAD_DECRYPT
+      // PlatformException. Recover once by wiping local credentials and any
+      // persisted Supabase session, then retrying the startup flow.
+      if (!afterReset && _looksLikeCorruptSecureStorage(error)) {
+        debugPrint(
+          'Detected corrupted local storage during startup, resetting: $error',
+        );
+        await _resetLocalCredentials();
+        await _initializeSupabase(afterReset: true);
+        return;
+      }
+
       debugPrint('Error initializing Supabase: $error');
       if (!mounted) {
         return;
@@ -99,6 +114,57 @@ class _MyAppState extends State<MyApp> {
       _isLoading = false;
       _startupError = null;
     });
+  }
+
+  /// Returns true for startup failures that look like unrecoverable cipher
+  /// errors from `flutter_secure_storage` / Android Keystore.
+  bool _looksLikeCorruptSecureStorage(Object error) {
+    if (error is PlatformException) {
+      final haystack = '${error.code} ${error.message ?? ''}'.toLowerCase();
+      if (haystack.contains('bad_decrypt') ||
+          haystack.contains('cipher') ||
+          haystack.contains('aead')) {
+        return true;
+      }
+    }
+    return error.toString().toLowerCase().contains('bad_decrypt');
+  }
+
+  /// Clears every piece of local state that could keep a broken cipher around:
+  /// our secure storage (identity keys, nickname, userId) and the Supabase
+  /// session persisted in SharedPreferences. Swallows nested failures so that
+  /// a partial wipe still lets the retry proceed on a cleaner slate.
+  Future<void> _resetLocalCredentials() async {
+    try {
+      await StorageService().deleteAll();
+    } catch (error) {
+      debugPrint('StorageService.deleteAll failed during recovery: $error');
+      for (final key in const [
+        'userId',
+        'nickname',
+        'privateKey',
+        'publicKey',
+      ]) {
+        try {
+          await StorageService().delete(key);
+        } catch (_) {
+          // Best effort: ignore individual delete failures.
+        }
+      }
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final staleKeys = prefs
+          .getKeys()
+          .where((key) => key.startsWith('sb-') || key.contains('supabase'))
+          .toList();
+      for (final key in staleKeys) {
+        await prefs.remove(key);
+      }
+    } catch (error) {
+      debugPrint('Failed to purge Supabase prefs during recovery: $error');
+    }
   }
 
   @override
