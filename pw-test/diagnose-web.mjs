@@ -36,7 +36,9 @@ async function waitForApp(page) {
 /** Force-click the hidden Flutter accessibility toggle via JS evaluation. */
 async function enableFlutterA11y(page) {
   const result = await page.evaluate(() => {
-    const btn = document.querySelector("flt-semantics-placeholder");
+    const btn = document.querySelector(
+      '[aria-label="Enable accessibility"], flt-semantics-placeholder',
+    );
     if (!btn) return "NOT_FOUND";
     btn.click();
     return "CLICKED";
@@ -162,7 +164,7 @@ async function main() {
   const clicked = await enableFlutterA11y(page);
   if (!clicked) {
     console.warn(
-      "  ⚠️  flt-semantics-placeholder not found – trying Tab+Enter fallback",
+      '  ⚠️  accessibility toggle not found – trying Tab+Enter fallback',
     );
     await page.keyboard.press("Tab");
     await delay(300);

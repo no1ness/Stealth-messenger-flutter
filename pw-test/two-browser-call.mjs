@@ -2,7 +2,7 @@
  * E2E: два изолированных браузерных контекста (два «браузера»), аудиозвонок.
  *
  * Flutter CanvasKit рендерит в <canvas>, поэтому перед любым взаимодействием
- * нужно включить семантический слой (flt-semantics-placeholder.click()).
+ * нужно включить семантический слой через web accessibility toggle.
  * После этого работают стандартные role/aria-label локаторы Playwright.
  *
  * Подготовка:
@@ -28,27 +28,60 @@ const launchArgs = [
   "--use-fake-device-for-media-stream",
 ];
 
+async function getBootstrapState(page) {
+  return page.evaluate(() => ({
+    hasA11yToggle: !!document.querySelector(
+      '[aria-label="Enable accessibility"], flt-semantics-placeholder',
+    ),
+    hasTextbox: !!document.querySelector('input, textarea, [role="textbox"]'),
+    hasLoadingIndicator: !!document.querySelector("#loading_indicator"),
+    bodyLength: document.body?.innerHTML?.length ?? 0,
+  }));
+}
+
 // ── Flutter CanvasKit: включить семантический слой ────────────────────────────
-// flt-semantics-placeholder находится за пределами viewport, поэтому
-// обычный .click() падает с «element is outside of the viewport».
-// Используем JS evaluation чтобы обойти это ограничение.
+// В новых Flutter web runtime триггер доступности доступен как off-screen
+// элемент с aria-label="Enable accessibility". Обычный .click() падает из-за
+// позиции вне viewport, поэтому включаем semantics через JS и ждём появления
+// реальных доступных контролов.
 async function enableFlutterA11y(page) {
-  const result = await page.evaluate(() => {
-    const btn = document.querySelector("flt-semantics-placeholder");
-    if (!btn) return "NOT_FOUND";
-    btn.click();
-    return "CLICKED";
-  });
-  if (result === "CLICKED") {
-    // Дать Flutter время на построение семантического дерева
-    await delay(3000);
-    return true;
+  const deadline = Date.now() + 30_000;
+
+  while (Date.now() < deadline) {
+    const textboxCount = await page.getByRole("textbox").count();
+    const startButtonCount = await page
+      .getByRole("button", { name: /GET STARTED/i })
+      .count();
+
+    if (textboxCount > 0 || startButtonCount > 0) {
+      return true;
+    }
+
+    const result = await page.evaluate(() => {
+      const btn = document.querySelector(
+        '[aria-label="Enable accessibility"], flt-semantics-placeholder',
+      );
+      if (!btn) return "NOT_FOUND";
+      btn.click();
+      return "CLICKED";
+    });
+
+    if (result === "CLICKED") {
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await delay(1000);
+        const textboxes = await page.getByRole("textbox").count();
+        const startButtons = await page
+          .getByRole("button", { name: /GET STARTED/i })
+          .count();
+        if (textboxes > 0 || startButtons > 0) {
+          return true;
+        }
+      }
+    } else {
+      await delay(1000);
+    }
   }
-  // Fallback: Tab → Enter (на случай будущих версий Flutter)
-  await page.keyboard.press("Tab");
-  await delay(200);
-  await page.keyboard.press("Enter");
-  await delay(3000);
+
   return false;
 }
 
@@ -59,7 +92,15 @@ async function gotoApp(page) {
   while (Date.now() < deadline) {
     try {
       await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 15_000 });
-      return;
+      for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt++) {
+        const state = await getBootstrapState(page);
+        if (state.hasA11yToggle || state.hasTextbox) {
+          return;
+        }
+        await delay(1000);
+      }
+
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
     } catch (e) {
       lastErr = e;
       await delay(2000);
@@ -79,24 +120,34 @@ async function gotoApp(page) {
 async function registerUser(page, nickname) {
   await gotoApp(page);
 
-  // Flutter CanvasKit Bootstrap: ждём появления placeholder-кнопки
-  await page
-    .locator("flt-semantics-placeholder")
-    .waitFor({ state: "attached", timeout: 30_000 })
-    .catch(() => {
-      /* уже может не существовать в новых версиях */
-    });
-
   // Включаем семантический DOM
-  await enableFlutterA11y(page);
+  const a11yReady = await enableFlutterA11y(page);
+  if (!a11yReady) {
+    throw new Error(
+      "Accessibility semantics did not become available on the registration screen.",
+    );
+  }
 
   // Поле ввода псевдонима — после a11y: <input aria-label="Enter your alias...">
   const nicknameField = page.getByRole("textbox").first();
   await nicknameField.waitFor({ state: "visible", timeout: 30_000 });
-  await nicknameField.fill(nickname);
+  await nicknameField.click();
+  await nicknameField.type(nickname);
 
   // Кнопка GET STARTED
-  await page.getByRole("button", { name: /GET STARTED/i }).click();
+  const startButton = page.getByRole("button", { name: /GET STARTED/i });
+  let isEnabled = false;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    isEnabled = await startButton.isEnabled();
+    if (isEnabled) {
+      break;
+    }
+    await delay(250);
+  }
+  if (!isEnabled) {
+    throw new Error("GET STARTED button stayed disabled after typing nickname.");
+  }
+  await startButton.click();
 
   // Ждём главного экрана (таб «Chats»)
   await page
@@ -293,8 +344,7 @@ async function main() {
       .waitFor({ state: "visible", timeout: 15_000 });
     console.log("Alice: нашли Bob в результатах поиска ✅");
   } catch (_) {
-    console.warn("Alice: nickname Bob не виден в результатах, продолжаем…");
-    await alice.screenshot({ path: "dbg-no-results.png" });
+    console.log("Alice: nickname Bob не виден в результатах, продолжаем…");
   }
 
   console.log("Alice: подтверждаем добавление…");
@@ -317,7 +367,7 @@ async function main() {
     bobCardFound = true;
     console.log("Alice: карточка Bob видна (getByText) ✅");
   } catch (_) {
-    console.warn("Alice: getByText не нашёл карточку Bob, пробуем aria…");
+    console.log("Alice: getByText не нашёл карточку Bob, пробуем aria…");
   }
 
   // Попытка 2: aria-label содержит nickB
