@@ -163,10 +163,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     }
 
     final safetyNumber = await _supabaseService.getSafetyNumber(userId);
-    
+
     if (mounted) {
       Navigator.of(context).pop(); // Закрываем диалог загрузки
-      
+
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
@@ -504,6 +504,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       : 2.8,
                                 ),
                                 itemCount: filtered.length,
+                                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 80),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
                                   return InkWell(
@@ -565,6 +566,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                             ),
                                           ),
                                           IconButton(
+                                            tooltip: 'Open chat',
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _openChat(contact),
@@ -574,6 +576,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                             ),
                                           ),
                                           IconButton(
+                                            tooltip: 'Start call',
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _startCall(
@@ -596,6 +599,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                   ),
                                           ),
                                           IconButton(
+                                            tooltip: 'Start video call',
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _startCall(
@@ -608,6 +612,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                             ),
                                           ),
                                           IconButton(
+                                            tooltip: 'More options',
                                             onPressed: () =>
                                                 _showContactActions(contact),
                                             icon: const Icon(

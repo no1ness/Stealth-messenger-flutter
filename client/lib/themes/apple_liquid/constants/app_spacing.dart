@@ -68,7 +68,7 @@ class AppSpacing {
   // Navigation bar height
   static const double navBarHeight = 44.0;
   static const double navBarLargeHeight = 96.0;
-  static const double tabBarHeight = 49.0; // Apple standard
+  static const double tabBarHeight = 56.0; // Increased to prevent overflow
   
   // Safe area additions
   static const double bottomSafeArea = 34.0; // iPhone bottom notch

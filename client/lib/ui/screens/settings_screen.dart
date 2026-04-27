@@ -26,6 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _contactVerification = true;
   bool _newMessageNotifications = true;
   bool _callNotifications = true;
+  bool _useP2P = true;
+  bool _useSupabase = true;
   Timer? _previewTimer;
   int _countdown = 24;
   int _messageCount = 0;
@@ -61,6 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() {
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
+      _useP2P = prefs.getBool('useP2P') ?? true;
+      _useSupabase = prefs.getBool('useSupabase') ?? true;
       _messageCount = dashboard['messageCount'] as int? ?? 0;
       _callCount = dashboard['callCount'] as int? ?? 0;
       _chatCount = dashboard['chatCount'] as int? ?? 0;
@@ -118,6 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final cards = [
       _buildSecurityCard(),
+      _buildConnectionCard(),
       _buildNotificationCard(),
       _buildAppearanceCard(),
       _buildDiagnosticsCard(),
@@ -200,6 +205,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'Preview timer: ${_countdown}s',
             style: AppTypography.body.copyWith(
               color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionCard() {
+    return GlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Connection & Storage', style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          SwitchListTile.adaptive(
+            value: _useP2P,
+            onChanged: (value) async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('useP2P', value);
+              setState(() => _useP2P = value);
+            },
+            title: const Text('Direct P2P messaging'),
+            subtitle: const Text('Send messages directly to devices when online'),
+          ),
+          SwitchListTile.adaptive(
+            value: _useSupabase,
+            onChanged: (value) async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('useSupabase', value);
+              setState(() => _useSupabase = value);
+            },
+            title: const Text('Use Supabase Cloud'),
+            subtitle: const Text('Store history in cloud for sync'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _useSupabase ? 'Cloud sync active' : 'Offline mode: Local only',
+            style: AppTypography.body.copyWith(
+              color: _useSupabase ? AppColors.systemGreen : AppColors.systemOrange,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

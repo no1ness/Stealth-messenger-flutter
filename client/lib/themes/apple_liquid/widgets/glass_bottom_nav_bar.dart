@@ -33,6 +33,7 @@ class GlassBottomNavBar extends StatelessWidget {
           ),
           child: SafeArea(
             top: false,
+            bottom: false,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(

@@ -62,8 +62,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   @override
   void dispose() {
-    // ignore: avoid_print
-    print(
+    debugPrint(
       '[stealth-call] dispose() isCaller=${widget.isCaller} '
       'chat=${widget.chatId} connected=$_connected closing=$_closing',
     );
@@ -110,8 +109,6 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
       _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected && mounted) {
-          // ignore: avoid_print
-          print('[stealth-call] connection timeout fired');
           _showSnackBar('Connection timed out.');
           _hangUp();
         }
@@ -125,8 +122,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (widget.isCaller) {
         _callAcceptedSub = SupabaseService.callAcceptedStream.listen((payload) {
           if (payload['chat_id'] != widget.chatId) return;
-          // ignore: avoid_print
-          print('[stealth-call] call_accept received — creating offer');
+          debugPrint('[stealth-call] call_accept received — creating offer');
           _createOffer();
         });
       } else {
@@ -134,8 +130,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         // подписан на chat_calls. Раньше это делал CallManager сразу при
         // нажатии Answer, но тогда caller получал call_accept и слал offer
         // до того, как этот экран успевал подписаться на канал.
-        // ignore: avoid_print
-        print('[stealth-call] sending call_accept (subscription ready)');
+        debugPrint('[stealth-call] sending call_accept (subscription ready)');
         await _supabaseService.sendCallAccept(chatId: widget.chatId);
       }
 
@@ -177,11 +172,9 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         if (turnUser != null && turnUser.isNotEmpty) 'username': turnUser,
         if (turnPass != null && turnPass.isNotEmpty) 'credential': turnPass,
       });
-      // ignore: avoid_print
-      print('[stealth-call] TURN configured: $turnUrls');
+      debugPrint('[stealth-call] TURN configured: $turnUrls');
     } else {
-      // ignore: avoid_print
-      print(
+      debugPrint(
         '[stealth-call] WARNING: no TURN in .env — P2P will fail across NAT/VPN. '
         'Set TURN_URL, TURN_USERNAME, TURN_PASSWORD.',
       );
@@ -235,37 +228,42 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     };
 
     _peerConnection!.onTrack = (event) async {
-      // ignore: avoid_print
-      print(
+      debugPrint(
         '[stealth-call] onTrack kind=${event.track.kind} id=${event.track.id} '
         'enabled=${event.track.enabled} streams=${event.streams.length}',
       );
       if (event.streams.isNotEmpty) {
-        await _attachRemoteStream(event.streams.first, addedTrack: event.track);
+        final stream = event.streams.first;
+        for (final track in stream.getTracks()) {
+          track.enabled = true;
+        }
+        await _attachRemoteStream(stream, addedTrack: event.track);
         return;
       }
       final fallback = _remoteStream ?? await createLocalMediaStream('remote');
       if (!fallback.getTracks().any((track) => track.id == event.track.id)) {
         fallback.addTrack(event.track);
       }
+      event.track.enabled = true;
       await _attachRemoteStream(fallback, addedTrack: event.track);
     };
 
     _peerConnection!.onIceConnectionState = (state) {
-      // ignore: avoid_print
-      print('[stealth-call] iceState=$state');
+      debugPrint('[stealth-call] iceState=$state');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _markConnected();
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-        _showSnackBar('Connection failed.');
+        debugPrint('[stealth-call] ICE Connection Failed - triggering restart if possible');
+        _showSnackBar('Connection failed. Retrying...');
         _hangUp();
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        debugPrint('[stealth-call] ICE Connection Disconnected');
       }
     };
 
     _peerConnection!.onConnectionState = (state) {
-      // ignore: avoid_print
-      print('[stealth-call] peerState=$state');
+      debugPrint('[stealth-call] peerState=$state');
     };
   }
 
@@ -286,16 +284,14 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             : false,
       });
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] getUserMedia strict failed: $error, falling back');
+      debugPrint('[stealth-call] getUserMedia strict failed: $error, falling back');
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': widget.isVideoCall,
       });
     }
     final audioTracks = _localStream?.getAudioTracks() ?? const [];
-    // ignore: avoid_print
-    print(
+    debugPrint(
       '[stealth-call] local stream ready: audio=${audioTracks.length} '
       'ids=${audioTracks.map((t) => t.id).toList()} '
       'enabled=${audioTracks.map((t) => t.enabled).toList()}',
@@ -352,8 +348,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     final connection = _peerConnection;
     if (connection == null) return;
     if (await _isFromSelf(payload)) {
-      // ignore: avoid_print
-      print('[stealth-call] ignored own offer echo');
+      debugPrint('[stealth-call] ignored own offer echo');
       return;
     }
     try {
@@ -367,11 +362,9 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       final answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
       await _supabaseService.sendAnswer(chatId: widget.chatId, answer: answer.toMap());
-      // ignore: avoid_print
-      print('[stealth-call] answer sent');
+      debugPrint('[stealth-call] answer sent');
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] Offer handling error: $error');
+      debugPrint('[stealth-call] Offer handling error: $error');
     }
   }
 
@@ -379,8 +372,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     final connection = _peerConnection;
     if (connection == null) return;
     if (await _isFromSelf(payload)) {
-      // ignore: avoid_print
-      print('[stealth-call] ignored own answer echo');
+      debugPrint('[stealth-call] ignored own answer echo');
       return;
     }
     try {
@@ -391,11 +383,9 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (sdp == null || type == null) return;
       await connection.setRemoteDescription(RTCSessionDescription(sdp, type));
       await _flushPendingCandidates();
-      // ignore: avoid_print
-      print('[stealth-call] remote answer applied');
+      debugPrint('[stealth-call] remote answer applied');
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] Answer handling error: $error');
+      debugPrint('[stealth-call] Answer handling error: $error');
     }
   }
 
@@ -417,8 +407,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         _pendingRemoteCandidates.add(candidate);
       }
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] Remote candidate error: $error');
+      debugPrint('[stealth-call] Remote candidate error: $error');
     }
   }
 

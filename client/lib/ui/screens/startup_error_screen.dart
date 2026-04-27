@@ -9,10 +9,12 @@ class StartupErrorScreen extends StatelessWidget {
     super.key,
     required this.message,
     required this.onRetry,
+    this.onWorkOffline,
   });
 
   final String message;
   final Future<void> Function() onRetry;
+  final VoidCallback? onWorkOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +82,14 @@ class StartupErrorScreen extends StatelessWidget {
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry startup'),
                         ),
+                        if (onWorkOffline != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: onWorkOffline,
+                            icon: const Icon(Icons.cloud_off),
+                            label: const Text('Work Offline (Local only)'),
+                          ),
+                        ],
                       ],
                     ),
                   ),

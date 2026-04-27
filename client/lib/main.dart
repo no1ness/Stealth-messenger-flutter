@@ -7,6 +7,7 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/supabase_service.dart';
+import 'package:stealth/sync_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -70,10 +71,18 @@ class _MyAppState extends State<MyApp> {
         );
       }
 
-      await Supabase.initialize(
-        url: supabaseUrl,
-        anonKey: supabaseAnonKey,
-      );
+      final prefs = await SharedPreferences.getInstance();
+      final useSupabase = prefs.getBool('useSupabase') ?? true;
+
+      if (useSupabase) {
+        await Supabase.initialize(
+          url: supabaseUrl,
+          anonKey: supabaseAnonKey,
+        );
+      }
+
+      // Start background sync: pushes offline messages when connectivity returns.
+      SyncService.instance.start();
 
       _supabaseService = SupabaseService();
       await _checkRegistration();
@@ -183,10 +192,15 @@ class _MyAppState extends State<MyApp> {
               ? StartupErrorScreen(
                   message: _startupError!,
                   onRetry: _initializeSupabase,
+                  onWorkOffline: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('useSupabase', false);
+                    _initializeSupabase();
+                  },
                 )
-          : _isUserRegistered
-              ? const MainTabs()
-              : const RegistrationScreen(),
+              : _isUserRegistered
+                  ? const MainTabs()
+                  : const RegistrationScreen(),
     );
   }
 }

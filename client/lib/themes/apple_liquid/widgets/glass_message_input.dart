@@ -63,7 +63,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
 
   Future<void> _toggleRecording() async {
     if (widget.onVoiceRecorded == null) return;
-    
+
     if (!_isRecording) {
       // Check permission
       var status = await Permission.microphone.status;
@@ -71,14 +71,14 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
         status = await Permission.microphone.request();
         if (!status.isGranted) return;
       }
-      
+
       final hasPermission = await _recorder.hasPermission();
       if (!hasPermission) return;
 
       // Prepare path
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
+
       // Start recording
       await _recorder.start(
         const RecordConfig(
@@ -88,13 +88,13 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
         ),
         path: path,
       );
-      
+
       setState(() => _isRecording = true);
     } else {
       // Stop recording
       final recordedPath = await _recorder.stop();
       setState(() => _isRecording = false);
-      
+
       if (recordedPath != null) {
         await widget.onVoiceRecorded!.call(recordedPath);
       }
@@ -137,18 +137,19 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
                 _buildIconButton(
                   icon: Icons.add,
                   onPressed: _handleAttachment,
+                  semanticsLabel: 'Attach file',
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                
+
                 // Input Field or Recording Indicator
                 Expanded(
                   child: _isRecording
                       ? _buildRecordingIndicator()
                       : _buildTextField(),
                 ),
-                
+
                 const SizedBox(width: AppSpacing.sm),
-                
+
                 // Send or Mic Button
                 if (_hasText)
                   _buildSendButton()
@@ -158,6 +159,8 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
                     onPressed: _toggleRecording,
                     color: _isRecording ? AppColors.systemRed : null,
                     active: _isRecording,
+                    semanticsLabel:
+                        _isRecording ? 'Stop recording' : 'Record voice',
                   ),
               ],
             ),
@@ -227,41 +230,50 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
     required VoidCallback onPressed,
     Color? color,
     bool active = false,
+    String? semanticsLabel,
   }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: active 
-              ? (color ?? AppColors.systemBlue).withValues(alpha: 0.2) 
-              : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: color ?? AppColors.systemBlue,
-          size: 24,
+    return Semantics(
+      label: semanticsLabel,
+      button: true,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: active
+                ? (color ?? AppColors.systemBlue).withValues(alpha: 0.2)
+                : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: color ?? AppColors.systemBlue,
+            size: 24,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSendButton() {
-    return GestureDetector(
-      onTap: _handleSendMessage,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: const BoxDecoration(
-          color: AppColors.systemBlue,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.arrow_upward,
-          color: Colors.white,
-          size: 20,
+    return Semantics(
+      label: 'Send message',
+      button: true,
+      child: GestureDetector(
+        onTap: _handleSendMessage,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(
+            color: AppColors.systemBlue,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.arrow_upward,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
       ),
     );

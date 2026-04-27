@@ -54,13 +54,14 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                 children: [
                   if (showBackButton)
                     IconButton(
+                      tooltip: 'Back',
                       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                       color: AppColors.systemBlue,
                       onPressed: onBack ?? () => Navigator.of(context).pop(),
                     ),
                   if (leading != null && !showBackButton) leading!,
                   Expanded(
-                    child: titleWidget ?? 
+                    child: titleWidget ??
                       Text(
                         title ?? '',
                         style: AppTypography.headline.copyWith(

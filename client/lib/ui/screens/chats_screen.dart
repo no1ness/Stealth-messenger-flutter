@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,6 +12,8 @@ import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
     as glass;
 import 'package:stealth/themes/apple_liquid/widgets/glass_message_input.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
 class ChatsScreen extends StatefulWidget {
@@ -118,22 +121,28 @@ class _ChatsScreenState extends State<ChatsScreen>
         final storedName = (row['name'] as String?)?.trim();
         final isPrivate = row['is_private'] as bool? ?? false;
         var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
-        
+
         if (members.length == 1) {
-          title = (await _supabaseService.getNicknameForUser(members.first)) ?? 'Chat';
+          title = (await _supabaseService.getNicknameForUser(members.first)) ??
+              'Chat';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
             (memberId) => memberId != me,
             orElse: () => members.first,
           );
-          title = (await _supabaseService.getNicknameForUser(otherId)) ?? 'Chat';
+          title =
+              (await _supabaseService.getNicknameForUser(otherId)) ?? 'Chat';
         }
 
-        final lastMessage = await _supabaseService.fetchLastMessage(row['id'] as String);
-        final createdAt = DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
-        final lastSeen = await _supabaseService.getLastSeen(row['id'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread = await _supabaseService.countUnreadSince(row['id'] as String, lastSeen);
+        final lastMessage =
+            await _supabaseService.fetchLastMessage(row['id'] as String);
+        final createdAt =
+            DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
+        final lastSeen =
+            await _supabaseService.getLastSeen(row['id'] as String) ??
+                DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final unread = await _supabaseService.countUnreadSince(
+            row['id'] as String, lastSeen);
 
         return {
           'id': row['id'],
@@ -177,7 +186,8 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Future<void> _showCreateGroupSheet() async {
-    final contacts = (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
+    final contacts =
+        (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
     final selectedIds = <String>{};
     _groupNameController.clear();
     if (!mounted) {
@@ -251,7 +261,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                                     }
                                   });
                                 },
-                                title: Text(contact['name'] as String? ?? 'Unknown'),
+                                title: Text(
+                                    contact['name'] as String? ?? 'Unknown'),
                                 subtitle: Text(
                                   userId,
                                   maxLines: 1,
@@ -283,9 +294,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     final members = await _supabaseService.getChatMembers(chatId);
     final myRole = await _supabaseService.getMyRoleInChat(chatId);
     final isAdmin = myRole == 'admin';
-    final memberIds = members
-        .map<String>((member) => member['user_id'] as String)
-        .toSet();
+    final memberIds =
+        members.map<String>((member) => member['user_id'] as String).toSet();
     final availableContacts = contacts
         .where((contact) => !memberIds.contains(contact['user_id'] as String))
         .toList();
@@ -391,18 +401,21 @@ class _ChatsScreenState extends State<ChatsScreen>
                                   onSelected: (action) async {
                                     try {
                                       if (action == 'remove') {
-                                        await _supabaseService.removeMemberFromGroupChat(
+                                        await _supabaseService
+                                            .removeMemberFromGroupChat(
                                           chatId: chatId,
                                           memberId: userId,
                                         );
                                       } else if (action == 'promote') {
-                                        await _supabaseService.updateGroupMemberRole(
+                                        await _supabaseService
+                                            .updateGroupMemberRole(
                                           chatId: chatId,
                                           memberId: userId,
                                           role: 'admin',
                                         );
                                       } else if (action == 'demote') {
-                                        await _supabaseService.updateGroupMemberRole(
+                                        await _supabaseService
+                                            .updateGroupMemberRole(
                                           chatId: chatId,
                                           memberId: userId,
                                           role: 'member',
@@ -413,7 +426,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                                       if (!context.mounted) {
                                         return;
                                       }
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
                                         SnackBar(content: Text('$error')),
                                       );
                                     }
@@ -457,45 +471,48 @@ class _ChatsScreenState extends State<ChatsScreen>
                             ? const Center(
                                 child: Text('Only admins can add members'),
                               )
-                        : ListView.builder(
-                            itemCount: availableContacts.length,
-                            itemBuilder: (context, index) {
-                              final contact = availableContacts[index];
-                              final userId = contact['user_id'] as String;
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  child: Text(
-                                    _initials(contact['name'] as String?),
-                                  ),
-                                ),
-                                title: Text(contact['name'] as String? ?? 'Unknown'),
-                                subtitle: Text(
-                                  userId,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: FilledButton(
-                                  onPressed: () async {
-                                    try {
-                                      await _supabaseService.addMembersToGroupChat(
-                                        chatId: chatId,
-                                        memberIds: [userId],
-                                      );
-                                      await refreshMembers();
-                                    } catch (error) {
-                                      if (!context.mounted) {
-                                        return;
-                                      }
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('$error')),
-                                      );
-                                    }
-                                  },
-                                  child: const Text('Add'),
-                                ),
-                              );
-                            },
-                          ),
+                            : ListView.builder(
+                                itemCount: availableContacts.length,
+                                itemBuilder: (context, index) {
+                                  final contact = availableContacts[index];
+                                  final userId = contact['user_id'] as String;
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      child: Text(
+                                        _initials(contact['name'] as String?),
+                                      ),
+                                    ),
+                                    title: Text(contact['name'] as String? ??
+                                        'Unknown'),
+                                    subtitle: Text(
+                                      userId,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: FilledButton(
+                                      onPressed: () async {
+                                        try {
+                                          await _supabaseService
+                                              .addMembersToGroupChat(
+                                            chatId: chatId,
+                                            memberIds: [userId],
+                                          );
+                                          await refreshMembers();
+                                        } catch (error) {
+                                          if (!context.mounted) {
+                                            return;
+                                          }
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(content: Text('$error')),
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Add'),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                 ],
               ),
@@ -528,7 +545,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
     }
 
-    final rows = await _supabaseService.getMessages(chatId, limit: 40, offset: 0);
+    final rows =
+        await _supabaseService.getMessages(chatId, limit: 40, offset: 0);
     final otherLastReadAt = await _supabaseService.getOtherLastReadAt(chatId);
     final pinnedMessage = await _supabaseService.getPinnedMessage(chatId);
     if (!mounted) {
@@ -537,10 +555,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     setState(() {
       _otherLastReadAt = otherLastReadAt;
-      _messages = rows
-          .cast<Map<String, dynamic>>()
-          .map(_toUiMessage)
-          .toList()
+      _messages = rows.cast<Map<String, dynamic>>().map(_toUiMessage).toList()
         ..sort(
           (left, right) => (left['created_at'] as String)
               .compareTo(right['created_at'] as String),
@@ -574,12 +589,14 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final olderMessages = rows.cast<Map<String, dynamic>>().map(_toUiMessage).toList()
-      ..sort(
-        (left, right) =>
-            (left['created_at'] as String).compareTo(right['created_at'] as String),
-      );
-    final existingIds = _messages.map((message) => message['id'].toString()).toSet();
+    final olderMessages =
+        rows.cast<Map<String, dynamic>>().map(_toUiMessage).toList()
+          ..sort(
+            (left, right) => (left['created_at'] as String)
+                .compareTo(right['created_at'] as String),
+          );
+    final existingIds =
+        _messages.map((message) => message['id'].toString()).toSet();
 
     setState(() {
       _messages = [
@@ -656,7 +673,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                 },
               ),
               ListTile(
-                leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                leading:
+                    Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
                 title: Text(isPinned ? 'Unpin message' : 'Pin message'),
                 onTap: () async {
                   Navigator.of(context).pop();
@@ -694,7 +712,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Delete'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _supabaseService.softDeleteMessage(messageId: messageId);
+                    await _supabaseService.softDeleteMessage(
+                        messageId: messageId);
                     await _loadMessages(chatId);
                   },
                 ),
@@ -714,37 +733,37 @@ class _ChatsScreenState extends State<ChatsScreen>
         .stream(primaryKey: const ['id'])
         .eq('chat_id', chatId)
         .listen((records) async {
-      if (!mounted || _selectedChatId != chatId) {
-        return;
-      }
+          if (!mounted || _selectedChatId != chatId) {
+            return;
+          }
 
-      // Realtime возвращает сырые (зашифрованные) строки. Дешифруем каждое
-      // сообщение перед тем как мапить в UI — иначе в чате будут показываться
-      // только base64-пузыри для только что пришедших/отправленных сообщений.
-      final decrypted = await Future.wait(
-        records.map(
-          (row) => _supabaseService.decryptRawMessage(
-            Map<String, dynamic>.from(row),
-          ),
-        ),
-      );
-      if (!mounted || _selectedChatId != chatId) {
-        return;
-      }
-      setState(() {
-        _messages = decrypted
-            .where((row) => row['deleted_at'] == null)
-            .map(_toUiMessage)
-            .toList()
-          ..sort(
-            (left, right) => (left['created_at'] as String)
-                .compareTo(right['created_at'] as String),
+          // Realtime возвращает сырые (зашифрованные) строки. Дешифруем каждое
+          // сообщение перед тем как мапить в UI — иначе в чате будут показываться
+          // только base64-пузыри для только что пришедших/отправленных сообщений.
+          final decrypted = await Future.wait(
+            records.map(
+              (row) => _supabaseService.decryptRawMessage(
+                Map<String, dynamic>.from(row),
+              ),
+            ),
           );
-      });
-      _supabaseService.markChatRead(chatId);
-      _refreshReadState();
-      _scheduleScrollToBottom();
-    });
+          if (!mounted || _selectedChatId != chatId) {
+            return;
+          }
+          setState(() {
+            _messages = decrypted
+                .where((row) => row['deleted_at'] == null)
+                .map(_toUiMessage)
+                .toList()
+              ..sort(
+                (left, right) => (left['created_at'] as String)
+                    .compareTo(right['created_at'] as String),
+              );
+          });
+          _supabaseService.markChatRead(chatId);
+          _refreshReadState();
+          _scheduleScrollToBottom();
+        });
 
     _activeSubscriptions[chatId] = subscription;
 
@@ -754,19 +773,20 @@ class _ChatsScreenState extends State<ChatsScreen>
         .stream(primaryKey: const ['chat_id', 'user_id'])
         .eq('chat_id', chatId)
         .listen((records) {
-      if (!mounted || _selectedChatId != chatId) {
-        return;
-      }
+          if (!mounted || _selectedChatId != chatId) {
+            return;
+          }
 
-      final isOtherTyping = records.any(
-        (row) =>
-            row['user_id'] != _myUserId && (row['typing'] as bool? ?? false),
-      );
-      setState(() {
-        _isOtherTyping = isOtherTyping;
-      });
-      _refreshReadState();
-    });
+          final isOtherTyping = records.any(
+            (row) =>
+                row['user_id'] != _myUserId &&
+                (row['typing'] as bool? ?? false),
+          );
+          setState(() {
+            _isOtherTyping = isOtherTyping;
+          });
+          _refreshReadState();
+        });
 
     _activeSubscriptions['typing:$chatId'] = typingSubscription;
   }
@@ -824,6 +844,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       'isSent': isSent,
       'isDelivered': isSent,
       'isRead': isRead,
+      'metadata': row['metadata'],
     };
   }
 
@@ -845,7 +866,8 @@ class _ChatsScreenState extends State<ChatsScreen>
               ...message,
               'isRead': (message['isSent'] as bool? ?? false) &&
                   DateTime.tryParse(message['created_at'] as String? ?? '')
-                          ?.isAfter(otherLastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0)) ==
+                          ?.isAfter(otherLastReadAt ??
+                              DateTime.fromMillisecondsSinceEpoch(0)) ==
                       false,
             },
           )
@@ -873,9 +895,8 @@ class _ChatsScreenState extends State<ChatsScreen>
         ? _chats
         : _chats
             .where(
-              (chat) => (chat['name'] as String? ?? '')
-                  .toLowerCase()
-                  .contains(query),
+              (chat) =>
+                  (chat['name'] as String? ?? '').toLowerCase().contains(query),
             )
             .toList();
 
@@ -1012,7 +1033,8 @@ class _ChatsScreenState extends State<ChatsScreen>
               : chats.isEmpty
                   ? const EmptyState(type: 'chats')
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      padding: EdgeInsets.fromLTRB(12, 0, 12,
+                          MediaQuery.of(context).padding.bottom + 80),
                       itemCount: chats.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 8),
@@ -1215,17 +1237,20 @@ class _ChatsScreenState extends State<ChatsScreen>
                     final repliedMessage = replyToId == null
                         ? null
                         : _messages.cast<Map<String, dynamic>?>().firstWhere(
-                              (candidate) => candidate?['id'].toString() == replyToId,
+                              (candidate) =>
+                                  candidate?['id'].toString() == replyToId,
                               orElse: () => null,
                             );
 
                     return GestureDetector(
                       onLongPress: () => _showMessageActions(message),
                       child: glass.GlassChatBubble(
-                        message: '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
+                        message:
+                            '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
                         timestamp: message['timestamp'] as String?,
                         isDelivered: message['isDelivered'] as bool?,
                         isRead: message['isRead'] as bool?,
+                        attachmentWidget: _buildAttachmentWidget(message),
                         replyPreview: repliedMessage == null
                             ? null
                             : _buildReplyPreview(
@@ -1240,6 +1265,99 @@ class _ChatsScreenState extends State<ChatsScreen>
                 ),
         ),
         _buildConversationFooter(),
+      ],
+    );
+  }
+
+  Widget? _buildAttachmentWidget(Map<String, dynamic> message) {
+    final type = message['type'] as String?;
+    final content = message['message'] as String?;
+    if (content == null || content.isEmpty) return null;
+    if (type != 'image' && type != 'file' && type != 'audio') return null;
+
+    final isEncrypted =
+        (message['metadata'] as Map?)?['file_encrypted'] == true;
+
+    if (type == 'image') {
+      if (isEncrypted) {
+        return FutureBuilder<Uint8List?>(
+          future: _supabaseService.downloadAttachment(content, _selectedChatId!,
+              encrypted: true),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                width: 200,
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasData && snapshot.data != null) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(
+                  snapshot.data!,
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
+                ),
+              );
+            }
+            return const Icon(Icons.broken_image, size: 48);
+          },
+        );
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          content,
+          width: 200,
+          height: 200,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.broken_image, size: 48),
+        ),
+      );
+    }
+
+    if (type == 'audio') {
+      return _buildAudioAttachment(content, isEncrypted);
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.insert_drive_file, color: AppColors.systemBlue),
+        const SizedBox(width: 8),
+        Text(isEncrypted ? 'Encrypted File' : 'File Attachment'),
+      ],
+    );
+  }
+
+  Widget _buildAudioAttachment(String url, bool isEncrypted) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.play_circle_fill,
+              color: AppColors.systemBlue, size: 32),
+          onPressed: () async {
+            final bytes = await _supabaseService.downloadAttachment(
+              url,
+              _selectedChatId!,
+              encrypted: isEncrypted,
+            );
+            if (bytes != null) {
+              final source = BytesSource(bytes);
+              final player = AudioPlayer();
+              await player.play(source);
+            }
+          },
+        ),
+        const SizedBox(width: 4),
+        Text(
+          isEncrypted ? 'Encrypted Voice' : 'Voice Note',
+          style: AppTypography.caption1,
+        ),
       ],
     );
   }
@@ -1462,6 +1580,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       bytes: bytes,
       fileName: file.name,
       chatId: chatId,
+      encrypt: true,
     );
 
     if (publicUrl == null) {
@@ -1478,6 +1597,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       chatId: chatId,
       content: publicUrl,
       type: _resolveAttachmentType(file.name),
+      metadataOverride: {'file_encrypted': true},
     );
     await _loadMessages(chatId);
   }
@@ -1505,6 +1625,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       bytes: bytes,
       fileName: fileName,
       chatId: chatId,
+      encrypt: true,
     );
     if (publicUrl == null) {
       if (!mounted) {
@@ -1520,6 +1641,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       chatId: chatId,
       content: publicUrl,
       type: 'audio',
+      metadataOverride: {'file_encrypted': true},
     );
     await _loadMessages(chatId);
   }

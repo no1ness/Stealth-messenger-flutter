@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:stealth/crypto/ratchet_service.dart';
+import 'package:stealth/local_database_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -31,6 +33,7 @@ class SupabaseService {
   final X25519 _algorithm = X25519();
   final AesGcm _aes = AesGcm.with256bits();
   final Map<String, SecretKey> _sharedSecretCache = {};
+  final LocalDatabaseService _localDb = LocalDatabaseService();
 
   /// Экранирует спецсимволы ILIKE для защиты от SQL-инъекций.
   static String _escapeIlike(String input) {
@@ -45,6 +48,7 @@ class SupabaseService {
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
     ).hasMatch(input);
   }
+
   final Map<String, SecretKey> _groupSecretCache = {};
   RealtimeChannel? _userCallsChannel;
   RealtimeChannel? _chatCallsChannel;
@@ -137,17 +141,21 @@ class SupabaseService {
     return sharedSecret;
   }
 
-  Future<String> encryptMessage(String content, String otherUserId, {int? ratchetIndex}) async {
+  Future<String> encryptMessage(String content, String otherUserId,
+      {int? ratchetIndex}) async {
     SecretKey key;
     if (ratchetIndex != null) {
       final myId = (await getUserId())!;
       final sharedSecret = await _getSharedSecret(otherUserId);
-      final chains = await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-      key = await _ratchet.getNthMessageKey(chains['mySendChain']!, ratchetIndex);
+      final chains =
+          await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
+      key =
+          await _ratchet.getNthMessageKey(chains['mySendChain']!, ratchetIndex);
     } else {
       key = await _getSharedSecret(otherUserId);
     }
-    return _encryptBytesWithSecret(Uint8List.fromList(utf8.encode(content)), key);
+    return _encryptBytesWithSecret(
+        Uint8List.fromList(utf8.encode(content)), key);
   }
 
   Future<String> decryptMessage(
@@ -165,12 +173,12 @@ class SupabaseService {
       if (ratchetIndex != null) {
         final myId = (await getUserId())!;
         final sharedSecret = await _getSharedSecret(otherUserId);
-        final chains = await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
+        final chains =
+            await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
         // If the message was sent by me, its key came from `mySendChain`.
         // Otherwise it's encrypted with the peer's send chain which for us is `theirSendChain`.
-        final chainKey = senderIsMe
-            ? chains['mySendChain']!
-            : chains['theirSendChain']!;
+        final chainKey =
+            senderIsMe ? chains['mySendChain']! : chains['theirSendChain']!;
         key = await _ratchet.getNthMessageKey(chainKey, ratchetIndex);
       } else {
         key = await _getSharedSecret(otherUserId);
@@ -256,7 +264,8 @@ class SupabaseService {
       final encryptedKey = existingEnvelope['encrypted_key'] as String;
       final wrappedByUserId = existingEnvelope['wrapped_by_user_id'] as String;
       final envelopeSecret = await _getSharedSecret(wrappedByUserId);
-      final rawKey = await _decryptBytesWithSecret(encryptedKey, envelopeSecret);
+      final rawKey =
+          await _decryptBytesWithSecret(encryptedKey, envelopeSecret);
       final groupKey = SecretKey(rawKey);
       _groupSecretCache[chatId] = groupKey;
       return groupKey;
@@ -426,8 +435,8 @@ class SupabaseService {
       return null;
     }
 
-    final uniqueMembers = {me, ...memberIds.where((id) => id.trim().isNotEmpty)}
-        .toList();
+    final uniqueMembers =
+        {me, ...memberIds.where((id) => id.trim().isNotEmpty)}.toList();
     if (uniqueMembers.length < 3) {
       throw Exception('A group chat requires at least 3 members.');
     }
@@ -442,14 +451,14 @@ class SupabaseService {
       });
 
       await supabase.from('chat_members').insert(
-        uniqueMembers.map((userId) {
-          return {
-            'chat_id': chatId,
-            'user_id': userId,
-            'role': userId == me ? 'admin' : 'member',
-          };
-        }).toList(),
-      );
+            uniqueMembers.map((userId) {
+              return {
+                'chat_id': chatId,
+                'user_id': userId,
+                'role': userId == me ? 'admin' : 'member',
+              };
+            }).toList(),
+          );
       await rekeyGroupChat(chatId);
       return chatId;
     } catch (error) {
@@ -515,14 +524,14 @@ class SupabaseService {
 
     await _ensureAdminRole(chatId);
     await supabase.from('chat_members').upsert(
-      memberIds
-          .map((userId) => {
-                'chat_id': chatId,
-                'user_id': userId,
-                'role': 'member',
-              })
-          .toList(),
-    );
+          memberIds
+              .map((userId) => {
+                    'chat_id': chatId,
+                    'user_id': userId,
+                    'role': 'member',
+                  })
+              .toList(),
+        );
     await rekeyGroupChat(chatId);
   }
 
@@ -587,10 +596,17 @@ class SupabaseService {
     }
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final useSupabase = prefs.getBool('useSupabase') ?? true;
+      if (!useSupabase) {
+        return await _localDb.getChats();
+      }
+
       final membership = await supabase
           .from('chat_members')
           .select('chat_id')
-          .eq('user_id', me);
+          .eq('user_id', me)
+          .timeout(const Duration(seconds: 5));
       if (membership.isEmpty) {
         return [];
       }
@@ -601,9 +617,10 @@ class SupabaseService {
           .from('chats')
           .select('id, name, created_at, updated_at, chat_members(user_id)')
           .inFilter('id', chatIds)
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .timeout(const Duration(seconds: 5));
 
-      return chatsResponse.map((chat) {
+      final result = chatsResponse.map((chat) {
         final members = (chat['chat_members'] as List<dynamic>? ?? [])
             .map<String>((member) => member['user_id'] as String)
             .toList();
@@ -619,9 +636,24 @@ class SupabaseService {
           'members': members,
         };
       }).toList();
+
+      // Cache chats locally so offline fallback works
+      for (final chat in result) {
+        try {
+          await _localDb.saveChat(chat);
+        } catch (_) {}
+      }
+      return result;
     } catch (error) {
-      debugPrint('Error fetching chats: $error');
-      return [];
+      debugPrint(
+          'Error fetching chats from Supabase, falling back to local: $error');
+      // Offline fallback: return cached chats from local DB
+      try {
+        return await _localDb.getChats();
+      } catch (localError) {
+        debugPrint('Local DB fallback also failed: $localError');
+        return [];
+      }
     }
   }
 
@@ -664,13 +696,15 @@ class SupabaseService {
     final bytes = utf8.encode(keys.join('|'));
     final sha256 = Sha256();
     final hash = await sha256.hash(bytes);
-    
+
     final digestStr = hash.bytes
         .map((b) => b.toRadixString(16).padLeft(2, '0'))
         .join()
         .toUpperCase();
-        
-    return digestStr.replaceAllMapped(RegExp(r'.{4}'), (match) => '${match.group(0)} ').trim();
+
+    return digestStr
+        .replaceAllMapped(RegExp(r'.{4}'), (match) => '${match.group(0)} ')
+        .trim();
   }
 
   Future<List<dynamic>> getMessages(
@@ -679,32 +713,49 @@ class SupabaseService {
     int offset = 0,
   }) async {
     try {
-      final otherUserId = await _getOtherUserId(chatId);
-      final me = await getUserId();
-      final response = await supabase
-          .from('messages')
-          .select('*')
-          .eq('chat_id', chatId)
-          .isFilter('deleted_at', null)
-          .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1);
+      final prefs = await SharedPreferences.getInstance();
+      final useSupabase = prefs.getBool('useSupabase') ?? true;
 
-      if (otherUserId == null || otherUserId.isEmpty) {
-        return List.from(response.reversed);
+      List<dynamic> messages;
+      if (!useSupabase) {
+        messages = await _localDb.getMessages(chatId);
+      } else {
+        try {
+          final response = await supabase
+              .from('messages')
+              .select('*')
+              .eq('chat_id', chatId)
+              .isFilter('deleted_at', null)
+              .order('created_at', ascending: false)
+              .range(offset, offset + limit - 1)
+              .timeout(const Duration(seconds: 5));
+          messages = List.from(response.reversed);
+        } catch (e) {
+          debugPrint(
+              'Supabase failed to fetch messages, falling back to local: $e');
+          messages = await _localDb.getMessages(chatId);
+        }
       }
 
-      final reversed = List.from(response.reversed);
-      for (final message in reversed) {
-        final metadata = message['metadata'] as Map<String, dynamic>? ?? const {};
+      final otherUserId = await _getOtherUserId(chatId);
+      final me = await getUserId();
+
+      for (final message in messages) {
+        // Always cache locally — Supabase is backup storage, local DB is primary
+        await _localDb.saveMessage(message);
+
+        final metadata =
+            message['metadata'] as Map<String, dynamic>? ?? const {};
         final encryption = metadata['encryption'] as String?;
         final ratchetIndex = metadata['sender_ratchet_index'] as int?;
         final senderId = message['sender_id'] as String?;
+
         if (encryption == 'group_e2e') {
           message['content'] = await _decryptGroupMessage(
             chatId,
             message['content'] as String,
           );
-        } else {
+        } else if (otherUserId != null && otherUserId.isNotEmpty) {
           message['content'] = await decryptMessage(
             message['content'] as String,
             otherUserId,
@@ -713,7 +764,7 @@ class SupabaseService {
           );
         }
       }
-      return reversed;
+      return messages;
     } catch (error) {
       debugPrint('Error fetching messages: $error');
       return [];
@@ -725,6 +776,7 @@ class SupabaseService {
     required String content,
     required String type,
     String? replyToId,
+    Map<String, dynamic>? metadataOverride,
   }) async {
     final me = await getUserId();
     if (me == null) {
@@ -734,41 +786,81 @@ class SupabaseService {
     final otherUserId = await _getOtherUserId(chatId);
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final useSupabase = prefs.getBool('useSupabase') ?? true;
       final isGroupChat = otherUserId == null || otherUserId.isEmpty;
-      
+
       int? ratchetIndex;
       if (!isGroupChat) {
-        ratchetIndex = await supabase
-            .from('messages')
-            .count(CountOption.exact)
-            .eq('chat_id', chatId)
-            .eq('sender_id', me)
-            .not('metadata->sender_ratchet_index', 'is', 'null');
+        if (useSupabase) {
+          // Online: count from Supabase for accurate ratchet state
+          ratchetIndex = await supabase
+              .from('messages')
+              .count(CountOption.exact)
+              .eq('chat_id', chatId)
+              .eq('sender_id', me)
+              .not('metadata->sender_ratchet_index', 'is', 'null');
+        } else {
+          // Offline: count from local DB
+          final localMsgs = await _localDb.getMessages(chatId);
+          ratchetIndex = localMsgs
+              .where((m) =>
+                  m['sender_id'] == me &&
+                  (m['metadata'] as Map<String, dynamic>? ?? {})
+                      .containsKey('sender_ratchet_index'))
+              .length;
+        }
       }
 
       final encryptedContent = isGroupChat
           ? await _encryptGroupMessage(chatId, content)
-          : await encryptMessage(content, otherUserId, ratchetIndex: ratchetIndex);
-          
+          : await encryptMessage(content, otherUserId,
+              ratchetIndex: ratchetIndex);
+
       final metadata = <String, dynamic>{
         'encryption': isGroupChat ? 'group_e2e' : 'e2e',
+        if (metadataOverride != null) ...metadataOverride,
       };
       if (ratchetIndex != null) {
         metadata['sender_ratchet_index'] = ratchetIndex;
       }
 
-      await supabase.from('messages').insert({
+      final messageMap = {
         'chat_id': chatId,
         'sender_id': me,
         'content': encryptedContent,
         'message_type': type,
         'reply_to_id': replyToId,
         'metadata': metadata,
-      });
-      await supabase
-          .from('chats')
-          .update({'updated_at': DateTime.now().toIso8601String()})
-          .eq('id', chatId);
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      // Always save locally FIRST as UN-synced.
+      // If we are online and insert succeeds, we will mark it synced immediately after.
+      final localMessageId =
+          await _localDb.saveMessage(messageMap, synced: false);
+
+      if (useSupabase) {
+        try {
+          await supabase
+              .from('messages')
+              .insert(messageMap)
+              .timeout(const Duration(seconds: 5));
+          await supabase
+              .from('chats')
+              .update({'updated_at': DateTime.now().toIso8601String()})
+              .eq('id', chatId)
+              .timeout(const Duration(seconds: 5));
+
+          // Mark as synced since Supabase accepted it
+          if (localMessageId != null) {
+            await _localDb.markMessageSyncedByLocalKey(localMessageId);
+          }
+        } catch (e) {
+          debugPrint('Supabase insert failed (will sync later): $e');
+          // It remains synced: false in local DB, so SyncService will pick it up
+        }
+      }
     } catch (error) {
       debugPrint('Error sending message: $error');
     }
@@ -786,14 +878,19 @@ class SupabaseService {
 
     final otherUserId = await _getOtherUserId(chatId);
     final isGroupChat = otherUserId == null || otherUserId.isEmpty;
-    
-    final message = await supabase.from('messages').select('metadata').eq('id', messageId).single();
+
+    final message = await supabase
+        .from('messages')
+        .select('metadata')
+        .eq('id', messageId)
+        .single();
     final metadata = message['metadata'] as Map<String, dynamic>? ?? {};
     final ratchetIndex = metadata['sender_ratchet_index'] as int?;
 
     final encryptedContent = isGroupChat
         ? await _encryptGroupMessage(chatId, content)
-        : await encryptMessage(content, otherUserId, ratchetIndex: ratchetIndex);
+        : await encryptMessage(content, otherUserId,
+            ratchetIndex: ratchetIndex);
 
     await supabase
         .from('messages')
@@ -818,10 +915,7 @@ class SupabaseService {
         .update({'deleted_at': DateTime.now().toIso8601String()})
         .eq('id', messageId)
         .eq('sender_id', me);
-    await supabase
-        .from('pinned_messages')
-        .delete()
-        .eq('message_id', messageId);
+    await supabase.from('pinned_messages').delete().eq('message_id', messageId);
   }
 
   Future<void> pinMessage({
@@ -855,7 +949,8 @@ class SupabaseService {
     try {
       final row = await supabase
           .from('pinned_messages')
-          .select('message_id, messages(id, content, message_type, metadata, sender_id)')
+          .select(
+              'message_id, messages(id, content, message_type, metadata, sender_id)')
           .eq('chat_id', chatId)
           .order('created_at', ascending: false)
           .limit(1)
@@ -902,10 +997,27 @@ class SupabaseService {
     required Uint8List bytes,
     required String fileName,
     required String chatId,
+    bool encrypt = false,
   }) async {
     final userId = await getUserId();
     if (userId == null) {
       return null;
+    }
+
+    Uint8List dataToUpload = bytes;
+    if (encrypt) {
+      try {
+        final otherUserId = await _getOtherUserId(chatId);
+        if (otherUserId != null) {
+          final secretKey = await _getSharedSecret(otherUserId);
+          final encryptedBase64 =
+              await _encryptBytesWithSecret(bytes, secretKey);
+          dataToUpload = base64Decode(encryptedBase64);
+        }
+      } catch (e) {
+        debugPrint('Error encrypting attachment: $e');
+        return null;
+      }
     }
 
     final storagePath =
@@ -913,10 +1025,43 @@ class SupabaseService {
     try {
       await supabase.storage
           .from(_attachmentsBucket)
-          .uploadBinary(storagePath, bytes);
-      return supabase.storage.from(_attachmentsBucket).getPublicUrl(storagePath);
+          .uploadBinary(storagePath, dataToUpload);
+      return supabase.storage
+          .from(_attachmentsBucket)
+          .getPublicUrl(storagePath);
     } catch (error) {
       debugPrint('Error uploading attachment bytes: $error');
+      return null;
+    }
+  }
+
+  Future<Uint8List?> downloadAttachment(String url, String chatId,
+      {bool encrypted = false}) async {
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      // public/v1/storage/authenticated/object/chat-media/USER_ID/CHAT_ID/FILENAME
+      // Or just relative path if we use download()
+      final bucketIndex = pathSegments.indexOf(_attachmentsBucket);
+      if (bucketIndex == -1) return null;
+      final relativePath = pathSegments.sublist(bucketIndex + 1).join('/');
+
+      final bytes = await supabase.storage
+          .from(_attachmentsBucket)
+          .download(relativePath);
+
+      if (encrypted) {
+        final otherUserId = await _getOtherUserId(chatId);
+        if (otherUserId != null) {
+          final secretKey = await _getSharedSecret(otherUserId);
+          // _decryptBytesWithSecret expects base64 payload
+          final base64Payload = base64Encode(bytes);
+          return await _decryptBytesWithSecret(base64Payload, secretKey);
+        }
+      }
+      return bytes;
+    } catch (e) {
+      debugPrint('Error downloading attachment: $e');
       return null;
     }
   }
@@ -945,8 +1090,8 @@ class SupabaseService {
 
     try {
       final files = await supabase.storage.from(_attachmentsBucket).list(
-        path: userId,
-      );
+            path: userId,
+          );
       return {
         'bucketReady': true,
         'fileCount': files.length,
@@ -1051,10 +1196,10 @@ class SupabaseService {
       final messageRows = chatIds.isEmpty
           ? <dynamic>[]
           : await supabase
-                .from('messages')
-                .select('created_at')
-                .inFilter('chat_id', chatIds)
-                .gte('created_at', start.toIso8601String());
+              .from('messages')
+              .select('created_at')
+              .inFilter('chat_id', chatIds)
+              .gte('created_at', start.toIso8601String());
 
       final callRows = await supabase
           .from('call_history')
@@ -1084,16 +1229,17 @@ class SupabaseService {
         }
       }
 
-      final maxValue = buckets.fold<int>(1, (max, value) => value > max ? value : max);
+      final maxValue =
+          buckets.fold<int>(1, (max, value) => value > max ? value : max);
       return buckets
-          .map((value) => value == 0 ? 0.12 : (value / maxValue).clamp(0.12, 1.0))
+          .map((value) =>
+              value == 0 ? 0.12 : (value / maxValue).clamp(0.12, 1.0))
           .toList();
     } catch (error) {
       debugPrint('Error loading weekly activity bars: $error');
       return List<double>.filled(7, 0.12);
     }
   }
-
 
   Future<Map<String, dynamic>?> fetchLastMessage(String chatId) async {
     try {
@@ -1107,7 +1253,8 @@ class SupabaseService {
           .limit(1)
           .maybeSingle();
       if (response != null && response['content'] is String) {
-        final metadata = response['metadata'] as Map<String, dynamic>? ?? const {};
+        final metadata =
+            response['metadata'] as Map<String, dynamic>? ?? const {};
         final encryption = metadata['encryption'] as String?;
         final ratchetIndex = metadata['sender_ratchet_index'] as int?;
         final senderId = response['sender_id'] as String?;
@@ -1196,7 +1343,8 @@ class SupabaseService {
           .select('id, nickname')
           .inFilter('id', contactIds);
       final nicknames = {
-        for (final row in userRows) row['id'] as String: row['nickname'] as String?,
+        for (final row in userRows)
+          row['id'] as String: row['nickname'] as String?,
       };
 
       return contactRows.map((row) {
@@ -1219,10 +1367,7 @@ class SupabaseService {
     }
 
     try {
-      await supabase
-          .from('contacts')
-          .delete()
-          .or(
+      await supabase.from('contacts').delete().or(
             'and(user_id.eq.$me,contact_user_id.eq.$userId),and(user_id.eq.$userId,contact_user_id.eq.$me)',
           );
     } catch (error) {
@@ -1232,7 +1377,8 @@ class SupabaseService {
   }
 
   Future<void> getNicknames(Set<String> userIds) async {
-    final missing = userIds.where((id) => !_nicknameCache.containsKey(id)).toSet();
+    final missing =
+        userIds.where((id) => !_nicknameCache.containsKey(id)).toSet();
     if (missing.isEmpty) return;
     try {
       final rows = await supabase
@@ -1241,14 +1387,16 @@ class SupabaseService {
           .inFilter('id', missing.toList());
       for (final row in rows) {
         final id = row['id'] as String;
-        _nicknameCache[id] = (row['nickname'] as String?) ?? 'User ${id.substring(0, 4)}';
+        _nicknameCache[id] =
+            (row['nickname'] as String?) ?? 'User ${id.substring(0, 4)}';
       }
     } catch (error) {
       debugPrint('Error batch-fetching nicknames: $error');
     }
   }
 
-  Future<String?> getUserNicknameById(String userId) => getNicknameForUser(userId);
+  Future<String?> getUserNicknameById(String userId) =>
+      getNicknameForUser(userId);
   Future<String?> getUserNickname() => getNickname();
   Future<String> generateQRCode() async => (await getUserId()) ?? '';
 
@@ -1498,14 +1646,34 @@ class SupabaseService {
       return null;
     }
 
-    final members = await supabase
-        .from('chat_members')
-        .select('user_id')
-        .eq('chat_id', chatId);
-    for (final row in members) {
-      final candidate = row['user_id'] as String;
-      if (candidate != me) {
-        return candidate;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final useSupabase = prefs.getBool('useSupabase') ?? true;
+      if (useSupabase) {
+        final members = await supabase
+            .from('chat_members')
+            .select('user_id')
+            .eq('chat_id', chatId);
+        for (final row in members) {
+          final candidate = row['user_id'] as String;
+          if (candidate != me) {
+            return candidate;
+          }
+        }
+        return null;
+      }
+    } catch (_) {
+      // ignore online error and fallback
+    }
+
+    // Offline fallback
+    final chat = await _localDb.getChatById(chatId);
+    if (chat != null) {
+      final membersList = chat['members'] as List<dynamic>? ?? [];
+      for (final candidate in membersList) {
+        if (candidate.toString() != me) {
+          return candidate.toString();
+        }
       }
     }
     return null;
@@ -1693,6 +1861,8 @@ class SupabaseService {
   }) async {
     final me = await getUserId();
     final channel = supabase.channel('chat_calls:$chatId');
+    // ignore: avoid_print
+    // print('[stealth-signaling] sending ICE candidate to chat=$chatId');
     await channel.sendBroadcastMessage(
       event: 'ice_candidate',
       payload: {'candidate': candidate, 'from_user_id': me},
@@ -1722,14 +1892,15 @@ class SupabaseService {
           'p_ended_at': endedAt?.toIso8601String(),
           'p_metadata': metadata ?? <String, dynamic>{},
         },
-      );
+      ).timeout(const Duration(seconds: 5));
     } catch (error) {
       debugPrint('Error recording call history: $error');
     }
   }
 
   /// Возвращает историю звонков текущего пользователя.
-  Future<List<Map<String, dynamic>>> getRecentCallHistory({int limit = 12}) async {
+  Future<List<Map<String, dynamic>>> getRecentCallHistory(
+      {int limit = 12}) async {
     final me = await getUserId();
     if (me == null) {
       return [];
@@ -1741,7 +1912,8 @@ class SupabaseService {
           .select('*')
           .or('initiator_user_id.eq.$me,recipient_user_id.eq.$me')
           .order('started_at', ascending: false)
-          .limit(limit);
+          .limit(limit)
+          .timeout(const Duration(seconds: 5));
 
       final result = <Map<String, dynamic>>[];
       for (final row in rows) {
@@ -1762,6 +1934,38 @@ class SupabaseService {
     } catch (error) {
       debugPrint('Error loading call history: $error');
       return [];
+    }
+  }
+
+  Future<void> syncLocalToSupabase() async {
+    final me = await getUserId();
+    if (me == null) return;
+
+    final chats = await getChats();
+    for (final chat in chats) {
+      final chatId = chat['id'] as String;
+      final localMessages = await _localDb.getMessages(chatId);
+
+      try {
+        final cloudResponse = await supabase
+            .from('messages')
+            .select('id')
+            .eq('chat_id', chatId)
+            .limit(100);
+
+        final cloudIds = (cloudResponse as List).map((m) => m['id']).toSet();
+
+        for (final msg in localMessages) {
+          if (!cloudIds.contains(msg['id'])) {
+            await supabase.from('messages').insert({
+              ...msg,
+              'synced_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Sync failed for chat $chatId: $e');
+      }
     }
   }
 }

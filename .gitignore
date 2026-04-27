@@ -70,3 +70,8 @@ mobile/linux/flutter/ephemeral/
 .fvm/
 coverage/
 lib/generated_plugin_registrant.dart
+.tmp/
+pw-test/*.png
+pw-test/*.html
+pw-test/diag-*.json
+pw-test/*-report.json

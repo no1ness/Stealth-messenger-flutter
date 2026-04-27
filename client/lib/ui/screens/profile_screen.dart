@@ -1,4 +1,6 @@
-import 'dart:io';
+import 'dart:io' show File, Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -91,6 +93,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _exportPrivateKey() async {
     final privateKey = await _supabaseService.getPrivateKey();
     if (privateKey == null) {
+      return;
+    }
+
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Key export is not supported on web')),
+      );
       return;
     }
 
@@ -370,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.md),
           _buildMetricRow('Bucket', _bucketReady ? 'chat-media ready' : 'Missing'),
           _buildMetricRow('Files', _storageFileCount.toString()),
-          _buildMetricRow('Platform', Platform.operatingSystem),
+          _buildMetricRow('Platform', kIsWeb ? 'web' : Platform.operatingSystem),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: _bucketReady ? 1 : 0.25,
