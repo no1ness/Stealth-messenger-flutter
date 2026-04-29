@@ -1639,16 +1639,22 @@ class SupabaseService {
     required Function(Map<String, dynamic>) onCallAccepted,
     required Function(Map<String, dynamic>) onCallEnded,
   }) async {
+    debugPrint('[stealth-call] subscribeToUserCalls userId=$userId');
     await unsubscribeUserCalls();
     final channel = supabase.channel('user_calls:$userId');
+    debugPrint('[stealth-call] created channel user_calls:$userId');
     channel
         .onBroadcast(
           event: 'call_initiation',
-          callback: (payload) => onCallReceived(_unwrapBroadcast(payload)),
+          callback: (payload) {
+            debugPrint('[stealth-call] received call_initiation: $payload');
+            onCallReceived(_unwrapBroadcast(payload));
+          },
         )
         .onBroadcast(
           event: 'call_accept',
           callback: (payload) {
+            debugPrint('[stealth-call] received call_accept: $payload');
             final unwrapped = _unwrapBroadcast(payload);
             onCallAccepted(unwrapped);
             // Пробрасываем событие активному WebRTCCallScreen, чтобы он
@@ -1658,10 +1664,14 @@ class SupabaseService {
         )
         .onBroadcast(
           event: 'call_end',
-          callback: (payload) => onCallEnded(_unwrapBroadcast(payload)),
+          callback: (payload) {
+            debugPrint('[stealth-call] received call_end: $payload');
+            onCallEnded(_unwrapBroadcast(payload));
+          },
         )
         .subscribe();
     _userCallsChannel = channel;
+    debugPrint('[stealth-call] subscribed to user_calls:$userId');
   }
 
   Future<void> unsubscribeUserCalls() async {
@@ -1810,11 +1820,14 @@ class SupabaseService {
     final me = await getUserId();
     final nickname = await getNickname();
     final otherUserId = await _getOtherUserId(chatId);
+    debugPrint('[stealth-call] sendCallInitiation chatId=$chatId me=$me otherUserId=$otherUserId nickname=$nickname');
     if (me == null || otherUserId == null || otherUserId.isEmpty) {
+      debugPrint('[stealth-call] sendCallInitiation ABORTED (null values)');
       return;
     }
 
     final channel = supabase.channel('user_calls:$otherUserId');
+    debugPrint('[stealth-call] sending call_initiation to user_calls:$otherUserId');
     await channel.sendBroadcastMessage(
       event: 'call_initiation',
       payload: {
@@ -1824,6 +1837,7 @@ class SupabaseService {
         'call_type': isVideoCall ? 'video' : 'audio',
       },
     );
+    debugPrint('[stealth-call] call_initiation sent successfully');
     await _recordCallHistoryEvent(
       chatId: chatId,
       initiatorUserId: me,

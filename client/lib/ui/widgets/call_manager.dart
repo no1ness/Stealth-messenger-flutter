@@ -30,21 +30,35 @@ class _CallManagerState extends State<CallManager> {
   }
 
   Future<void> _initGlobalCallListener() async {
+    // ignore: avoid_print
+    print('[stealth-call] CallManager._initGlobalCallListener started');
     _currentUserId = await _supabaseService.getUserId();
+    // ignore: avoid_print
+    print('[stealth-call] CallManager userId=$_currentUserId mounted=$mounted');
     if (_currentUserId == null || !mounted) {
+      // ignore: avoid_print
+      print('[stealth-call] CallManager NOT subscribing (userId null or not mounted)');
       return;
     }
 
+    // ignore: avoid_print
+    print('[stealth-call] CallManager subscribing to user_calls:$_currentUserId');
     _supabaseService.subscribeToUserCalls(
       userId: _currentUserId!,
       onCallReceived: _handleCallInitiation,
       onCallAccepted: _handleCallAccepted,
       onCallEnded: _handleCallEnded,
     );
+    // ignore: avoid_print
+    print('[stealth-call] CallManager subscribed successfully');
   }
 
   void _handleCallInitiation(Map<String, dynamic> payload) async {
+    // ignore: avoid_print
+    print('[stealth-call] CallManager._handleCallInitiation payload=$payload isInCall=$_isInCall mounted=$mounted');
     if (_isInCall || !mounted) {
+      // ignore: avoid_print
+      print('[stealth-call] CallManager ignoring call (already in call or not mounted)');
       return;
     }
 
@@ -52,22 +66,32 @@ class _CallManagerState extends State<CallManager> {
     final fromUserId = payload['from_user_id'] as String?;
     final fromNickname = payload['from_nickname'] as String?;
     final isVideoCall = payload['call_type'] == 'video';
+    // ignore: avoid_print
+    print('[stealth-call] CallManager parsed: chatId=$chatId fromUserId=$fromUserId fromNickname=$fromNickname isVideo=$isVideoCall');
     if (chatId == null ||
         fromUserId == null ||
         fromNickname == null ||
         fromUserId == _currentUserId) {
+      // ignore: avoid_print
+      print('[stealth-call] CallManager invalid payload or self-call, ignoring');
       return;
     }
 
+    // ignore: avoid_print
+    print('[stealth-call] CallManager recording incoming call');
     await _supabaseService.recordIncomingCall(
       chatId: chatId,
       fromUserId: fromUserId,
       fromNickname: fromNickname,
     );
     if (!mounted) {
+      // ignore: avoid_print
+      print('[stealth-call] CallManager not mounted after recordIncomingCall');
       return;
     }
 
+    // ignore: avoid_print
+    print('[stealth-call] CallManager showing incoming call dialog');
     _showIncomingCallDialog(
       chatId: chatId,
       fromUserId: fromUserId,

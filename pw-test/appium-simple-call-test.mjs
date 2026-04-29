@@ -126,6 +126,18 @@ async function main() {
     console.log('\n⏳ Ожидание запуска приложений (10 сек)...');
     await delay(10000);
     
+    // Разблокируем телефон свайпом (на случай если заблокировался)
+    console.log('🔓 Разблокируем телефон...');
+    try {
+      await phone.action('pointer', { parameters: { pointerType: 'touch' } })
+        .move({ x: 540, y: 1800 })
+        .down()
+        .move({ x: 540, y: 900, duration: 500 })
+        .up()
+        .perform();
+    } catch (_) {}
+    await delay(2000);
+    
     // Сохраняем начальные скриншоты
     await emulator.saveScreenshot('simple-emulator-start.png');
     await phone.saveScreenshot('simple-phone-start.png');

@@ -451,6 +451,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     if (!_connected) {
       _startTimer();
       _startStatsLogger();
+      // Принудительно применяем аудио-роутинг при первом коннекте.
+      // Без этого Android оставляет вывод в earpiece (а на эмуляторе
+      // earpiece часто не озвучен), и собеседника не слышно даже когда
+      // RTP-пакеты идут.
+      // ignore: discarded_futures
+      _applyAudioRouting();
     }
     _connectionTimeout?.cancel();
     setState(() {
