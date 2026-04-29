@@ -73,10 +73,11 @@ class _MyAppState extends State<MyApp> {
 
       final prefs = await SharedPreferences.getInstance();
       final useSupabase = prefs.getBool('useSupabase') ?? true;
+      final customUrl = prefs.getString('customSupabaseUrl');
 
       if (useSupabase) {
         await Supabase.initialize(
-          url: supabaseUrl,
+          url: (customUrl != null && customUrl.isNotEmpty) ? customUrl : supabaseUrl,
           anonKey: supabaseAnonKey,
         );
       }

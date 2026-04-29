@@ -9,6 +9,7 @@ import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/sync_service.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
@@ -28,6 +29,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _callNotifications = true;
   bool _useP2P = true;
   bool _useSupabase = true;
+  bool _forceP2P = false;
+  int _syncIntervalSeconds = 30;
+  String _customSupabaseUrl = '';
   Timer? _previewTimer;
   int _countdown = 24;
   int _messageCount = 0;
@@ -38,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _webrtcPlatformLabel = 'Checking...';
   int _webrtcAudioInputs = 0;
   List<double> _diagnosticBars = const [0.12, 0.12, 0.12, 0.12];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -53,6 +58,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     final prefs = await SharedPreferences.getInstance();
     final dashboard = await _supabaseService.getDashboardSummary();
     final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
@@ -65,6 +74,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
       _useP2P = prefs.getBool('useP2P') ?? true;
       _useSupabase = prefs.getBool('useSupabase') ?? true;
+      _forceP2P = prefs.getBool('forceP2P') ?? false;
+      _syncIntervalSeconds = prefs.getInt('syncIntervalSeconds') ?? 30;
+      _customSupabaseUrl = prefs.getString('customSupabaseUrl') ?? '';
       _messageCount = dashboard['messageCount'] as int? ?? 0;
       _callCount = dashboard['callCount'] as int? ?? 0;
       _chatCount = dashboard['chatCount'] as int? ?? 0;
@@ -78,6 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _callCount == 0 ? 0.12 : (_callCount.clamp(1, 10) / 10),
         weeklyActivity.fold<double>(0.12, (max, value) => value > max ? value : max),
       ];
+      _isLoading = false;
     });
   }
 
@@ -134,29 +147,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
         preferredSize: Size.fromHeight(kToolbarHeight),
         child: GlassAppBar(title: 'Settings'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth >= 1100) {
-              return GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisSpacing: AppSpacing.md,
-                childAspectRatio: 1.4,
-                children: cards,
-              );
-            }
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.systemBlue,
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= 1100) {
+                    return GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                      childAspectRatio: 1.4,
+                      children: cards,
+                    );
+                  }
 
-            return ListView.separated(
-              itemCount: cards.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: AppSpacing.md),
-              itemBuilder: (context, index) => cards[index],
-            );
-          },
-        ),
-      ),
+                  return ListView.separated(
+                    itemCount: cards.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (context, index) => cards[index],
+                  );
+                },
+              ),
+            ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -238,6 +257,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             title: const Text('Use Supabase Cloud'),
             subtitle: const Text('Store history in cloud for sync'),
+          ),
+          SwitchListTile.adaptive(
+            value: _forceP2P,
+            onChanged: (value) async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('forceP2P', value);
+              setState(() => _forceP2P = value);
+            },
+            title: const Text('Force P2P Only'),
+            subtitle: const Text('Disables cloud backup for messages. Absolute privacy.'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Background Sync Interval: $_syncIntervalSeconds s',
+                  style: AppTypography.body,
+                ),
+                Slider(
+                  value: _syncIntervalSeconds.toDouble(),
+                  min: 5,
+                  max: 300,
+                  divisions: 59,
+                  onChanged: (value) {
+                    setState(() => _syncIntervalSeconds = value.toInt());
+                  },
+                  onChangeEnd: (value) async {
+                    final sync = SyncService.instance;
+                    await sync.setSyncInterval(value.toInt());
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            key: ValueKey(_customSupabaseUrl),
+            initialValue: _customSupabaseUrl,
+            decoration: const InputDecoration(
+              labelText: 'Custom Signal Relay (URL)',
+              hintText: 'https://your-relay.com',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('customSupabaseUrl', value);
+            },
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

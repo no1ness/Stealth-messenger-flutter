@@ -1,9 +1,12 @@
 {
   "private": true,
   "scripts": {
-    "test:call:two-browsers": "node two-browser-call.mjs"
+    "serve:web:static": "node serve-static-web.mjs",
+    "test:call:two-browsers": "node two-browser-call.mjs",
+    "test:media": "node media-test.mjs"
   },
   "dependencies": {
-    "playwright": "^1.59.1"
+    "playwright": "^1.59.1",
+    "webdriverio": "^9.27.0"
   }
 }

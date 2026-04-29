@@ -6,6 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:stealth/crypto/ratchet_service.dart';
 import 'package:stealth/local_database_service.dart';
+import 'package:stealth/p2p_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -394,7 +395,8 @@ class SupabaseService {
       final existingChats = await supabase
           .from('chat_members')
           .select('chat_id')
-          .eq('user_id', me);
+          .eq('user_id', me)
+          .timeout(const Duration(seconds: 5));
       for (final row in existingChats) {
         final chatId = row['chat_id'] as String;
         final otherUserInChat = await supabase
@@ -402,23 +404,35 @@ class SupabaseService {
             .select('user_id')
             .eq('chat_id', chatId)
             .eq('user_id', otherUserId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 3));
         if (otherUserInChat != null) {
           return chatId;
         }
       }
 
       final chatId = _uuid.v4();
-      await supabase.from('chats').insert({
+      final chatData = {
         'id': chatId,
         'name': '',
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
-      });
+        'members': [me, otherUserId],
+      };
+      await supabase.from('chats').insert({
+        'id': chatData['id'],
+        'name': chatData['name'],
+        'created_at': chatData['created_at'],
+        'updated_at': chatData['updated_at'],
+      }).timeout(const Duration(seconds: 5));
       await supabase.from('chat_members').insert([
         {'chat_id': chatId, 'user_id': me},
         {'chat_id': chatId, 'user_id': otherUserId},
-      ]);
+      ]).timeout(const Duration(seconds: 5));
+
+      // Cache locally
+      await _localDb.saveChat(chatData);
+
       return chatId;
     } catch (error) {
       debugPrint('Error finding or creating chat: $error');
@@ -443,11 +457,19 @@ class SupabaseService {
 
     try {
       final chatId = _uuid.v4();
-      await supabase.from('chats').insert({
+      final chatData = {
         'id': chatId,
         'name': name.trim().isEmpty ? 'New group' : name.trim(),
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
+        'members': uniqueMembers,
+      };
+
+      await supabase.from('chats').insert({
+        'id': chatData['id'],
+        'name': chatData['name'],
+        'created_at': chatData['created_at'],
+        'updated_at': chatData['updated_at'],
       });
 
       await supabase.from('chat_members').insert(
@@ -460,6 +482,10 @@ class SupabaseService {
             }).toList(),
           );
       await rekeyGroupChat(chatId);
+
+      // Cache locally
+      await _localDb.saveChat(chatData);
+
       return chatId;
     } catch (error) {
       debugPrint('Error creating group chat: $error');
@@ -716,59 +742,70 @@ class SupabaseService {
       final prefs = await SharedPreferences.getInstance();
       final useSupabase = prefs.getBool('useSupabase') ?? true;
 
-      List<dynamic> messages;
+      // 1. Always load from Local DB FIRST for instant UI
+      final localMessages = await _localDb.getMessages(chatId);
+      
+      // If we are offline or useSupabase is false, just return local messages
       if (!useSupabase) {
-        messages = await _localDb.getMessages(chatId);
-      } else {
-        try {
-          final response = await supabase
-              .from('messages')
-              .select('*')
-              .eq('chat_id', chatId)
-              .isFilter('deleted_at', null)
-              .order('created_at', ascending: false)
-              .range(offset, offset + limit - 1)
-              .timeout(const Duration(seconds: 5));
-          messages = List.from(response.reversed);
-        } catch (e) {
-          debugPrint(
-              'Supabase failed to fetch messages, falling back to local: $e');
-          messages = await _localDb.getMessages(chatId);
-        }
+        return _decryptAndProcessMessages(localMessages, chatId);
       }
 
-      final otherUserId = await _getOtherUserId(chatId);
-      final me = await getUserId();
-
-      for (final message in messages) {
-        // Always cache locally — Supabase is backup storage, local DB is primary
-        await _localDb.saveMessage(message);
-
-        final metadata =
-            message['metadata'] as Map<String, dynamic>? ?? const {};
-        final encryption = metadata['encryption'] as String?;
-        final ratchetIndex = metadata['sender_ratchet_index'] as int?;
-        final senderId = message['sender_id'] as String?;
-
-        if (encryption == 'group_e2e') {
-          message['content'] = await _decryptGroupMessage(
-            chatId,
-            message['content'] as String,
-          );
-        } else if (otherUserId != null && otherUserId.isNotEmpty) {
-          message['content'] = await decryptMessage(
-            message['content'] as String,
-            otherUserId,
-            ratchetIndex: ratchetIndex,
-            senderIsMe: me != null && senderId == me,
-          );
+      // 2. Fetch latest from Supabase in background to sync local DB
+      try {
+        final response = await supabase
+            .from('messages')
+            .select('*')
+            .eq('chat_id', chatId)
+            .isFilter('deleted_at', null)
+            .order('created_at', ascending: false)
+            .range(0, limit - 1) 
+            .timeout(const Duration(seconds: 5));
+        
+        final remoteMessages = List.from(response);
+        for (final msg in remoteMessages) {
+          // Always cache locally — Supabase is backup storage, local DB is primary
+          await _localDb.saveMessage(msg, synced: true);
         }
+      } catch (e) {
+        debugPrint('Supabase fetch failed during local-first sync: $e');
       }
-      return messages;
+
+      // 3. Reload from local DB after sync to get the unified list
+      final unifiedMessages = await _localDb.getMessages(chatId);
+      return _decryptAndProcessMessages(unifiedMessages, chatId);
     } catch (error) {
       debugPrint('Error fetching messages: $error');
       return [];
     }
+  }
+
+  Future<List<dynamic>> _decryptAndProcessMessages(List<dynamic> messages, String chatId) async {
+    final otherUserId = await _getOtherUserId(chatId);
+    final me = await getUserId();
+
+    for (final message in messages) {
+      final metadata =
+          message['metadata'] as Map<String, dynamic>? ?? const {};
+      final encryption = metadata['encryption'] as String?;
+      final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+      final senderId = message['sender_id'] as String?;
+
+      if (encryption == 'group_e2e') {
+        message['content'] = await _decryptGroupMessage(
+          chatId,
+          message['content'] as String,
+        );
+      } else if (otherUserId != null && otherUserId.isNotEmpty) {
+        message['content'] = await decryptMessage(
+          message['content'] as String,
+          otherUserId,
+          ratchetIndex: ratchetIndex,
+          senderIsMe: me != null && senderId == me,
+        );
+      }
+    }
+    // Return sorted by creation time
+    return messages..sort((a, b) => (a['created_at'] as String).compareTo(b['created_at'] as String));
   }
 
   Future<void> sendMessage({
@@ -793,13 +830,27 @@ class SupabaseService {
       int? ratchetIndex;
       if (!isGroupChat) {
         if (useSupabase) {
-          // Online: count from Supabase for accurate ratchet state
-          ratchetIndex = await supabase
-              .from('messages')
-              .count(CountOption.exact)
-              .eq('chat_id', chatId)
-              .eq('sender_id', me)
-              .not('metadata->sender_ratchet_index', 'is', 'null');
+          try {
+            // Online: count from Supabase for accurate ratchet state
+            ratchetIndex = await supabase
+                .from('messages')
+                .count(CountOption.exact)
+                .eq('chat_id', chatId)
+                .eq('sender_id', me)
+                .not('metadata->sender_ratchet_index', 'is', 'null')
+                .timeout(const Duration(seconds: 3));
+          } catch (e) {
+            debugPrint(
+                'Supabase ratchet count failed, falling back to local: $e');
+            // Fallback to local count if Supabase is unreachable
+            final localMsgs = await _localDb.getMessages(chatId);
+            ratchetIndex = localMsgs
+                .where((m) =>
+                    m['sender_id'] == me &&
+                    (m['metadata'] as Map<String, dynamic>? ?? {})
+                        .containsKey('sender_ratchet_index'))
+                .length;
+          }
         } else {
           // Offline: count from local DB
           final localMsgs = await _localDb.getMessages(chatId);
@@ -826,6 +877,7 @@ class SupabaseService {
       }
 
       final messageMap = {
+        'id': _uuid.v4(), // Client-side UUID for reliable tracking
         'chat_id': chatId,
         'sender_id': me,
         'content': encryptedContent,
@@ -835,12 +887,30 @@ class SupabaseService {
         'created_at': DateTime.now().toIso8601String(),
       };
 
+      // 1. Try P2P Delivery first (Hybrid Delivery)
+      bool p2pSent = false;
+      try {
+        final p2p = P2PService.instance;
+        if (p2p.isP2PReady(chatId)) {
+          final p2pPayload = Map<String, dynamic>.from(messageMap);
+          // Mark as synced for the recipient's local DB upon receipt
+          p2pPayload['synced_p2p'] = true;
+          p2pSent = await p2p.sendP2PMessage(chatId, p2pPayload);
+          if (p2pSent) {
+            debugPrint('Message sent via P2P successfully');
+          }
+        }
+      } catch (e) {
+        debugPrint('P2P delivery attempt failed: $e');
+      }
+
       // Always save locally FIRST as UN-synced.
       // If we are online and insert succeeds, we will mark it synced immediately after.
+      final forceP2P = prefs.getBool('forceP2P') ?? false;
       final localMessageId =
-          await _localDb.saveMessage(messageMap, synced: false);
+          await _localDb.saveMessage(messageMap, synced: forceP2P);
 
-      if (useSupabase) {
+      if (useSupabase && !forceP2P) {
         try {
           await supabase
               .from('messages')
@@ -1008,12 +1078,15 @@ class SupabaseService {
     if (encrypt) {
       try {
         final otherUserId = await _getOtherUserId(chatId);
-        if (otherUserId != null) {
-          final secretKey = await _getSharedSecret(otherUserId);
-          final encryptedBase64 =
-              await _encryptBytesWithSecret(bytes, secretKey);
-          dataToUpload = base64Decode(encryptedBase64);
-        }
+        final isGroupChat = otherUserId == null || otherUserId.isEmpty;
+        
+        final SecretKey secretKey = isGroupChat
+            ? await _loadOrCreateGroupSecretKey(chatId)
+            : await _getSharedSecret(otherUserId);
+
+        final encryptedBase64 =
+            await _encryptBytesWithSecret(bytes, secretKey);
+        dataToUpload = base64Decode(encryptedBase64);
       } catch (e) {
         debugPrint('Error encrypting attachment: $e');
         return null;
@@ -1040,10 +1113,13 @@ class SupabaseService {
     try {
       final uri = Uri.parse(url);
       final pathSegments = uri.pathSegments;
-      // public/v1/storage/authenticated/object/chat-media/USER_ID/CHAT_ID/FILENAME
-      // Or just relative path if we use download()
+      
+      // Handle both public and private/authenticated URLs from Supabase
       final bucketIndex = pathSegments.indexOf(_attachmentsBucket);
-      if (bucketIndex == -1) return null;
+      if (bucketIndex == -1) {
+        debugPrint('Invalid attachment URL: bucket not found in path');
+        return null;
+      }
       final relativePath = pathSegments.sublist(bucketIndex + 1).join('/');
 
       final bytes = await supabase.storage
@@ -1052,12 +1128,13 @@ class SupabaseService {
 
       if (encrypted) {
         final otherUserId = await _getOtherUserId(chatId);
-        if (otherUserId != null) {
-          final secretKey = await _getSharedSecret(otherUserId);
-          // _decryptBytesWithSecret expects base64 payload
-          final base64Payload = base64Encode(bytes);
-          return await _decryptBytesWithSecret(base64Payload, secretKey);
-        }
+        final isGroupChat = otherUserId == null || otherUserId.isEmpty;
+
+        final SecretKey secretKey = isGroupChat
+            ? await _loadOrCreateGroupSecretKey(chatId)
+            : await _getSharedSecret(otherUserId);
+        final base64Payload = base64Encode(bytes);
+        return await _decryptBytesWithSecret(base64Payload, secretKey);
       }
       return bytes;
     } catch (e) {
@@ -1091,7 +1168,7 @@ class SupabaseService {
     try {
       final files = await supabase.storage.from(_attachmentsBucket).list(
             path: userId,
-          );
+          ).timeout(const Duration(seconds: 5));
       return {
         'bucketReady': true,
         'fileCount': files.length,
@@ -1107,7 +1184,6 @@ class SupabaseService {
     }
   }
 
-  /// Собирает метрики дашборда для адаптивного UI профиля/настроек.
   Future<Map<String, dynamic>> getDashboardSummary() async {
     final me = await getUserId();
     if (me == null) {
@@ -1122,41 +1198,25 @@ class SupabaseService {
     }
 
     try {
-      final chatMembers = await supabase
-          .from('chat_members')
-          .select('chat_id')
-          .eq('user_id', me);
-      final chatIds = chatMembers
-          .map<String>((row) => row['chat_id'] as String)
-          .toSet()
-          .toList();
-
+      // Local-first calculation for instant response
+      final localChats = await _localDb.getChats();
+      final localContacts = await _localDb.getContacts();
+      final localCalls = await _localDb.getCalls();
+      
       var messageCount = 0;
-      if (chatIds.isNotEmpty) {
-        messageCount = await supabase
-            .from('messages')
-            .count(CountOption.exact)
-            .inFilter('chat_id', chatIds);
+      for (final chat in localChats) {
+        final msgs = await _localDb.getMessages(chat['id'] as String);
+        messageCount += msgs.length;
       }
 
-      final contactCount = await supabase
-          .from('contacts')
-          .count(CountOption.exact)
-          .eq('user_id', me);
-      final callCount = await supabase
-          .from('call_history')
-          .count(CountOption.exact)
-          .or('initiator_user_id.eq.$me,recipient_user_id.eq.$me');
-      final privateKey = await getPrivateKey();
       final bucketReady = await debugHasAttachmentBucket();
 
       return {
-        'chatCount': chatIds.length,
-        'contactCount': contactCount,
+        'chatCount': localChats.length,
+        'contactCount': localContacts.length,
         'messageCount': messageCount,
-        'callCount': callCount,
-        'secureStorageReady': privateKey != null && privateKey.isNotEmpty,
-        'hasPrivateKey': privateKey != null && privateKey.isNotEmpty,
+        'callCount': localCalls.length,
+        'secureStorageReady': true,
         'bucketReady': bucketReady,
       };
     } catch (error) {
@@ -1167,76 +1227,53 @@ class SupabaseService {
         'messageCount': 0,
         'callCount': 0,
         'secureStorageReady': false,
-        'hasPrivateKey': false,
-        'bucketReady': false,
       };
     }
   }
 
-  /// Возвращает 7 нормализованных столбцов активности за последнюю неделю.
   Future<List<double>> getWeeklyActivityBars() async {
-    final me = await getUserId();
-    if (me == null) {
-      return List<double>.filled(7, 0.12);
-    }
-
     try {
       final now = DateTime.now().toUtc();
       final start = now.subtract(const Duration(days: 6));
 
-      final chatMembers = await supabase
-          .from('chat_members')
-          .select('chat_id')
-          .eq('user_id', me);
-      final chatIds = chatMembers
-          .map<String>((row) => row['chat_id'] as String)
-          .toSet()
-          .toList();
+      // Local-first activity calculation
+      final localChats = await _localDb.getChats();
+      final messageTimestamps = <DateTime>[];
+      for (final chat in localChats) {
+        final msgs = await _localDb.getMessages(chat['id'] as String);
+        for (final m in msgs) {
+          final ts = DateTime.tryParse(m['created_at'] as String? ?? '');
+          if (ts != null) messageTimestamps.add(ts);
+        }
+      }
 
-      final messageRows = chatIds.isEmpty
-          ? <dynamic>[]
-          : await supabase
-              .from('messages')
-              .select('created_at')
-              .inFilter('chat_id', chatIds)
-              .gte('created_at', start.toIso8601String());
-
-      final callRows = await supabase
-          .from('call_history')
-          .select('started_at')
-          .or('initiator_user_id.eq.$me,recipient_user_id.eq.$me')
-          .gte('started_at', start.toIso8601String());
+      final localCalls = await _localDb.getCalls();
+      final callTimestamps = <DateTime>[];
+      for (final c in localCalls) {
+        final ts = DateTime.tryParse(c['started_at'] as String? ?? '');
+        if (ts != null) callTimestamps.add(ts);
+      }
 
       final buckets = List<int>.filled(7, 0);
-      for (final row in messageRows) {
-        final date = DateTime.tryParse(row['created_at'] as String? ?? '');
-        if (date == null) {
-          continue;
-        }
+      for (final date in messageTimestamps) {
         final diff = now.difference(date.toUtc()).inDays;
         if (diff >= 0 && diff < 7) {
           buckets[6 - diff] += 1;
         }
       }
-      for (final row in callRows) {
-        final date = DateTime.tryParse(row['started_at'] as String? ?? '');
-        if (date == null) {
-          continue;
-        }
+      for (final date in callTimestamps) {
         final diff = now.difference(date.toUtc()).inDays;
         if (diff >= 0 && diff < 7) {
-          buckets[6 - diff] += 2;
+          buckets[6 - diff] += 1;
         }
       }
 
-      final maxValue =
-          buckets.fold<int>(1, (max, value) => value > max ? value : max);
-      return buckets
-          .map((value) =>
-              value == 0 ? 0.12 : (value / maxValue).clamp(0.12, 1.0))
-          .toList();
+      final maxVal = buckets.fold<int>(0, (m, v) => v > m ? v : m);
+      if (maxVal == 0) return List<double>.filled(7, 0.12);
+
+      return buckets.map((v) => (v / maxVal).clamp(0.12, 1.0)).toList();
     } catch (error) {
-      debugPrint('Error loading weekly activity bars: $error');
+      debugPrint('Error calculating weekly activity: $error');
       return List<double>.filled(7, 0.12);
     }
   }
@@ -1320,6 +1357,12 @@ class SupabaseService {
   }
 
   Future<List<dynamic>> getContacts() async {
+    final local = await _localDb.getContacts();
+    if (local.isNotEmpty) {
+      // Return local instantly, background sync happens elsewhere
+      return local;
+    }
+
     final me = await getUserId();
     if (me == null) {
       return [];
@@ -1329,7 +1372,8 @@ class SupabaseService {
       final contactRows = await supabase
           .from('contacts')
           .select('contact_user_id, name')
-          .eq('user_id', me);
+          .eq('user_id', me)
+          .timeout(const Duration(seconds: 5));
 
       if (contactRows.isEmpty) {
         return [];
@@ -1341,19 +1385,25 @@ class SupabaseService {
       final userRows = await supabase
           .from('users')
           .select('id, nickname')
-          .inFilter('id', contactIds);
+          .inFilter('id', contactIds)
+          .timeout(const Duration(seconds: 5));
       final nicknames = {
         for (final row in userRows)
           row['id'] as String: row['nickname'] as String?,
       };
 
-      return contactRows.map((row) {
-        final userId = row['contact_user_id'] as String;
-        return {
-          'user_id': userId,
-          'name': (row['name'] as String?) ?? nicknames[userId] ?? 'Unknown',
+      final result = <Map<String, dynamic>>[];
+      for (final row in contactRows) {
+        final id = row['contact_user_id'] as String;
+        final contact = {
+          'contact_user_id': id,
+          'user_id': id,
+          'name': row['name'] ?? nicknames[id] ?? 'Unknown',
         };
-      }).toList();
+        result.add(contact);
+        await _localDb.saveContact(contact);
+      }
+      return result;
     } catch (error) {
       debugPrint('Error fetching contacts: $error');
       return [];
@@ -1384,7 +1434,8 @@ class SupabaseService {
       final rows = await supabase
           .from('users')
           .select('id, nickname')
-          .inFilter('id', missing.toList());
+          .inFilter('id', missing.toList())
+          .timeout(const Duration(seconds: 5));
       for (final row in rows) {
         final id = row['id'] as String;
         _nicknameCache[id] =
@@ -1406,18 +1457,38 @@ class SupabaseService {
       return;
     }
 
-    final userRow = await supabase
-        .from('users')
-        .select('nickname')
-        .eq('id', userId)
-        .maybeSingle();
-    final nickname = userRow?['nickname'] as String?;
+    String? nickname;
+    try {
+      final userRow = await supabase
+          .from('users')
+          .select('nickname')
+          .eq('id', userId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+      nickname = userRow?['nickname'] as String?;
+    } catch (error) {
+      debugPrint('addContact: lookup nickname failed: $error');
+    }
 
-    await supabase.from('contacts').upsert({
-      'user_id': me,
+    // Local-first: persist locally so getContacts() returns the contact even
+    // if the Supabase upsert below fails or is delayed by the network.
+    // contactsStore has keyPath 'contact_user_id' (IndexedDB schema), but
+    // the UI reads 'user_id' — store both to satisfy schema and UI.
+    await _localDb.saveContact({
       'contact_user_id': userId,
+      'user_id': userId,
       'name': nickname,
     });
+
+    try {
+      await supabase.from('contacts').upsert({
+        'user_id': me,
+        'contact_user_id': userId,
+        'name': nickname,
+      }).timeout(const Duration(seconds: 5));
+    } catch (error) {
+      debugPrint('addContact: Supabase upsert failed (will retry via sync): $error');
+    }
   }
 
   Future<List<dynamic>> searchUsers(String query) async {
@@ -1430,7 +1501,8 @@ class SupabaseService {
     final existingContacts = await supabase
         .from('contacts')
         .select('contact_user_id')
-        .eq('user_id', me);
+        .eq('user_id', me)
+        .timeout(const Duration(seconds: 5));
     final excludedIds = {
       me,
       ...existingContacts
@@ -1445,7 +1517,8 @@ class SupabaseService {
         .from('users')
         .select('id, nickname')
         .ilike('nickname', '%${_escapeIlike(normalizedQuery)}%')
-        .limit(20);
+        .limit(20)
+        .timeout(const Duration(seconds: 5));
     for (final row in nicknameRows) {
       final userId = row['id'] as String;
       if (seenIds.add(userId)) {
@@ -1459,7 +1532,8 @@ class SupabaseService {
           .from('users')
           .select('id, nickname')
           .eq('id', normalizedQuery)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
       if (idRow != null) {
         final userId = idRow['id'] as String;
         if (seenIds.add(userId)) {
@@ -1489,7 +1563,8 @@ class SupabaseService {
         .from('chat_members')
         .update({'last_read_at': DateTime.now().toIso8601String()})
         .eq('chat_id', chatId)
-        .eq('user_id', me);
+        .eq('user_id', me)
+        .timeout(const Duration(seconds: 5));
   }
 
   Future<void> setTypingStatus({
@@ -1506,7 +1581,8 @@ class SupabaseService {
           .from('chat_members')
           .update({'typing': isTyping})
           .eq('chat_id', chatId)
-          .eq('user_id', me);
+          .eq('user_id', me)
+          .timeout(const Duration(seconds: 5));
     } catch (error) {
       debugPrint('Error setting typing status: $error');
     }
@@ -1640,6 +1716,53 @@ class SupabaseService {
     }
   }
 
+  /// Subscribes to P2P signaling events (Offer/Answer/Candidate) for a chat.
+  void subscribeP2PSignaling(String chatId) {
+    final channel = supabase.channel('chat_p2p_signaling:$chatId');
+
+    channel.onBroadcast(event: 'p2p_signal', callback: (payload) {
+      final data = _unwrapBroadcast(payload);
+      final type = data['type'] as String;
+      final p2p = P2PService.instance;
+
+      if (type == 'offer') {
+        p2p.handleOffer(chatId, data);
+      } else if (type == 'answer') {
+        p2p.handleAnswer(chatId, data);
+      } else if (type == 'ice_candidate') {
+        p2p.handleIceCandidate(chatId, data);
+      }
+    }).subscribe();
+  }
+
+  Future<void> _sendP2PSignal(String chatId, Map<String, dynamic> data) async {
+    await supabase.channel('chat_p2p_signaling:$chatId').sendBroadcastMessage(
+      event: 'p2p_signal',
+      payload: data,
+    );
+  }
+
+  Future<void> sendP2POffer({
+    required String chatId,
+    required Map<String, dynamic> offer,
+  }) async {
+    await _sendP2PSignal(chatId, {...offer, 'type': 'offer'});
+  }
+
+  Future<void> sendP2PAnswer({
+    required String chatId,
+    required Map<String, dynamic> answer,
+  }) async {
+    await _sendP2PSignal(chatId, {...answer, 'type': 'answer'});
+  }
+
+  Future<void> sendP2PIceCandidate({
+    required String chatId,
+    required Map<String, dynamic> candidate,
+  }) async {
+    await _sendP2PSignal(chatId, {...candidate, 'type': 'ice_candidate'});
+  }
+
   Future<String?> _getOtherUserId(String chatId) async {
     final me = await getUserId();
     if (me == null) {
@@ -1653,7 +1776,8 @@ class SupabaseService {
         final members = await supabase
             .from('chat_members')
             .select('user_id')
-            .eq('chat_id', chatId);
+            .eq('chat_id', chatId)
+            .timeout(const Duration(seconds: 3));
         for (final row in members) {
           final candidate = row['user_id'] as String;
           if (candidate != me) {
@@ -1861,13 +1985,12 @@ class SupabaseService {
   }) async {
     final me = await getUserId();
     final channel = supabase.channel('chat_calls:$chatId');
-    // ignore: avoid_print
-    // print('[stealth-signaling] sending ICE candidate to chat=$chatId');
     await channel.sendBroadcastMessage(
       event: 'ice_candidate',
       payload: {'candidate': candidate, 'from_user_id': me},
     );
   }
+
 
   Future<void> _recordCallHistoryEvent({
     required String chatId,
@@ -1879,6 +2002,21 @@ class SupabaseService {
     DateTime? endedAt,
     Map<String, dynamic>? metadata,
   }) async {
+    final event = {
+      'chat_id': chatId,
+      'initiator_user_id': initiatorUserId,
+      'recipient_user_id': recipientUserId,
+      'direction': direction,
+      'status': status,
+      'started_at': DateTime.now().toIso8601String(),
+      'answered_at': answeredAt?.toIso8601String(),
+      'ended_at': endedAt?.toIso8601String(),
+      'metadata': metadata ?? <String, dynamic>{},
+    };
+
+    // Save locally first
+    await _localDb.saveCall(event);
+
     try {
       await supabase.rpc(
         'upsert_call_history_event',
@@ -1901,6 +2039,29 @@ class SupabaseService {
   /// Возвращает историю звонков текущего пользователя.
   Future<List<Map<String, dynamic>>> getRecentCallHistory(
       {int limit = 12}) async {
+    final local = await _localDb.getCalls();
+    if (local.isNotEmpty) {
+      // Sort and process local calls
+      local.sort((a, b) => (b['started_at'] as String).compareTo(a['started_at'] as String));
+      final me = await getUserId();
+      final result = <Map<String, dynamic>>[];
+      for (final row in local.take(limit)) {
+        final initiatorUserId = row['initiator_user_id'] as String;
+        final recipientUserId = row['recipient_user_id'] as String;
+        final isOutgoing = initiatorUserId == me;
+        final peerId = isOutgoing ? recipientUserId : initiatorUserId;
+        final peerName = await getNicknameForUser(peerId) ?? 'Unknown';
+
+        result.add({
+          ...row,
+          'peer_id': peerId,
+          'peer_name': peerName,
+          'is_outgoing': isOutgoing,
+        });
+      }
+      return result;
+    }
+
     final me = await getUserId();
     if (me == null) {
       return [];
@@ -1923,12 +2084,14 @@ class SupabaseService {
         final peerId = isOutgoing ? recipientUserId : initiatorUserId;
         final peerName = await getNicknameForUser(peerId) ?? 'Unknown';
 
-        result.add({
+        final entry = {
           ...Map<String, dynamic>.from(row),
           'peer_id': peerId,
           'peer_name': peerName,
           'is_outgoing': isOutgoing,
-        });
+        };
+        result.add(entry);
+        await _localDb.saveCall(entry);
       }
       return result;
     } catch (error) {

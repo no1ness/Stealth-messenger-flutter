@@ -47,6 +47,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   web.HTMLVideoElement? _localVideoElement;
   Timer? _connectionTimeout;
   Timer? _callTimer;
+  Timer? _audioAuditTimer;
   StreamSubscription<Map<String, dynamic>>? _callAcceptedSub;
 
   bool _microphoneEnabled = true;
@@ -109,6 +110,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     );
     _connectionTimeout?.cancel();
     _callTimer?.cancel();
+    _audioAuditTimer?.cancel();
     _callAcceptedSub?.cancel();
     _disposeMedia();
     _supabaseService.unsubscribeCalls();
@@ -582,11 +584,40 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
     if (!_connected) {
       _startTimer();
+      _startAudioAudit();
     }
     _connectionTimeout?.cancel();
     setState(() {
       _connected = true;
       _initializing = false;
+    });
+  }
+
+  /// Периодически проверяем состояние аудио-треков, чтобы убедиться что
+  /// звук действительно идёт. Вывод виден в DevTools → Console.
+  void _startAudioAudit() {
+    Timer.periodic(const Duration(seconds: 2), (_) {
+      final remote = _remoteStream;
+      if (remote == null) return;
+      final audioTracks = remote.getAudioTracks().toDart;
+      for (final track in audioTracks) {
+        debugPrint(
+          '[stealth-audio-audit] remote audio track id=${track.id} '
+          'kind=${track.kind} readyState=${track.readyState} '
+          'enabled=${track.enabled} muted=${track.muted} '
+          'label=${track.label}',
+        );
+      }
+      final local = _localStream;
+      if (local == null) return;
+      final localAudio = local.getAudioTracks().toDart;
+      for (final track in localAudio) {
+        debugPrint(
+          '[stealth-audio-audit] local audio track id=${track.id} '
+          'readyState=${track.readyState} enabled=${track.enabled} '
+          'muted=${track.muted} label=${track.label}',
+        );
+      }
     });
   }
 

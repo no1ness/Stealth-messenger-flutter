@@ -113,8 +113,16 @@ Future<String?> requestWebRTCAudioPreflight({bool requireVideo = false}) async {
   } catch (error) {
     return 'Microphone access failed: $error';
   } finally {
-    for (final track in stream?.getTracks().toDart ?? const []) {
-      track.stop();
+    try {
+      for (final track in stream?.getTracks().toDart ?? const []) {
+        try {
+          track.stop();
+        } catch (_) {
+          // Best-effort cleanup only. On web we must not fail preflight here.
+        }
+      }
+    } catch (_) {
+      // Ignore cleanup failures so a successful preflight does not abort call start.
     }
   }
 }

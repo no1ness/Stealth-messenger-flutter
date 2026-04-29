@@ -7,12 +7,18 @@ import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
+import 'package:stealth/ui/screens/contacts_data_source.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
 class ContactsScreen extends StatefulWidget {
-  const ContactsScreen({super.key});
+  ContactsScreen({super.key, ContactsDataSource? dataSource})
+      : _dataSource = dataSource ??
+            SupabaseContactsDataSource(SupabaseService());
+
+  final ContactsDataSource _dataSource;
 
   @override
   State<ContactsScreen> createState() => _ContactsScreenState();
@@ -22,7 +28,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _addContactController = TextEditingController();
-  final SupabaseService _supabaseService = SupabaseService();
+  ContactsDataSource get _supabaseService => widget._dataSource;
   bool _loading = true;
   bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];
@@ -250,13 +256,17 @@ class _ContactsScreenState extends State<ContactsScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: _addContactController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search by nickname or full user ID',
-                      prefixIcon: Icon(Icons.search),
+                  Semantics(
+                    label: AccessibilityIds.contactIdInput,
+                    textField: true,
+                    child: TextField(
+                      controller: _addContactController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search by nickname or full user ID',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (_) => search(),
                     ),
-                    onChanged: (_) => search(),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   const Align(
@@ -295,18 +305,22 @@ class _ContactsScreenState extends State<ContactsScreen>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                trailing: FilledButton(
-                                  onPressed: () async {
-                                    await _supabaseService.addContact(
-                                      result['user_id'] as String,
-                                    );
-                                    if (!context.mounted) {
-                                      return;
-                                    }
-                                    Navigator.of(context).pop();
-                                    await _loadContacts();
-                                  },
-                                  child: const Text('Add'),
+                                trailing: Semantics(
+                                  label: AccessibilityIds.saveContact,
+                                  button: true,
+                                  child: FilledButton(
+                                    onPressed: () async {
+                                      await _supabaseService.addContact(
+                                        result['user_id'] as String,
+                                      );
+                                      if (!context.mounted) {
+                                        return;
+                                      }
+                                      Navigator.of(context).pop();
+                                      await _loadContacts();
+                                    },
+                                    child: const Text('Add'),
+                                  ),
                                 ),
                               );
                             },
@@ -462,10 +476,14 @@ class _ContactsScreenState extends State<ContactsScreen>
                 const SizedBox(height: AppSpacing.md),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _showAddContactSheet,
-                    icon: const Icon(Icons.person_add_alt_1),
-                    label: const Text('Add contact'),
+                  child: Semantics(
+                    label: AccessibilityIds.addContact,
+                    button: true,
+                    child: FilledButton.icon(
+                      onPressed: _showAddContactSheet,
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text('Add contact'),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -482,10 +500,13 @@ class _ContactsScreenState extends State<ContactsScreen>
                                         MediaQuery.of(context).size.height * 0.4,
                                   ),
                                   Center(
-                                    child: Text(
-                                      'No contacts found',
-                                      style: AppTypography.body.copyWith(
-                                        color: AppColors.textSecondary,
+                                    child: Semantics(
+                                      label: 'No contacts',
+                                      child: Text(
+                                        'No contacts found',
+                                        style: AppTypography.body.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -507,7 +528,11 @@ class _ContactsScreenState extends State<ContactsScreen>
                                 padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 80),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
-                                  return InkWell(
+                                  final name = (contact['name'] as String?) ?? 'Unknown';
+                                  return Semantics(
+                                    label: AccessibilityIds.contact(name),
+                                    button: true,
+                                    child: InkWell(
                                     borderRadius: BorderRadius.circular(18),
                                     onLongPress: () => _showContactActions(contact),
                                     child: GlassContainer(
@@ -575,40 +600,50 @@ class _ContactsScreenState extends State<ContactsScreen>
                                               color: AppColors.systemBlue,
                                             ),
                                           ),
-                                          IconButton(
-                                            tooltip: 'Start call',
-                                            onPressed: _startingCall
-                                                ? null
-                                                : () => _startCall(
-                                                      contact,
-                                                      isVideoCall: false,
+                                          Semantics(
+                                            label: AccessibilityIds.startCall,
+                                            button: true,
+                                            excludeSemantics: true,
+                                            child: IconButton(
+                                              tooltip: 'Start call',
+                                              onPressed: _startingCall
+                                                  ? null
+                                                  : () => _startCall(
+                                                        contact,
+                                                        isVideoCall: false,
+                                                      ),
+                                              icon: _startingCall
+                                                  ? const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.call_outlined,
+                                                      color:
+                                                          AppColors.systemGreen,
                                                     ),
-                                            icon: _startingCall
-                                                ? const SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.call_outlined,
-                                                    color:
-                                                        AppColors.systemGreen,
-                                                  ),
+                                            ),
                                           ),
-                                          IconButton(
-                                            tooltip: 'Start video call',
-                                            onPressed: _startingCall
-                                                ? null
-                                                : () => _startCall(
-                                                      contact,
-                                                      isVideoCall: true,
-                                                    ),
-                                            icon: const Icon(
-                                              Icons.videocam_outlined,
-                                              color: AppColors.systemBlue,
+                                          Semantics(
+                                            label: AccessibilityIds.startVideoCall,
+                                            button: true,
+                                            excludeSemantics: true,
+                                            child: IconButton(
+                                              tooltip: 'Start video call',
+                                              onPressed: _startingCall
+                                                  ? null
+                                                  : () => _startCall(
+                                                        contact,
+                                                        isVideoCall: true,
+                                                      ),
+                                              icon: const Icon(
+                                                Icons.videocam_outlined,
+                                                color: AppColors.systemBlue,
+                                              ),
                                             ),
                                           ),
                                           IconButton(
@@ -623,6 +658,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                         ],
                                       ),
                                     ),
+                                  ),
                                   );
                                 },
                               ),

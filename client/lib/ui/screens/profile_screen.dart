@@ -13,6 +13,7 @@ import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _messageCount = 0;
   int _callCount = 0;
   bool _secureStorageReady = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -43,30 +45,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final userId = await _supabaseService.getUserId();
-    final nickname = await _supabaseService.getNickname();
-    final storageSummary = await _supabaseService.getStorageDebugSummary();
-    final recentCalls = await _supabaseService.getRecentCallHistory();
-    final dashboard = await _supabaseService.getDashboardSummary();
-    final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
-    if (!mounted) {
-      return;
-    }
+    try {
+      debugPrint('[Profile] loading userId...');
+      final userId = await _supabaseService.getUserId();
+      debugPrint('[Profile] userId=$userId');
 
-    setState(() {
-      _userId = userId;
-      _nickname = nickname;
-      _nicknameController.text = nickname ?? '';
-      _bucketReady = storageSummary['bucketReady'] as bool? ?? false;
-      _storageFileCount = storageSummary['fileCount'] as int? ?? 0;
-      _recentCalls = recentCalls;
-      _activityBars = weeklyActivity;
-      _chatCount = dashboard['chatCount'] as int? ?? 0;
-      _contactCount = dashboard['contactCount'] as int? ?? 0;
-      _messageCount = dashboard['messageCount'] as int? ?? 0;
-      _callCount = dashboard['callCount'] as int? ?? 0;
-      _secureStorageReady = dashboard['secureStorageReady'] as bool? ?? false;
-    });
+      debugPrint('[Profile] loading nickname...');
+      final nickname = await _supabaseService.getNickname();
+      debugPrint('[Profile] nickname=$nickname');
+
+      debugPrint('[Profile] loading storageSummary...');
+      final storageSummary = await _supabaseService.getStorageDebugSummary();
+      debugPrint('[Profile] storageSummary=$storageSummary');
+
+      debugPrint('[Profile] loading recentCalls...');
+      final recentCalls = await _supabaseService.getRecentCallHistory();
+      debugPrint('[Profile] recentCalls len=${recentCalls.length}');
+
+      debugPrint('[Profile] loading dashboard...');
+      final dashboard = await _supabaseService.getDashboardSummary();
+      debugPrint('[Profile] dashboard=$dashboard');
+
+      debugPrint('[Profile] loading weeklyActivity...');
+      final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
+      debugPrint('[Profile] weeklyActivity=$weeklyActivity');
+      
+      if (!mounted) return;
+
+      setState(() {
+        _userId = userId;
+        _nickname = nickname;
+        _nicknameController.text = nickname ?? '';
+        _bucketReady = storageSummary['bucketReady'] as bool? ?? false;
+        _storageFileCount = storageSummary['fileCount'] as int? ?? 0;
+        _recentCalls = recentCalls;
+        _activityBars = weeklyActivity;
+        _chatCount = dashboard['chatCount'] as int? ?? 0;
+        _contactCount = dashboard['contactCount'] as int? ?? 0;
+        _messageCount = dashboard['messageCount'] as int? ?? 0;
+        _callCount = dashboard['callCount'] as int? ?? 0;
+        _secureStorageReady = dashboard['secureStorageReady'] as bool? ?? false;
+      });
+    } catch (e, st) {
+      debugPrint('[Profile] Error loading profile: $e');
+      debugPrint('[Profile] $st');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -149,6 +178,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('ProfileScreen: build called, _isLoading=$_isLoading, _userId=$_userId');
+    
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.systemBlue,
+        ),
+      );
+    }
+
+    if (_userId == null || _userId!.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Unable to load profile',
+                style: AppTypography.headline.copyWith(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'User ID is missing. Check logs or retry.',
+                style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton.icon(
+                onPressed: _loadProfile,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final cards = [
       _buildIdentityCard(),
       _buildSecurityCard(),
@@ -157,42 +226,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _buildCallHistoryCard(),
     ];
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: const PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Profile'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth >= 900) {
-              return GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisSpacing: AppSpacing.md,
-                childAspectRatio: 1.3,
-                children: cards,
-              );
-            }
-
-            return ListView.separated(
-              itemCount: cards.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(height: AppSpacing.md),
-              itemBuilder: (context, index) => cards[index],
-            );
-          },
+    return Stack(
+      children: [
+        Column(
+          children: [
+            const GlassAppBar(title: 'Profile'),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                itemCount: cards.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) => cards[index],
+              ),
+            ),
+            const SizedBox(height: 80), // Space for bottom bar
+          ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _logout,
-        backgroundColor: AppColors.systemRed,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.logout),
-        label: const Text('Logout'),
-      ),
+        Positioned(
+          right: AppSpacing.md,
+          bottom: 100,
+          child: Semantics(
+            label: AccessibilityIds.logout,
+            button: true,
+            child: FloatingActionButton.extended(
+              onPressed: _logout,
+              backgroundColor: AppColors.systemRed,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -203,7 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text('Identity', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
-          if (_userId != null)
+          if (_userId != null && _userId!.isNotEmpty)
             Center(
               child: QrImageView(
                 data: _userId!,
@@ -220,33 +286,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _nicknameController,
-            textAlign: TextAlign.center,
-            decoration: const InputDecoration(
-              hintText: 'Your nickname',
-              border: OutlineInputBorder(),
+          Semantics(
+            label: AccessibilityIds.username,
+            child: TextField(
+              controller: _nicknameController,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                hintText: 'Your nickname',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _saveNickname(),
             ),
-            onSubmitted: (_) => _saveNickname(),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            _userId ?? 'Loading profile',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: AppTypography.caption1.copyWith(
-              color: AppColors.textSecondary,
+          Semantics(
+            label: AccessibilityIds.userId,
+            readOnly: true,
+            child: Text(
+              _userId ?? 'Loading profile',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption1.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: _copyUserId,
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copy ID'),
+                child: Semantics(
+                  label: AccessibilityIds.copyUserId,
+                  button: true,
+                  child: FilledButton.icon(
+                    onPressed: _copyUserId,
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copy ID'),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -293,11 +370,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMetricRow('Secure storage', _secureStorageReady ? 'Enabled' : 'Check device'),
           _buildMetricRow('Media bucket', _bucketReady ? 'Reachable' : 'Missing'),
           _buildMetricRow('Backup export', 'Available'),
-          const Spacer(),
-          OutlinedButton.icon(
-            onPressed: _exportPrivateKey,
-            icon: const Icon(Icons.download),
-            label: const Text('Export private key'),
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            label: AccessibilityIds.exportPrivateKey,
+            button: true,
+            child: OutlinedButton.icon(
+              onPressed: _exportPrivateKey,
+              icon: const Icon(Icons.download),
+              label: const Text('Export private key'),
+            ),
           ),
         ],
       ),
@@ -313,7 +394,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text('Weekly activity', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
-          Expanded(
+          SizedBox(
+            height: 180,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List.generate(_activityBars.length, (index) {
@@ -395,7 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             onPressed: _loadProfile,
             icon: const Icon(Icons.sync),
@@ -414,7 +496,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text('Recent calls', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           if (_recentCalls.isEmpty)
-            Expanded(
+            SizedBox(
+              height: 80,
               child: Center(
                 child: Text(
                   'No calls recorded yet.',
@@ -425,7 +508,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             )
           else
-            Expanded(
+            SizedBox(
+              height: 200,
               child: ListView.separated(
                 itemCount: _recentCalls.length,
                 separatorBuilder: (context, index) =>

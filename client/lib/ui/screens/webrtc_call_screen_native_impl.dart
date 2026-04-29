@@ -11,6 +11,7 @@ import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 
 class WebRTCCallScreen extends StatefulWidget {
   final String peerName;
@@ -707,11 +708,15 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   style: AppTypography.largeTitle.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _connected ? _formatDuration(_callDurationSeconds) : _initializing ? 'Connecting...' : 'Calling...',
-                  style: AppTypography.body.copyWith(
-                    color: _connected ? Colors.white : AppColors.textSecondary,
-                    fontFeatures: [const FontFeature.tabularFigures()],
+                Semantics(
+                  label: AccessibilityIds.callStatus,
+                  liveRegion: true,
+                  child: Text(
+                    _connected ? _formatDuration(_callDurationSeconds) : _initializing ? 'Connecting...' : 'Calling...',
+                    style: AppTypography.body.copyWith(
+                      color: _connected ? Colors.white : AppColors.textSecondary,
+                      fontFeatures: [const FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -736,24 +741,36 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                           iconColor: _cameraEnabled ? Colors.white : Colors.black,
                           onPressed: _toggleCamera,
                         ),
-                      _buildControlButton(
-                        icon: _microphoneEnabled ? Icons.mic : Icons.mic_off,
-                        color: _microphoneEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
-                        iconColor: _microphoneEnabled ? Colors.white : Colors.black,
-                        onPressed: _toggleMicrophone,
+                      Semantics(
+                        label: AccessibilityIds.mute,
+                        button: true,
+                        child: _buildControlButton(
+                          icon: _microphoneEnabled ? Icons.mic : Icons.mic_off,
+                          color: _microphoneEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
+                          iconColor: _microphoneEnabled ? Colors.white : Colors.black,
+                          onPressed: _toggleMicrophone,
+                        ),
                       ),
-                      _buildControlButton(
-                        icon: Icons.call_end,
-                        color: AppColors.systemRed,
-                        iconColor: Colors.white,
-                        size: 72,
-                        onPressed: _hangUp,
+                      Semantics(
+                        label: AccessibilityIds.hangUp,
+                        button: true,
+                        child: _buildControlButton(
+                          icon: Icons.call_end,
+                          color: AppColors.systemRed,
+                          iconColor: Colors.white,
+                          size: 72,
+                          onPressed: _hangUp,
+                        ),
                       ),
-                      _buildControlButton(
-                        icon: _speakerEnabled ? Icons.volume_up : Icons.volume_off,
-                        color: _speakerEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
-                        iconColor: _speakerEnabled ? Colors.white : Colors.black,
-                        onPressed: _toggleSpeaker,
+                      Semantics(
+                        label: AccessibilityIds.speaker,
+                        button: true,
+                        child: _buildControlButton(
+                          icon: _speakerEnabled ? Icons.volume_up : Icons.volume_off,
+                          color: _speakerEnabled ? Colors.white.withValues(alpha: 0.2) : Colors.white,
+                          iconColor: _speakerEnabled ? Colors.white : Colors.black,
+                          onPressed: _toggleSpeaker,
+                        ),
                       ),
                       if (widget.isVideoCall)
                         _buildControlButton(

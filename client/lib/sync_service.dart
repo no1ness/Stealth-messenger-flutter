@@ -21,19 +21,46 @@ class SyncService {
   final LocalDatabaseService _localDb = LocalDatabaseService();
   StreamSubscription<List<ConnectivityResult>>? _sub;
   bool _isSyncing = false;
+  Timer? _periodicTimer;
+  int _syncIntervalSeconds = 30;
 
-  /// Start listening for connectivity changes.
+  /// Start listening for connectivity changes and periodic sync.
   void start() {
     _sub = Connectivity().onConnectivityChanged.listen(_onConnectivityChanged);
+    
+    _loadIntervalAndStart();
 
     // Also attempt a sync on startup in case we are already online
     // and there are pending messages from a previous offline session.
     _maybeSyncNow();
   }
 
+  Future<void> _loadIntervalAndStart() async {
+    final prefs = await SharedPreferences.getInstance();
+    _syncIntervalSeconds = prefs.getInt('syncIntervalSeconds') ?? 30;
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _periodicTimer?.cancel();
+    _periodicTimer = Timer.periodic(Duration(seconds: _syncIntervalSeconds), (_) {
+      debugPrint('[SyncService] Periodic sync triggered ($_syncIntervalSeconds s)');
+      _maybeSyncNow();
+    });
+  }
+
+  Future<void> setSyncInterval(int seconds) async {
+    _syncIntervalSeconds = seconds;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('syncIntervalSeconds', seconds);
+    _startTimer();
+  }
+
   void dispose() {
     _sub?.cancel();
     _sub = null;
+    _periodicTimer?.cancel();
+    _periodicTimer = null;
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) {

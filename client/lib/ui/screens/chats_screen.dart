@@ -15,6 +15,8 @@ import 'package:stealth/themes/apple_liquid/widgets/glass_message_input.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
+import 'package:stealth/p2p_service.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key, this.initialChatId});
@@ -61,6 +63,31 @@ class _ChatsScreenState extends State<ChatsScreen>
     super.initState();
     _pendingInitialChatId = widget.initialChatId;
     _bootstrap();
+    _listenToP2PMessages();
+  }
+
+  void _listenToP2PMessages() {
+    _activeSubscriptions['p2p_global'] =
+        P2PService.instance.onMessage.listen((event) {
+      final chatId = event['chat_id'] as String;
+      final message = event['message'] as Map<String, dynamic>;
+
+      if (mounted && _selectedChatId == chatId) {
+        setState(() {
+          final uiMsg = _toUiMessage(message);
+          // Prevent duplicates if Realtime and P2P arrive nearly at the same time
+          if (!_messages.any((m) => m['id'] == uiMsg['id'])) {
+            _messages = [..._messages, uiMsg]..sort(
+                (left, right) => (left['created_at'] as String)
+                    .compareTo(right['created_at'] as String),
+              );
+            _scheduleScrollToBottom();
+          }
+        });
+      }
+      // If the chat is in the list, we might want to update last message preview
+      _loadChats(); 
+    });
   }
 
   @override
@@ -535,6 +562,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       _isOtherTyping = false;
       _hasMoreMessages = true;
     });
+
+    // Start P2P connection attempt
+    P2PService.instance.connectToPeer(chatId);
+
     await _loadMessages(chatId);
   }
 
@@ -622,13 +653,40 @@ class _ChatsScreenState extends State<ChatsScreen>
         chatId: chatId,
         content: text,
       );
+      // For edit, Realtime subscription will update the message
     } else {
+      // Optimistic UI update: add message immediately to local state
+      final tempMessage = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
+        'chat_id': chatId,
+        'sender_id': _myUserId,
+        'content': text,
+        'message_type': 'text',
+        'reply_to_id': _replyToMessageId,
+        'created_at': DateTime.now().toIso8601String(),
+        'metadata': {},
+      };
+      
+      if (mounted) {
+        setState(() {
+          final uiMsg = _toUiMessage(tempMessage);
+          if (!_messages.any((m) => m['id'] == uiMsg['id'])) {
+            _messages = [..._messages, uiMsg]..sort(
+                (left, right) => (left['created_at'] as String)
+                    .compareTo(right['created_at'] as String),
+              );
+            _scheduleScrollToBottom();
+          }
+        });
+      }
+
       await _supabaseService.sendMessage(
         chatId: chatId,
         content: text,
         type: 'text',
         replyToId: _replyToMessageId,
       );
+      // Message is now in local DB and will sync via Realtime when Supabase confirms
     }
     await _supabaseService.setTypingStatus(chatId: chatId, isTyping: false);
     if (mounted) {
@@ -639,7 +697,6 @@ class _ChatsScreenState extends State<ChatsScreen>
         _isEditingMessage = false;
       });
     }
-    await _loadMessages(chatId);
   }
 
   Future<void> _showMessageActions(Map<String, dynamic> message) async {
@@ -689,7 +746,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                       messageId: messageId,
                     );
                   }
-                  await _loadMessages(chatId);
+                  // Removed _loadMessages call - Realtime subscription will update UI automatically
                 },
               ),
               if (isSent)
@@ -714,7 +771,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                     Navigator.of(context).pop();
                     await _supabaseService.softDeleteMessage(
                         messageId: messageId);
-                    await _loadMessages(chatId);
+                    // Removed _loadMessages call - Realtime subscription will update UI automatically
                   },
                 ),
             ],
@@ -789,6 +846,9 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
 
     _activeSubscriptions['typing:$chatId'] = typingSubscription;
+
+    // Subscribe to P2P signaling events (Offer/Answer/Candidate)
+    _supabaseService.subscribeP2PSignaling(chatId);
   }
 
   void _scheduleScrollToBottom() {
@@ -920,9 +980,46 @@ class _ChatsScreenState extends State<ChatsScreen>
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: GlassAppBar(
-          title: _selectedChatId == null
-              ? 'Chats'
-              : (currentChat['name'] as String? ?? 'Chat'),
+          titleWidget: _selectedChatId == null
+              ? Text(
+                  'Chats',
+                  style: AppTypography.headline.copyWith(color: Colors.white),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      currentChat['name'] as String? ?? 'Chat',
+                      style: AppTypography.headline.copyWith(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: P2PService.instance.isP2PReady(_selectedChatId!)
+                                ? AppColors.systemGreen
+                                : AppColors.systemBlue,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Cloud',
+                          style: AppTypography.caption2.copyWith(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
           showBackButton: _selectedChatId != null,
           onBack: () {
             setState(() {
@@ -982,11 +1079,13 @@ class _ChatsScreenState extends State<ChatsScreen>
               TextField(
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search chats',
-                  prefixIcon: const Icon(Icons.search),
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.06),
+                  fillColor: Colors.white.withValues(alpha: 0.1),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
@@ -1031,7 +1130,10 @@ class _ChatsScreenState extends State<ChatsScreen>
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : chats.isEmpty
-                  ? const EmptyState(type: 'chats')
+                  ? Semantics(
+                      label: 'No chats',
+                      child: EmptyState(type: 'chats'),
+                    )
                   : ListView.separated(
                       padding: EdgeInsets.fromLTRB(12, 0, 12,
                           MediaQuery.of(context).padding.bottom + 80),
@@ -1053,8 +1155,12 @@ class _ChatsScreenState extends State<ChatsScreen>
     final unreadCount = chat['unreadCount'] as int? ?? 0;
     final memberCount = chat['memberCount'] as int? ?? 0;
     final isPrivate = chat['isPrivate'] as bool? ?? true;
+    final name = chat['name'] as String? ?? 'Chat';
 
-    return AnimatedContainer(
+    return Semantics(
+      label: AccessibilityIds.chat(name),
+      button: true,
+      child: AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       decoration: BoxDecoration(
         color: isSelected
@@ -1127,6 +1233,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -1176,11 +1283,13 @@ class _ChatsScreenState extends State<ChatsScreen>
                     _searchInConversation =
                         _messageSearchController.text.trim().isNotEmpty;
                   }),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Search in conversation',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -1599,7 +1708,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       type: _resolveAttachmentType(file.name),
       metadataOverride: {'file_encrypted': true},
     );
-    await _loadMessages(chatId);
+    // Removed _loadMessages call - Realtime subscription will update UI automatically
   }
 
   Future<void> _handleVoiceRecorded(String filePath) async {
@@ -1643,7 +1752,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       type: 'audio',
       metadataOverride: {'file_encrypted': true},
     );
-    await _loadMessages(chatId);
+    // Removed _loadMessages call - Realtime subscription will update UI automatically
   }
 
   String _resolveAttachmentType(String fileName) {

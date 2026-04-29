@@ -5,14 +5,20 @@
  * нужно включить семантический слой через web accessibility toggle.
  * После этого работают стандартные role/aria-label локаторы Playwright.
  *
- * Подготовка:
+ * Рекомендуемая подготовка для headless E2E:
  *   cd client
- *   flutter run -d web-server --web-hostname=127.0.0.1 --web-port=57575
+ *   flutter build web
+ *   cd ../pw-test
+ *   node serve-static-web.mjs
  *
  * Запуск (из каталога pw-test):
  *   npm install
  *   npx playwright install chromium
+ *   set STEALTH_WEB_URL=http://127.0.0.1:58585
  *   node two-browser-call.mjs
+ *
+ * Debug web-server (`flutter run -d web-server`) подходит для ручной проверки,
+ * но может зависать на bootstrap в headless Chromium.
  *
  * URL можно переопределить: set STEALTH_WEB_URL=http://127.0.0.1:PORT
  */
@@ -36,7 +42,19 @@ async function getBootstrapState(page) {
     hasTextbox: !!document.querySelector('input, textarea, [role="textbox"]'),
     hasLoadingIndicator: !!document.querySelector("#loading_indicator"),
     bodyLength: document.body?.innerHTML?.length ?? 0,
+    hasDebugRunMain: typeof window.$dartRunMain === "function",
+    dartMainExecuted: !!window.$dartMainExecuted,
   }));
+}
+
+async function kickDebugMainIfNeeded(page) {
+  return page.evaluate(() => {
+    if (!window.$dartMainExecuted && typeof window.$dartRunMain === "function") {
+      window.$dartRunMain();
+      return true;
+    }
+    return false;
+  });
 }
 
 // ── Flutter CanvasKit: включить семантический слой ────────────────────────────
@@ -96,6 +114,9 @@ async function gotoApp(page) {
         const state = await getBootstrapState(page);
         if (state.hasA11yToggle || state.hasTextbox) {
           return;
+        }
+        if (state.hasDebugRunMain && !state.dartMainExecuted) {
+          await kickDebugMainIfNeeded(page);
         }
         await delay(1000);
       }
@@ -267,6 +288,8 @@ async function main() {
   const browser = await chromium.launch({
     headless: true,
     args: launchArgs,
+    executablePath: process.env.CHROME_BIN || undefined,
+    channel: process.env.CHROME_BIN ? undefined : (process.env.PW_CHANNEL || undefined),
   });
 
   const ctxA = await browser.newContext({
@@ -304,7 +327,7 @@ async function main() {
   await alice.getByRole("button", { name: "Contacts" }).click();
 
   console.log("Alice: нажимаем Add contact…");
-  await alice.getByRole("button", { name: /Add contact/i }).click();
+  await alice.getByRole("button", { name: /Add contact/i }).last().click();
 
   // Вставляем Bob UUID через буфер обмена → кнопка "Paste ID" → одиночный search()
   // Это надёжнее чем keyboard.type(), который вызывает onChanged на КАЖДЫЙ символ
@@ -400,9 +423,9 @@ async function main() {
   console.log("Alice: нажимаем кнопку Start call на карточке контакта…");
   await alice
     .getByRole("button", { name: "Start call" })
-    .first()
+    .last()
     .waitFor({ state: "visible", timeout: 15_000 });
-  await alice.getByRole("button", { name: "Start call" }).first().click();
+  await alice.getByRole("button", { name: "Start call" }).last().click();
 
   // ── Bob принимает входящий звонок ────────────────────────────────────────
   console.log("Bob: ожидание входящего вызова…");
@@ -410,7 +433,7 @@ async function main() {
     .getByText("Incoming call", { exact: false })
     .waitFor({ state: "visible", timeout: 45_000 });
 
-  await bob.getByRole("button", { name: /Answer/i }).click();
+  await bob.getByRole("button", { name: /Answer/i }).last().click();
 
   // ── Оба должны увидеть статус звонка ─────────────────────────────────────
   console.log("Ожидание статуса Connected / Negotiating у Alice…");

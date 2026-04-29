@@ -12,10 +12,12 @@ import 'package:stealth/helpers/crypto_helper.dart';
 class LocalDatabaseService {
   static const String dbName = 'stealth_local_v3.db';
   // Bumped to v2 to add the `synced` index on the messages store.
-  static const int dbVersion = 2;
+  static const int dbVersion = 4;
 
   static const String messagesStore = 'messages';
   static const String chatsStore = 'chats';
+  static const String contactsStore = 'contacts';
+  static const String callsStore = 'calls';
 
   IdbFactory get _factory => kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
   Database? _db;
@@ -36,16 +38,30 @@ class LocalDatabaseService {
         final store = db.createObjectStore(messagesStore, autoIncrement: true);
         store.createIndex('chatId', 'chatId');
         store.createIndex('synced', 'synced');
-      } else if (event.oldVersion < 2) {
-        // Upgrade existing store: add synced index if missing
+        store.createIndex('messageId', 'messageId');
+      } else {
         final txn = event.transaction;
         final store = txn.objectStore(messagesStore);
-        if (!store.indexNames.contains('synced')) {
-          store.createIndex('synced', 'synced');
+        if (event.oldVersion < 2) {
+          if (!store.indexNames.contains('synced')) {
+            store.createIndex('synced', 'synced');
+          }
+        }
+        if (event.oldVersion < 3) {
+          if (!store.indexNames.contains('messageId')) {
+            store.createIndex('messageId', 'messageId');
+          }
         }
       }
       if (!db.objectStoreNames.contains(chatsStore)) {
         db.createObjectStore(chatsStore, keyPath: 'id');
+      }
+      if (!db.objectStoreNames.contains(contactsStore)) {
+        db.createObjectStore(contactsStore, keyPath: 'contact_user_id');
+      }
+      if (!db.objectStoreNames.contains(callsStore)) {
+        final store = db.createObjectStore(callsStore, autoIncrement: true);
+        store.createIndex('chatId', 'chatId');
       }
     });
 
@@ -69,16 +85,40 @@ class LocalDatabaseService {
     bool synced = true,
   }) async {
     await _ensureInitialized();
+
+    final messageId = message['id']?.toString();
+    final txn = _db!.transaction(messagesStore, idbModeReadWrite);
+    final store = txn.objectStore(messagesStore);
+
+    // 1. Check if message already exists by messageId index
+    if (messageId != null) {
+      final index = store.index('messageId');
+      final existingKey = await index.getKey(messageId);
+      if (existingKey != null) {
+        // Already exists, maybe update sync status if it was not synced before
+        final existing = await store.getObject(existingKey);
+        if (existing is Map) {
+          final val = Map<String, dynamic>.from(existing);
+          // Only update if sync status changed from 0 to 1
+          if (synced && (val['synced'] as int? ?? 1) == 0) {
+            val['synced'] = 1;
+            await store.put(val, existingKey);
+          }
+        }
+        await txn.completed;
+        return existingKey;
+      }
+    }
+
+    // 2. Encrypt and save new message
     final encrypted =
         await CryptoHelper.encryptData(jsonEncode(message), _dbKey!);
 
-    final txn = _db!.transaction(messagesStore, idbModeReadWrite);
-    final store = txn.objectStore(messagesStore);
     final localKey = await store.put({
       'payload': encrypted,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'chatId': message['chat_id'],
-      'messageId': message['id']?.toString(),
+      'messageId': messageId,
       'synced': synced ? 1 : 0,
     });
     await txn.completed;
@@ -90,17 +130,16 @@ class LocalDatabaseService {
     await _ensureInitialized();
     final txn = _db!.transaction(messagesStore, idbModeReadOnly);
     final store = txn.objectStore(messagesStore);
+    final index = store.index('chatId');
 
     final messages = <Map<String, dynamic>>[];
-    final cursor = store.openCursor(autoAdvance: true);
+    final cursor = index.openCursor(key: chatId, autoAdvance: true);
 
     await for (final cv in cursor) {
       final val = cv.value as Map;
-      if (val['chatId'] == chatId) {
-        final decrypted =
-            await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
-        messages.add(jsonDecode(decrypted) as Map<String, dynamic>);
-      }
+      final decrypted =
+          await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
+      messages.add(jsonDecode(decrypted) as Map<String, dynamic>);
     }
 
     return messages;
@@ -111,25 +150,21 @@ class LocalDatabaseService {
     await _ensureInitialized();
     final txn = _db!.transaction(messagesStore, idbModeReadOnly);
     final store = txn.objectStore(messagesStore);
+    final index = store.index('synced');
 
-    final pending = <({Object key, Map<String, dynamic> message})>[];
-    final cursor = store.openCursor(autoAdvance: true);
+    final pending = <Map<String, dynamic>>[];
+    final cursor = index.openCursor(key: 0, autoAdvance: true);
 
     await for (final cv in cursor) {
       final val = cv.value as Map;
-      if ((val['synced'] as int? ?? 1) == 0) {
-        final decrypted =
-            await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
-        final message = jsonDecode(decrypted) as Map<String, dynamic>;
-        message['_local_key'] = cv.key;
-        pending.add((
-          key: cv.key,
-          message: message,
-        ));
-      }
+      final decrypted =
+          await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
+      final message = jsonDecode(decrypted) as Map<String, dynamic>;
+      message['_local_key'] = cv.primaryKey;
+      pending.add(message);
     }
 
-    return pending.map((e) => e.message).toList();
+    return pending;
   }
 
   Future<void> markMessageSyncedByLocalKey(Object localKey) async {
@@ -147,21 +182,21 @@ class LocalDatabaseService {
     await txn.completed;
   }
 
-  /// Marks a locally stored message as synced with Supabase.
+  /// Marks a locally stored message as synced with Supabase using its messageId.
   Future<void> markMessageSynced(String messageId) async {
     await _ensureInitialized();
     final txn = _db!.transaction(messagesStore, idbModeReadWrite);
     final store = txn.objectStore(messagesStore);
+    final index = store.index('messageId');
 
-    // Walk all records to find the matching messageId
-    final cursor = store.openCursor(autoAdvance: false);
+    final cursor = index.openCursor(key: messageId, autoAdvance: false);
     await for (final cv in cursor) {
       final val = Map<String, dynamic>.from(cv.value as Map);
-      if (val['messageId'] == messageId && (val['synced'] as int? ?? 1) == 0) {
+      if ((val['synced'] as int? ?? 1) == 0) {
         val['synced'] = 1;
         await cv.update(val);
-        break;
       }
+      // Usually there's only one record per messageId, but we update all just in case.
       cv.next();
     }
 
@@ -193,5 +228,49 @@ class LocalDatabaseService {
       return Map<String, dynamic>.from(val as Map);
     }
     return null;
+  }
+
+  // --- Contacts ---
+
+  Future<void> saveContact(Map<String, dynamic> contact) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadWrite);
+    final store = txn.objectStore(contactsStore);
+    await store.put(contact);
+    await txn.completed;
+  }
+
+  Future<List<Map<String, dynamic>>> getContacts() async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadOnly);
+    final store = txn.objectStore(contactsStore);
+    final list = await store.getAll();
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> deleteContact(String userId) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadWrite);
+    final store = txn.objectStore(contactsStore);
+    await store.delete(userId);
+    await txn.completed;
+  }
+
+  // --- Calls ---
+
+  Future<void> saveCall(Map<String, dynamic> call) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(callsStore, idbModeReadWrite);
+    final store = txn.objectStore(callsStore);
+    await store.put(call);
+    await txn.completed;
+  }
+
+  Future<List<Map<String, dynamic>>> getCalls() async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(callsStore, idbModeReadOnly);
+    final store = txn.objectStore(callsStore);
+    final list = await store.getAll();
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 }

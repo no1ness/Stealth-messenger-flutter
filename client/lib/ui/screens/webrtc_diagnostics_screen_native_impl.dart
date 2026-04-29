@@ -11,7 +11,8 @@ class WebRTCDiagnosticsScreen extends StatefulWidget {
   const WebRTCDiagnosticsScreen({super.key});
 
   @override
-  State<WebRTCDiagnosticsScreen> createState() => _WebRTCDiagnosticsScreenState();
+  State<WebRTCDiagnosticsScreen> createState() =>
+      _WebRTCDiagnosticsScreenState();
 }
 
 class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
@@ -131,11 +132,16 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                       if (_error.isNotEmpty)
                         Text(
                           _error,
-                          style: AppTypography.body.copyWith(color: AppColors.systemRed),
+                          style: AppTypography.body
+                              .copyWith(color: AppColors.systemRed),
                           textAlign: TextAlign.center,
                         )
                       else
-                        Text(_status, style: AppTypography.body, textAlign: TextAlign.center),
+                        Text(
+                          _status,
+                          style: AppTypography.body,
+                          textAlign: TextAlign.center,
+                        ),
                       const SizedBox(height: AppSpacing.lg),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -178,8 +184,14 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                       Text('System Info', style: AppTypography.headline),
                       const SizedBox(height: AppSpacing.md),
                       _buildInfoRow('Flutter WebRTC', 'Installed'),
-                      _buildInfoRow('Platform', Theme.of(context).platform.toString()),
-                      _buildInfoRow('Renderer Initialized', _isInitialized.toString()),
+                      _buildInfoRow(
+                        'Platform',
+                        Theme.of(context).platform.toString(),
+                      ),
+                      _buildInfoRow(
+                        'Renderer Initialized',
+                        _isInitialized.toString(),
+                      ),
                     ],
                   ),
                 ),
@@ -197,8 +209,14 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: AppTypography.body.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          ),
+          Text(
+            value,
+            style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );

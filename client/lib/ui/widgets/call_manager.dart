@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/supabase_service.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
@@ -166,9 +167,13 @@ class _CallManagerState extends State<CallManager> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  fromNickname,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Semantics(
+                  label: AccessibilityIds.callerName,
+                  excludeSemantics: true,
+                  child: Text(
+                    fromNickname,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -206,29 +211,38 @@ class _CallManagerState extends State<CallManager> {
                 icon: const Icon(Icons.network_check),
                 label: const Text('Diagnostics'),
               ),
-              TextButton.icon(
-                onPressed: () async {
-                  Navigator.of(dialogContext).pop();
-                  await _supabaseService.markIncomingCallDeclined(
-                    chatId: chatId,
-                    fromUserId: fromUserId,
-                  );
-                  await _supabaseService.sendCallEnd(chatId: chatId);
-                },
-                icon: const Icon(Icons.call_end, color: Colors.red),
-                label: const Text(
-                  'Decline',
-                  style: TextStyle(color: Colors.red),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+              Semantics(
+                label: AccessibilityIds.decline,
+                button: true,
+                excludeSemantics: true,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await _supabaseService.markIncomingCallDeclined(
+                      chatId: chatId,
+                      fromUserId: fromUserId,
+                    );
+                    await _supabaseService.sendCallEnd(chatId: chatId);
+                  },
+                  icon: const Icon(Icons.call_end, color: Colors.red),
+                  label: const Text(
+                    'Decline',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: !canAnswer
+              Semantics(
+                label: AccessibilityIds.answer,
+                button: true,
+                excludeSemantics: true,
+                child: ElevatedButton.icon(
+                  onPressed: !canAnswer
                     ? null
                     : () async {
                         // ignore: avoid_print
@@ -309,6 +323,7 @@ class _CallManagerState extends State<CallManager> {
                   ),
                 ),
               ),
+            ),
             ],
           );
         },

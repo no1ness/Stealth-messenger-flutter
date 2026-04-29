@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 
 class GlassMessageInput extends StatefulWidget {
   final Function(String) onSendMessage;
@@ -137,7 +138,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
                 _buildIconButton(
                   icon: Icons.add,
                   onPressed: _handleAttachment,
-                  semanticsLabel: 'Attach file',
+                  semanticsLabel: AccessibilityIds.attachFile,
                 ),
                 const SizedBox(width: AppSpacing.sm),
 
@@ -173,29 +174,35 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
   Widget _buildTextField() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.glassLight.withValues(alpha: 0.1),
+        color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.glassLight.withValues(alpha: 0.1),
+          color: AppColors.glassLight.withValues(alpha: 0.05),
           width: 0.5,
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: TextField(
-        controller: _controller,
-        maxLines: 5,
-        minLines: 1,
-        style: AppTypography.body.copyWith(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Message',
-          hintStyle: AppTypography.body.copyWith(
-            color: AppColors.textSecondary.withValues(alpha: 0.5),
+      child: Semantics(
+        label: AccessibilityIds.messageInput,
+        textField: true,
+        child: TextField(
+          controller: _controller,
+          maxLines: 5,
+          minLines: 1,
+          style: AppTypography.body.copyWith(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Message',
+            hintStyle: AppTypography.body.copyWith(
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            filled: false, // Don't use global theme fill color
           ),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          textCapitalization: TextCapitalization.sentences,
+          cursorColor: Colors.white,
         ),
-        textCapitalization: TextCapitalization.sentences,
       ),
     );
   }
@@ -258,7 +265,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
 
   Widget _buildSendButton() {
     return Semantics(
-      label: 'Send message',
+      label: AccessibilityIds.sendMessage,
       button: true,
       child: GestureDetector(
         onTap: _handleSendMessage,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/themes/apple_liquid/widgets/debug_status_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
@@ -28,7 +29,7 @@ class _MainTabsState extends State<MainTabs> {
     // Tab screens are created once so navigation state survives tab switches.
     _screens = [
       ChatsScreen(initialChatId: widget.initialChatId),
-      const ContactsScreen(),
+      ContactsScreen(),
       const ProfileScreen(),
       const SettingsScreen(),
     ];
@@ -63,22 +64,22 @@ class _MainTabsState extends State<MainTabs> {
             GlassBottomNavBarItem(
               icon: Icons.chat_bubble_outline,
               selectedIcon: Icons.chat_bubble,
-              label: 'Chats',
+              label: AccessibilityIds.chatsTab,
             ),
             GlassBottomNavBarItem(
               icon: Icons.people_outline,
               selectedIcon: Icons.people,
-              label: 'Contacts',
+              label: AccessibilityIds.contactsTab,
             ),
             GlassBottomNavBarItem(
               icon: Icons.person_outline,
               selectedIcon: Icons.person,
-              label: 'Profile',
+              label: AccessibilityIds.profileTab,
             ),
             GlassBottomNavBarItem(
               icon: Icons.settings_outlined,
               selectedIcon: Icons.settings,
-              label: 'Settings',
+              label: AccessibilityIds.settingsTab,
             ),
           ],
         ),

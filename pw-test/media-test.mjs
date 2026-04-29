@@ -10,9 +10,14 @@
  *   6. Воспроизведение голосовых
  *   7. История звонков в профиле
  *
- * Запуск:
- *   cd client && flutter run -d web-server --web-hostname=127.0.0.1 --web-port=57575
- *   cd pw-test && node media-test.mjs
+ * Рекомендуемый запуск для headless E2E:
+ *   cd client && flutter build web
+ *   cd ../pw-test && node serve-static-web.mjs
+ *   set STEALTH_WEB_URL=http://127.0.0.1:58585
+ *   node media-test.mjs
+ *
+ * Debug web-server (`flutter run -d web-server`) подходит для ручной проверки,
+ * но может зависать на bootstrap в headless Chromium.
  */
 
 import { chromium } from "playwright";
@@ -57,6 +62,29 @@ function info(msg) {
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function getBootstrapState(page) {
+  return page.evaluate(() => ({
+    hasA11yToggle: !!document.querySelector(
+      '[aria-label="Enable accessibility"], flt-semantics-placeholder',
+    ),
+    hasTextbox: !!document.querySelector('input, textarea, [role="textbox"]'),
+    hasLoadingIndicator: !!document.querySelector("#loading_indicator"),
+    bodyLength: document.body?.innerHTML?.length ?? 0,
+    hasDebugRunMain: typeof window.$dartRunMain === "function",
+    dartMainExecuted: !!window.$dartMainExecuted,
+  }));
+}
+
+async function kickDebugMainIfNeeded(page) {
+  return page.evaluate(() => {
+    if (!window.$dartMainExecuted && typeof window.$dartRunMain === "function") {
+      window.$dartRunMain();
+      return true;
+    }
+    return false;
+  });
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -67,9 +95,8 @@ const delay = (ms) => new Promise((r) => setTimeout(r, ms));
  * and userId are restored from localStorage automatically.
  */
 async function resetToMain(page) {
-  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await gotoApp(page);
   await delay(2000);
-  // Re-enable accessibility (lost on reload)
   await enableA11y(page);
   // Wait until the main Chats screen is showing
   try {
@@ -93,7 +120,18 @@ async function gotoApp(page) {
   while (Date.now() < deadline) {
     try {
       await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 15_000 });
-      return;
+      for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt++) {
+        const state = await getBootstrapState(page);
+        if (state.hasA11yToggle || state.hasTextbox) {
+          return;
+        }
+        if (state.hasDebugRunMain && !state.dartMainExecuted) {
+          await kickDebugMainIfNeeded(page);
+        }
+        await delay(1000);
+      }
+
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
     } catch (e) {
       lastErr = e;
       await delay(2000);
@@ -103,25 +141,74 @@ async function gotoApp(page) {
 }
 
 async function enableA11y(page) {
-  await page.evaluate(() => {
-    const btn = document.querySelector("flt-semantics-placeholder");
-    if (btn) btn.click();
-  });
-  await delay(3000);
+  const deadline = Date.now() + 30_000;
+
+  while (Date.now() < deadline) {
+    const textboxes = await page.getByRole("textbox").count();
+    const startButtons = await page
+      .getByRole("button", { name: /GET STARTED/i })
+      .count();
+    const chatsButtons = await page.getByRole("button", { name: "Chats" }).count();
+    if (textboxes > 0 || startButtons > 0 || chatsButtons > 0) {
+      return true;
+    }
+
+    const result = await page.evaluate(() => {
+      const btn = document.querySelector(
+        '[aria-label="Enable accessibility"], flt-semantics-placeholder',
+      );
+      if (!btn) return "NOT_FOUND";
+      btn.click();
+      return "CLICKED";
+    });
+
+    if (result === "CLICKED") {
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await delay(1000);
+        const readyCounts = await Promise.all([
+          page.getByRole("textbox").count(),
+          page.getByRole("button", { name: /GET STARTED/i }).count(),
+          page.getByRole("button", { name: "Chats" }).count(),
+        ]);
+        if (readyCounts.some((count) => count > 0)) {
+          return true;
+        }
+      }
+    } else {
+      await delay(1000);
+    }
+  }
+
+  return false;
 }
 
 async function registerUser(page, nickname) {
   await gotoApp(page);
-  await page
-    .locator("flt-semantics-placeholder")
-    .waitFor({ state: "attached", timeout: 30_000 })
-    .catch(() => {});
-  await enableA11y(page);
+  const a11yReady = await enableA11y(page);
+  if (!a11yReady) {
+    throw new Error(
+      "Accessibility semantics did not become available on the registration screen.",
+    );
+  }
 
   const tf = page.getByRole("textbox").first();
   await tf.waitFor({ state: "visible", timeout: 30_000 });
-  await tf.fill(nickname);
-  await page.getByRole("button", { name: /GET STARTED/i }).click();
+  await tf.click();
+  await tf.type(nickname);
+
+  const startButton = page.getByRole("button", { name: /GET STARTED/i });
+  let isEnabled = false;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    isEnabled = await startButton.isEnabled();
+    if (isEnabled) {
+      break;
+    }
+    await delay(250);
+  }
+  if (!isEnabled) {
+    throw new Error("GET STARTED button stayed disabled after typing nickname.");
+  }
+  await startButton.click();
   await page
     .getByRole("button", { name: "Chats" })
     .waitFor({ state: "visible", timeout: 60_000 });
@@ -171,7 +258,7 @@ async function goToTab(page, tabName) {
 
 async function addContact(page, contactId) {
   await goToTab(page, "Contacts");
-  await page.getByRole("button", { name: /Add contact/i }).click();
+  await page.getByRole("button", { name: /Add contact/i }).last().click();
 
   await page.evaluate(async (id) => {
     try {
@@ -198,6 +285,7 @@ async function addContact(page, contactId) {
   try {
     await page
       .getByRole("button", { name: "Add", exact: true })
+      .last()
       .click({ timeout: 10_000 });
   } catch (_) {
     info(
@@ -250,7 +338,12 @@ async function main() {
     "═══════════════════════════════════════════════════════════════\n",
   );
 
-  const browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
+  const browser = await chromium.launch({
+    headless: true,
+    args: LAUNCH_ARGS,
+    executablePath: process.env.CHROME_BIN || undefined,
+    channel: process.env.CHROME_BIN ? undefined : (process.env.PW_CHANNEL || undefined),
+  });
 
   try {
     const ctxA = await browser.newContext({
@@ -526,7 +619,7 @@ async function main() {
       try {
         const callBtn = alice
           .getByRole("button", { name: "Start call" })
-          .first();
+          .last();
         await callBtn.waitFor({ state: "visible", timeout: 10_000 });
         await callBtn.click();
         callStarted = true;
@@ -549,7 +642,7 @@ async function main() {
           pass("Incoming Audio Call", "Bob sees 'Incoming call'");
           await bob.screenshot({ path: "test-04-incoming-bob.png" });
 
-          await bob.getByRole("button", { name: /Answer/i }).click();
+          await bob.getByRole("button", { name: /Answer/i }).last().click();
           bobAnswered = true;
           info("Bob answered audio call");
         } catch (e) {
@@ -658,7 +751,7 @@ async function main() {
       try {
         const videoBtn = alice
           .getByRole("button", { name: "Start video call" })
-          .first();
+          .last();
         await videoBtn.waitFor({ state: "visible", timeout: 10_000 });
         await videoBtn.click();
         videoCallStarted = true;
@@ -680,7 +773,7 @@ async function main() {
           pass("Incoming Video Call", "Bob sees incoming video call");
           await bob.screenshot({ path: "test-05-video-incoming-bob.png" });
 
-          await bob.getByRole("button", { name: /Answer/i }).click();
+          await bob.getByRole("button", { name: /Answer/i }).last().click();
           bobAnsweredVideo = true;
           info("Bob answered video call");
         } catch (e) {

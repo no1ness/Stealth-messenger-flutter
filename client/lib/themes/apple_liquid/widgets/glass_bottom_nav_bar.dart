@@ -118,7 +118,11 @@ class _GlassBottomNavBarItemWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      label: widget.item.label,
+      button: true,
+      excludeSemantics: true,
+      child: GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
@@ -159,6 +163,7 @@ class _GlassBottomNavBarItemWidgetState
           ),
         ),
       ),
+    ),
     );
   }
 }
