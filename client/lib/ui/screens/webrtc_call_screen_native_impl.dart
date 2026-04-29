@@ -147,10 +147,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
   }
 
-  /// Собирает список ICE-серверов. STUN идёт всегда, TURN — только если
-  /// указан через `.env` (`TURN_URL` + `TURN_USERNAME` + `TURN_PASSWORD`).
-  /// Без TURN звонок между устройствами за symmetric NAT (эмулятор, мобильный
-  /// интернет, VPN) не состоится — нужен TURN-relay.
+  /// Собирает список ICE-серверов. STUN идёт всегда. Дополнительно
+  /// добавляются TURN (`TURN_URL`) и TURNS (`TURNS_URL`) — обе пары
+  /// независимы, можно задать одну, обе или ни одной.
+  ///
+  /// TURNS на 443/TLS критичен для обхода ТСПУ в РФ: маскируется под
+  /// обычный HTTPS. Без TURN/TURNS звонок между устройствами за symmetric
+  /// NAT (мобильный интернет, VPN, эмулятор) не состоится.
   List<Map<String, dynamic>> _buildIceServers() {
     final servers = <Map<String, dynamic>>[
       {
@@ -160,27 +163,50 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         ],
       },
     ];
-    final turnUrls = dotenv.env['TURN_URL']?.trim();
-    final turnUser = dotenv.env['TURN_USERNAME']?.trim();
-    final turnPass = dotenv.env['TURN_PASSWORD']?.trim();
-    if (turnUrls != null && turnUrls.isNotEmpty) {
-      servers.add({
-        'urls': turnUrls
-            .split(',')
-            .map((u) => u.trim())
-            .where((u) => u.isNotEmpty)
-            .toList(),
-        if (turnUser != null && turnUser.isNotEmpty) 'username': turnUser,
-        if (turnPass != null && turnPass.isNotEmpty) 'credential': turnPass,
-      });
-      debugPrint('[stealth-call] TURN configured: $turnUrls');
-    } else {
+    _appendTurnServer(
+      servers,
+      label: 'TURN',
+      urlsEnv: dotenv.env['TURN_URL'],
+      userEnv: dotenv.env['TURN_USERNAME'],
+      passEnv: dotenv.env['TURN_PASSWORD'],
+    );
+    _appendTurnServer(
+      servers,
+      label: 'TURNS',
+      urlsEnv: dotenv.env['TURNS_URL'],
+      userEnv: dotenv.env['TURNS_USERNAME'],
+      passEnv: dotenv.env['TURNS_PASSWORD'],
+    );
+    if (servers.length == 1) {
       debugPrint(
-        '[stealth-call] WARNING: no TURN in .env — P2P will fail across NAT/VPN. '
-        'Set TURN_URL, TURN_USERNAME, TURN_PASSWORD.',
+        '[stealth-call] WARNING: no TURN/TURNS in .env — P2P will fail across NAT/VPN. '
+        'Set TURN_URL/TURN_USERNAME/TURN_PASSWORD or TURNS_URL/TURNS_USERNAME/TURNS_PASSWORD.',
       );
     }
     return servers;
+  }
+
+  void _appendTurnServer(
+    List<Map<String, dynamic>> servers, {
+    required String label,
+    required String? urlsEnv,
+    required String? userEnv,
+    required String? passEnv,
+  }) {
+    final urls = urlsEnv?.trim();
+    if (urls == null || urls.isEmpty) return;
+    final user = userEnv?.trim();
+    final pass = passEnv?.trim();
+    servers.add({
+      'urls': urls
+          .split(',')
+          .map((u) => u.trim())
+          .where((u) => u.isNotEmpty)
+          .toList(),
+      if (user != null && user.isNotEmpty) 'username': user,
+      if (pass != null && pass.isNotEmpty) 'credential': pass,
+    });
+    debugPrint('[stealth-call] $label configured: $urls');
   }
 
   Future<bool> _requestMicrophonePermission() async {

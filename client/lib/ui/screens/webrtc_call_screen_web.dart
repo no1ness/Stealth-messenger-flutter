@@ -205,6 +205,32 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     await _startCall();
   }
 
+  void _appendWebTurnServer(
+    List<web.RTCIceServer> servers, {
+    required String label,
+    required String? urlsEnv,
+    required String? userEnv,
+    required String? passEnv,
+  }) {
+    final raw = urlsEnv?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final urls = raw
+        .split(',')
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .map((u) => u.toJS)
+        .toList()
+        .toJS;
+    servers.add(
+      web.RTCIceServer(
+        urls: urls,
+        username: userEnv?.trim() ?? '',
+        credential: passEnv?.trim() ?? '',
+      ),
+    );
+    debugPrint('[stealth-call] web $label configured: $raw');
+  }
+
   Future<void> _createPeerConnection() async {
     final iceServers = <web.RTCIceServer>[
       web.RTCIceServer(
@@ -214,28 +240,23 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         ].map((u) => u.toJS).toList().toJS,
       ),
     ];
-    final turnUrls = dotenv.env['TURN_URL']?.trim();
-    final turnUser = dotenv.env['TURN_USERNAME']?.trim();
-    final turnPass = dotenv.env['TURN_PASSWORD']?.trim();
-    if (turnUrls != null && turnUrls.isNotEmpty) {
-      final urls = turnUrls
-          .split(',')
-          .map((u) => u.trim())
-          .where((u) => u.isNotEmpty)
-          .map((u) => u.toJS)
-          .toList()
-          .toJS;
-      iceServers.add(
-        web.RTCIceServer(
-          urls: urls,
-          username: turnUser ?? '',
-          credential: turnPass ?? '',
-        ),
-      );
-      debugPrint('[stealth-call] web TURN configured: $turnUrls');
-    } else {
+    _appendWebTurnServer(
+      iceServers,
+      label: 'TURN',
+      urlsEnv: dotenv.env['TURN_URL'],
+      userEnv: dotenv.env['TURN_USERNAME'],
+      passEnv: dotenv.env['TURN_PASSWORD'],
+    );
+    _appendWebTurnServer(
+      iceServers,
+      label: 'TURNS',
+      urlsEnv: dotenv.env['TURNS_URL'],
+      userEnv: dotenv.env['TURNS_USERNAME'],
+      passEnv: dotenv.env['TURNS_PASSWORD'],
+    );
+    if (iceServers.length == 1) {
       debugPrint(
-        '[stealth-call] web: no TURN in .env — P2P may fail across NAT',
+        '[stealth-call] web: no TURN/TURNS in .env — P2P may fail across NAT',
       );
     }
     final configuration = web.RTCConfiguration(

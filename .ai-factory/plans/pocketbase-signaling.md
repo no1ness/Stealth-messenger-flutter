@@ -107,20 +107,20 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 ### Фаза 1: Фундамент (зависимости, модели, интерфейс)
 
-#### 1. Добавить SDK PocketBase в Flutter-клиент
+#### 1. Добавить SDK PocketBase в Flutter-клиент `[DONE]`
 
 - **Файл:** `client/pubspec.yaml`
 - **Действие:** Добавить `pocketbase: ^0.18.0` (или последняя стабильная) в раздел `dependencies`. Запустить `flutter pub get`. Зафиксировать `pubspec.lock`.
 - **Логирование:** не требуется (build-time изменение).
 
-#### 2. Создать структуру каталогов signaling
+#### 2. Создать структуру каталогов signaling `[DONE]`
 
 - **Каталоги:**
   - `client/lib/services/signaling/`
   - `client/test/services/signaling/`
 - **Действие:** Создать пустые директории-плейсхолдеры с `.gitkeep`, далее задачи положат туда файлы.
 
-#### 3. Создать модель `RtcMessage`
+#### 3. Создать модель `RtcMessage` `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/rtc_message.dart`
 - **Содержимое:** Dart-класс, маппинг на PocketBase коллекцию `rtc_signaling`.
@@ -130,7 +130,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - `RtcMessageType` enum с `fromString()` для разбора и обработкой неизвестных значений (`throwOnUnknown` или `unknown` вариант — выбрать в имплементации).
 - **Логирование:** при `fromRecord` логировать `[signaling] RtcMessage parsed type=$type roomId=$roomId from=$creator to=$target`.
 
-#### 4. Создать абстрактный интерфейс `SignalingTransport`
+#### 4. Создать абстрактный интерфейс `SignalingTransport` `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/signaling_transport.dart`
 - **Содержимое:** abstract class с методами:
@@ -145,7 +145,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Цель:** позволяет в будущем swap-нуть PocketBase на другой бэкенд без изменений в WebRTC-слое.
 - **Логирование:** не требуется в интерфейсе (только в имплементации).
 
-#### 5. Расширить TURN-конфигурацию для TURNS:443
+#### 5. Расширить TURN-конфигурацию для TURNS:443 `[DONE]`
 
 - **Файл:** `client/lib/ui/screens/webrtc_call_screen_native_impl.dart` — функция `_buildIceServers()` (строки 154–184).
 - **Действие:**
