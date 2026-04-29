@@ -170,7 +170,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 ### Фаза 2: PocketBase имплементация
 
-#### 6. Реализовать `WebRtcSignalingService` (PocketBase backend)
+#### 6. Реализовать `WebRtcSignalingService` (PocketBase backend) `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/webrtc_signaling_service.dart`
 - **Класс:** `WebRtcSignalingService implements SignalingTransport`
@@ -191,7 +191,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - `[signaling] send error: $error` (на любом catch)
   - `[signaling] disconnect roomId=$roomId`
 
-#### 7. Аутентификация PocketBase: lazy через secure storage
+#### 7. Аутентификация PocketBase: lazy через secure storage `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/webrtc_signaling_service.dart` (метод `_ensurePocketBaseAuth()`)
 - **Решение:**
@@ -201,13 +201,13 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Файл:** `client/lib/registration_screen.dart` — НЕ меняем; auth для PocketBase делается лениво в сервисе. (Регистрация на Supabase остаётся для контактов.)
 - **Логирование:** `[signaling] auth restored from storage` / `[signaling] auth created new user pbId=$id`.
 
-#### 8. PocketBase singleton client
+#### 8. PocketBase singleton client `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/pocketbase_client.dart`
 - **Содержимое:** `PocketBaseClient.instance` — lazy singleton, читает URL из `dotenv.env['POCKETBASE_URL']`, выкидывает `StateError`, если URL не задан.
 - **Логирование:** при инициализации `[signaling] PocketBase client init url=$url`.
 
-#### 9. Reconnect / WS error handling в `WebRtcSignalingService`
+#### 9. Reconnect / WS error handling в `WebRtcSignalingService` `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/webrtc_signaling_service.dart`
 - **Цель:** PocketBase SDK имеет встроенный auto-reconnect для SSE, но клиент должен:
