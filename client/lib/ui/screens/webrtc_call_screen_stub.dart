@@ -11,12 +11,19 @@ class WebRTCCallScreen extends StatelessWidget {
   final bool isCaller;
   final bool isVideoCall;
 
+  /// Сохранены для совместимости с native/web вариантами; в stub-режиме
+  /// (WebAssembly safe) звонки недоступны, поэтому значения игнорируются.
+  final Map<String, dynamic>? initialOffer;
+  final String? callerUserId;
+
   const WebRTCCallScreen({
     super.key,
     required this.peerName,
     required this.chatId,
     required this.isCaller,
     this.isVideoCall = false,
+    this.initialOffer,
+    this.callerUserId,
   });
 
   @override

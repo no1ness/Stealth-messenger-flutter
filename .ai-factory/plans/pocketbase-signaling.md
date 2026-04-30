@@ -228,7 +228,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 ### Фаза 3: Интеграция в WebRTC-слой и удаление Supabase из call-пути
 
-#### 10. Создать `IncomingCallSignalingService` для глобальной подписки на входящие звонки
+#### 10. Создать `IncomingCallSignalingService` для глобальной подписки на входящие звонки `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/incoming_call_service.dart`
 - **Цель:** заменить `SupabaseService.subscribeToUserCalls()` (используется в `CallManager`) на PocketBase-эквивалент.
@@ -240,7 +240,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Решение по протоколу:** `call_initiation` не нужен как отдельное событие — сам `offer` сигнализирует о входящем. Это существенно упрощает архитектуру (см. CALL_BUG_ANALYSIS.md, Вариант 2).
 - **Логирование:** `[signaling] incoming offer detected roomId=$roomId from=$creator`.
 
-#### 11. Перевести `CallManager` на новый `IncomingCallSignalingService`
+#### 11. Перевести `CallManager` на новый `IncomingCallSignalingService` `[DONE]`
 
 - **Файл:** `client/lib/ui/widgets/call_manager.dart`
 - **Действие:**
@@ -251,7 +251,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - При Decline — отправить `signalingService.sendHangup(roomId, fromUserId)`.
 - **Логирование:** сохранить все существующие логи `[stealth-call] CallManager …`, переключить на новый сервис.
 
-#### 12. Перевести `WebRTCCallScreen` (native: `webrtc_call_screen_native_impl.dart`) на `SignalingTransport`
+#### 12. Перевести `WebRTCCallScreen` (native: `webrtc_call_screen_native_impl.dart`) на `SignalingTransport` `[DONE]`
 
 - **Файл:** `client/lib/ui/screens/webrtc_call_screen_native_impl.dart`
 - **Действие:**
@@ -268,7 +268,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - **НЕ менять** существующие callbacks (`onIceConnectionState`, `onTrack`, аудио-роутинг), стэтс-логгер, audio routing fix, permission flow — они остаются 1:1.
 - **Логирование:** сохранить все `[stealth-call]` логи; добавить `[stealth-call] using signaling=PocketBase`.
 
-#### 13. Hangup signal end-to-end
+#### 13. Hangup signal end-to-end `[DONE]`
 
 - **Цель:** заменить текущую цепочку `_hangUp() → sendCallEnd() → CallManager._handleCallEnded() → markCurrentUserCallEnded() + Navigator.pop()` на эквивалент через PocketBase.
 - **Файлы:**
@@ -278,7 +278,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - `client/lib/ui/screens/webrtc_call_screen_native_impl.dart` — добавить метод `_handleRemoteHangup(RtcMessage)`: останавливает stats logger, вызывает `_disposeMedia`, `Navigator.pop`.
 - **Логирование:** `[signaling] hangup received from=$creator roomId=$roomId` / `[stealth-call] remote hangup → closing screen`.
 
-#### 14. Перевести `WebRTCCallScreen` (web: `webrtc_call_screen_web.dart`) на `SignalingTransport`
+#### 14. Перевести `WebRTCCallScreen` (web: `webrtc_call_screen_web.dart`) на `SignalingTransport` `[DONE]`
 
 - **Файл:** `client/lib/ui/screens/webrtc_call_screen_web.dart` (1051 строка)
 - **Действие:** **те же изменения, что в задаче 12**, но для web-имплементации:
@@ -295,7 +295,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Логирование:** те же теги `[stealth-call]` `[signaling]`.
 - **Тест:** добавить пункт в Definition of Done — `flutter build web` собирается без ошибок.
 
-#### 15. `PeerResolver` — local-only
+#### 15. `PeerResolver` — local-only `[DONE]`
 
 - **Файл:** `client/lib/services/signaling/peer_resolver.dart`
 - **Цель:** резолвить `targetUserId` по `chatId` БЕЗ обращения к Supabase.
@@ -304,7 +304,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Никаких Supabase fallbacks** — это последняя точка Supabase в call-пути, её надо изолировать в локальном пути.
 - **Логирование:** `[signaling] resolved target for chatId=$id → $targetUserId`.
 
-#### 16. Удалить call-related методы из `SupabaseService`
+#### 16. Удалить call-related методы из `SupabaseService` `[DONE]`
 
 - **Файл:** `client/lib/supabase_service.dart`
 - **Удалить (строки указаны примерно):**

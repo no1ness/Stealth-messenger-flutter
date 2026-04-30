@@ -29,12 +29,6 @@ class _FakeContactsDataSource implements ContactsDataSource {
 
   @override
   Future<String?> findOrCreatePrivateChatWith(String userId) async => null;
-
-  @override
-  Future<void> sendCallInitiation({
-    required String chatId,
-    required bool isVideoCall,
-  }) async {}
 }
 
 void main() {

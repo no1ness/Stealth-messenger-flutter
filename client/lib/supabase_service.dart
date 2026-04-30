@@ -16,16 +16,6 @@ import 'storage_service.dart';
 class SupabaseService {
   static const String _attachmentsBucket = 'chat-media';
 
-  /// Глобальный broadcast для событий `call_accept`. Нужен, чтобы активный
-  /// `WebRTCCallScreen` у вызывающей стороны мог узнать о принятии звонка и
-  /// отправить offer уже после того, как принимающий клиент гарантированно
-  /// подписан на `chat_calls` канал. Без этого offer отправлялся до того, как
-  /// принимающая сторона успевала подписаться, и сигналинг терялся.
-  static final StreamController<Map<String, dynamic>> _callAcceptedController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  static Stream<Map<String, dynamic>> get callAcceptedStream =>
-      _callAcceptedController.stream;
-
   final SupabaseClient supabase = Supabase.instance.client;
   final StorageService _storage = StorageService();
   final RatchetService _ratchet = RatchetService();
@@ -51,8 +41,6 @@ class SupabaseService {
   }
 
   final Map<String, SecretKey> _groupSecretCache = {};
-  RealtimeChannel? _userCallsChannel;
-  RealtimeChannel? _chatCallsChannel;
 
   Future<String> _encryptBytesWithSecret(
     Uint8List bytes,
@@ -1633,97 +1621,20 @@ class SupabaseService {
     }
   }
 
-  Future<void> subscribeToUserCalls({
-    required String userId,
-    required Function(Map<String, dynamic>) onCallReceived,
-    required Function(Map<String, dynamic>) onCallAccepted,
-    required Function(Map<String, dynamic>) onCallEnded,
-  }) async {
-    debugPrint('[stealth-call] subscribeToUserCalls userId=$userId');
-    await unsubscribeUserCalls();
-    final channel = supabase.channel('user_calls:$userId');
-    debugPrint('[stealth-call] created channel user_calls:$userId');
-    channel
-        .onBroadcast(
-          event: 'call_initiation',
-          callback: (payload) {
-            debugPrint('[stealth-call] received call_initiation: $payload');
-            onCallReceived(_unwrapBroadcast(payload));
-          },
-        )
-        .onBroadcast(
-          event: 'call_accept',
-          callback: (payload) {
-            debugPrint('[stealth-call] received call_accept: $payload');
-            final unwrapped = _unwrapBroadcast(payload);
-            onCallAccepted(unwrapped);
-            // Пробрасываем событие активному WebRTCCallScreen, чтобы он
-            // отправил offer только после того, как callee подписан.
-            _callAcceptedController.add(unwrapped);
-          },
-        )
-        .onBroadcast(
-          event: 'call_end',
-          callback: (payload) {
-            debugPrint('[stealth-call] received call_end: $payload');
-            onCallEnded(_unwrapBroadcast(payload));
-          },
-        )
-        .subscribe();
-    _userCallsChannel = channel;
-    debugPrint('[stealth-call] subscribed to user_calls:$userId');
-  }
-
-  Future<void> unsubscribeUserCalls() async {
-    if (_userCallsChannel != null) {
-      await supabase.removeChannel(_userCallsChannel!);
-      _userCallsChannel = null;
-    }
-  }
-
-  Future<void> subscribeCalls({
-    required String chatId,
-    required Function(Map<String, dynamic>) onOfferReceived,
-    required Function(Map<String, dynamic>) onAnswerReceived,
-    required Function(Map<String, dynamic>) onIceCandidateReceived,
-  }) async {
-    await unsubscribeCalls();
-    final channel = supabase.channel('chat_calls:$chatId');
-    channel
-        .onBroadcast(
-          event: 'offer',
-          callback: (payload) => onOfferReceived(_unwrapBroadcast(payload)),
-        )
-        .onBroadcast(
-          event: 'answer',
-          callback: (payload) => onAnswerReceived(_unwrapBroadcast(payload)),
-        )
-        .onBroadcast(
-          event: 'ice_candidate',
-          callback: (payload) =>
-              onIceCandidateReceived(_unwrapBroadcast(payload)),
-        )
-        .subscribe();
-    _chatCallsChannel = channel;
-  }
-
   /// Supabase Realtime оборачивает broadcast-сообщения в `{event, payload,
   /// type}`. Нужные нам поля лежат во вложенном `payload`. Эта обёртка
   /// возвращает именно их, чтобы downstream-код видел плоский payload
   /// независимо от того, как его прислал сервер.
+  ///
+  /// Используется только в `subscribeP2PSignaling` (data-channel сообщения).
+  /// Раньше использовалась для call-сигналинга, но он переехал на
+  /// PocketBase (см. WebRtcSignalingService).
   Map<String, dynamic> _unwrapBroadcast(Map<String, dynamic> payload) {
     final inner = payload['payload'];
     if (inner is Map) {
       return Map<String, dynamic>.from(inner);
     }
     return payload;
-  }
-
-  Future<void> unsubscribeCalls() async {
-    if (_chatCallsChannel != null) {
-      await supabase.removeChannel(_chatCallsChannel!);
-      _chatCallsChannel = null;
-    }
   }
 
   /// Subscribes to P2P signaling events (Offer/Answer/Candidate) for a chat.
@@ -1813,66 +1724,6 @@ class SupabaseService {
     return null;
   }
 
-  Future<void> sendCallInitiation({
-    required String chatId,
-    bool isVideoCall = false,
-  }) async {
-    final me = await getUserId();
-    final nickname = await getNickname();
-    final otherUserId = await _getOtherUserId(chatId);
-    debugPrint('[stealth-call] sendCallInitiation chatId=$chatId me=$me otherUserId=$otherUserId nickname=$nickname');
-    if (me == null || otherUserId == null || otherUserId.isEmpty) {
-      debugPrint('[stealth-call] sendCallInitiation ABORTED (null values)');
-      return;
-    }
-
-    final channel = supabase.channel('user_calls:$otherUserId');
-    debugPrint('[stealth-call] sending call_initiation to user_calls:$otherUserId');
-    await channel.sendBroadcastMessage(
-      event: 'call_initiation',
-      payload: {
-        'chat_id': chatId,
-        'from_user_id': me,
-        'from_nickname': nickname,
-        'call_type': isVideoCall ? 'video' : 'audio',
-      },
-    );
-    debugPrint('[stealth-call] call_initiation sent successfully');
-    await _recordCallHistoryEvent(
-      chatId: chatId,
-      initiatorUserId: me,
-      recipientUserId: otherUserId,
-      direction: 'outgoing',
-      status: 'initiated',
-      metadata: {
-        'from_nickname': nickname,
-        'call_type': isVideoCall ? 'video' : 'audio',
-      },
-    );
-  }
-
-  Future<void> sendCallAccept({required String chatId}) async {
-    final me = await getUserId();
-    final otherUserId = await _getOtherUserId(chatId);
-    if (me == null || otherUserId == null || otherUserId.isEmpty) {
-      return;
-    }
-
-    final channel = supabase.channel('user_calls:$otherUserId');
-    await channel.sendBroadcastMessage(
-      event: 'call_accept',
-      payload: {'chat_id': chatId},
-    );
-    await _recordCallHistoryEvent(
-      chatId: chatId,
-      initiatorUserId: otherUserId,
-      recipientUserId: me,
-      direction: 'incoming',
-      status: 'accepted',
-      answeredAt: DateTime.now(),
-    );
-  }
-
   Future<void> recordIncomingCall({
     required String chatId,
     required String fromUserId,
@@ -1946,65 +1797,6 @@ class SupabaseService {
       endedAt: DateTime.now(),
     );
   }
-
-  Future<void> sendCallEnd({required String chatId}) async {
-    final me = await getUserId();
-    final otherUserId = await _getOtherUserId(chatId);
-    if (me == null || otherUserId == null || otherUserId.isEmpty) {
-      return;
-    }
-
-    final channel = supabase.channel('user_calls:$otherUserId');
-    await channel.sendBroadcastMessage(
-      event: 'call_end',
-      payload: {'chat_id': chatId},
-    );
-    await _recordCallHistoryEvent(
-      chatId: chatId,
-      initiatorUserId: me,
-      recipientUserId: otherUserId,
-      direction: 'outgoing',
-      status: 'ended',
-      endedAt: DateTime.now(),
-    );
-  }
-
-  Future<void> sendOffer({
-    required String chatId,
-    required Map<String, dynamic> offer,
-  }) async {
-    final me = await getUserId();
-    final channel = supabase.channel('chat_calls:$chatId');
-    await channel.sendBroadcastMessage(
-      event: 'offer',
-      payload: {'sdp': offer, 'from_user_id': me},
-    );
-  }
-
-  Future<void> sendAnswer({
-    required String chatId,
-    required Map<String, dynamic> answer,
-  }) async {
-    final me = await getUserId();
-    final channel = supabase.channel('chat_calls:$chatId');
-    await channel.sendBroadcastMessage(
-      event: 'answer',
-      payload: {'sdp': answer, 'from_user_id': me},
-    );
-  }
-
-  Future<void> sendIceCandidate({
-    required String chatId,
-    required Map<String, dynamic> candidate,
-  }) async {
-    final me = await getUserId();
-    final channel = supabase.channel('chat_calls:$chatId');
-    await channel.sendBroadcastMessage(
-      event: 'ice_candidate',
-      payload: {'candidate': candidate, 'from_user_id': me},
-    );
-  }
-
 
   Future<void> _recordCallHistoryEvent({
     required String chatId,

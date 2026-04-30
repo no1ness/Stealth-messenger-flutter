@@ -9,10 +9,6 @@ abstract class ContactsDataSource {
   Future<List<dynamic>> searchUsers(String query);
   Future<void> addContact(String userId);
   Future<String?> findOrCreatePrivateChatWith(String userId);
-  Future<void> sendCallInitiation({
-    required String chatId,
-    required bool isVideoCall,
-  });
 }
 
 /// Default implementation that delegates to SupabaseService.
@@ -42,11 +38,4 @@ class SupabaseContactsDataSource implements ContactsDataSource {
   @override
   Future<String?> findOrCreatePrivateChatWith(String userId) =>
       _service.findOrCreatePrivateChatWith(userId);
-
-  @override
-  Future<void> sendCallInitiation({
-    required String chatId,
-    required bool isVideoCall,
-  }) =>
-      _service.sendCallInitiation(chatId: chatId, isVideoCall: isVideoCall);
 }

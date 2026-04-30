@@ -402,14 +402,9 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    await _supabaseService.sendCallInitiation(
-      chatId: chatId,
-      isVideoCall: isVideoCall,
-    );
-    if (!mounted) {
-      return;
-    }
-
+    // В PocketBase-архитектуре sendCallInitiation удалён: сам offer,
+    // который шлёт WebRTCCallScreen после открытия, и есть «звонок».
+    // Это устраняет лишний канал связи и упрощает race-conditions.
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WebRTCCallScreen(
