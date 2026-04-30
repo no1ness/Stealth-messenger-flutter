@@ -366,7 +366,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 ### Фаза 5: Конфигурация, документация, очистка
 
-#### 20. Обновить `.env.example` и валидировать `POCKETBASE_URL` при старте
+#### 20. Обновить `.env.example` и валидировать `POCKETBASE_URL` при старте `[DONE]`
 
 - **Файл:** `client/.env.example`
 - **Добавить:**
@@ -384,7 +384,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **Действие:** в `main()` после загрузки `.env` валидировать `POCKETBASE_URL`; если пуст — показывать `StartupErrorScreen` с инструкцией. Не падать молча.
 - **Логирование:** `[stealth-call] PocketBase URL: $url` (без secrets).
 
-#### 21. Создать `docs/POCKETBASE_SETUP.md`
+#### 21. Создать `docs/POCKETBASE_SETUP.md` `[DONE]`
 
 - **Файл:** `docs/POCKETBASE_SETUP.md`
 - **Содержимое:**
@@ -413,7 +413,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - Раздел про деплой на MikroTik (контейнер) и про настройку Let's Encrypt через Caddy.
   - Раздел про создание схемы — admin UI или migration JSON.
 
-#### 22. Обновить `.ai-factory/DESCRIPTION.md` и `docs/`
+#### 22. Обновить `.ai-factory/DESCRIPTION.md` и `docs/` `[DONE]`
 
 - **`.ai-factory/DESCRIPTION.md`:**
   - В разделе «Технологический стек»: добавить `pocketbase: ^0.18.x` и заменить «Supabase Realtime» на «PocketBase Realtime (SSE)» в описании сигналинга.
@@ -422,7 +422,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - **`docs/ARCHITECTURE.md`:** добавить диаграмму потока сигналинга через PocketBase + описание коллекции `rtc_signaling`.
 - **`docs/SECURITY.md`:** добавить параграф про PocketBase auth (token в secure storage), API rules, и почему PocketBase сам по себе НЕ E2E (но payload offer/answer/ICE не содержит секретов — содержит SDP, который и так передаётся в открытую в WebRTC).
 
-#### 23. Обновить Settings-экран (минимально)
+#### 23. Обновить Settings-экран (минимально) `[DONE]`
 
 - **Файл:** `client/lib/ui/screens/settings_screen.dart`
 - **Действие:** Добавить read-only строку «Signal server: $pocketbaseUrl» в раздел сетевых настроек. Override в runtime НЕ делаем (out of scope, только из `.env` на этом этапе).
@@ -468,12 +468,12 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 - [ ] Звонок 1-на-1 между двумя устройствами (native+native, web+web, native+web) проходит через PocketBase без вызова какого-либо метода `SupabaseService.send*Call*` или `SupabaseService.subscribe*Calls`.
 - [ ] В логах `[stealth-call]` присутствуют записи `[signaling] send type=offer` / `[signaling] recv type=answer`, RTP-пакеты идут (по `[rtc-stats]`).
-- [ ] `flutter test` проходит для всех unit-тестов signaling.
+- [x] `flutter test` проходит для всех unit-тестов signaling. (25 passed, 1 skipped — smoke без `POCKETBASE_TEST_URL`.)
 - [ ] `flutter build web` собирается без ошибок.
 - [ ] `flutter build apk --debug` собирается без ошибок.
 - [ ] `flutter analyze` без warnings.
 - [ ] Hangup от одной стороны корректно закрывает экран на другой стороне в течение 2 секунд (вместо 15+ сек ICE timeout).
 - [ ] Имитация разрыва сети (выключение Wi-Fi на 5 сек во время звонка) восстанавливает signaling-канал автоматически.
-- [ ] `docs/POCKETBASE_SETUP.md` содержит рабочий docker-compose, схему коллекции и API rules.
-- [ ] `client/.env.example` содержит `POCKETBASE_URL`, `TURNS_URL`, `TURNS_USERNAME`, `TURNS_PASSWORD`.
+- [x] `docs/POCKETBASE_SETUP.md` содержит рабочий docker-compose, схему коллекции и API rules.
+- [x] `client/.env.example` содержит `POCKETBASE_URL`, `TURNS_URL`, `TURNS_USERNAME`, `TURNS_PASSWORD`.
 - [ ] `CALL_BUG_ANALYSIS.md` обновлён или удалён (проблема устранена).

@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Stealth Messenger — кроссплатформенный безопасный мессенджер (Android, Web) на Flutter. Ключевые принципы: **local-first хранение**, **E2E-шифрование**, **P2P-аудио- и видеозвонки через WebRTC**, **Supabase только как резервное/синхронизирующее хранилище**.
+Stealth Messenger — кроссплатформенный безопасный мессенджер (Android, Web) на Flutter. Ключевые принципы: **local-first хранение**, **E2E-шифрование**, **P2P-аудио- и видеозвонки через WebRTC**, **сигналинг звонков через PocketBase (SSE на 443/TLS)**, **Supabase только как резервное/синхронизирующее хранилище для контактов и истории**.
 
 ## Модель данных: Local-First
 
@@ -15,8 +15,14 @@ Stealth Messenger — кроссплатформенный безопасный 
 │  BACKUP: Supabase (PostgreSQL + Realtime + Storage)      │
 │  ├── синхронизация при наличии сети                      │
 │  ├── публичные ключи пользователей                       │
-│  ├── сигналинг WebRTC-звонков (Broadcast)                │
+│  ├── история звонков (записи, не сигналинг)              │
 │  └── зашифрованные медиафайлы (Storage)                  │
+├─────────────────────────────────────────────────────────┤
+│  SIGNALING: PocketBase (SQLite + Realtime SSE)           │
+│  ├── коллекция rtc_signaling                             │
+│  ├── события offer / answer / candidate / hangup         │
+│  ├── фильтр на сервере: target='<selfUserId>'            │
+│  └── развёртывание: своё DNS-имя на 443/TLS              │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -44,6 +50,8 @@ Stealth Messenger — кроссплатформенный безопасный 
 │  ├── LocalDatabaseService (primary storage)      │
 │  ├── P2PService (WebRTC DataChannel messaging)   │
 │  ├── StorageService (платформенное хранилище)    │
+│  ├── WebRtcSignalingService (PocketBase SSE)     │
+│  ├── IncomingCallSignalingService (глобальная подписка) │
 │  └── WebRTC Support (звонки, диагностика)        │
 ├──────────────────────────────────────────────────┤
 │  Crypto Layer                                    │
@@ -56,7 +64,12 @@ Stealth Messenger — кроссплатформенный безопасный 
 │  ├── PostgreSQL (users, chats, messages, ...)    │
 │  ├── Realtime (подписки на сообщения, typing)    │
 │  ├── Storage (chat-media — зашифрованные файлы)  │
-│  └── Broadcast (сигнализация WebRTC-звонков)     │
+│  └── история звонков (record/markIncomingCallDeclined/...) │
+├──────────────────────────────────────────────────┤
+│  Backend (PocketBase) — сигналинг звонков         │
+│  ├── SQLite + Go runtime (single binary)         │
+│  ├── Realtime (SSE подписка на rtc_signaling)    │
+│  └── развёртывание: docs/POCKETBASE_SETUP.md     │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -199,10 +212,12 @@ erDiagram
 - При ошибке — `getChats()` возвращает данные из `_localDb.getChats()`
 
 ### WebRTC-звонок (аудио или видео)
-1. Старт из экрана **Контакты**; в событии `call_initiation` передаётся `call_type`: `audio` или `video`
-2. SDP offer/answer и ICE-кандидаты через Supabase Broadcast-канал `chat_calls:{chatId}`
-3. Прямое P2P-медиа через STUN/TURN (медиа не проходит через Supabase)
-4. TURN настраивается в `client/.env`: `TURN_URL`, `TURN_USERNAME`, `TURN_PASSWORD`
+1. Старт из экрана **Контакты**: caller сразу шлёт `offer` через PocketBase. Сам `offer` = факт входящего звонка (отдельного `call_initiation` нет).
+2. На каждом устройстве `IncomingCallSignalingService` держит глобальную SSE-подписку на коллекцию `rtc_signaling` с фильтром `target='<selfUserId>' && (type='offer' || type='hangup')`. Когда приходит `offer`, `CallManager` показывает диалог.
+3. После Answer — `WebRTCCallScreen` открывается с уже принятым offer (`initialOffer`), сразу делает `setRemoteDescription` → `createAnswer` → шлёт `answer` обратно через `WebRtcSignalingService`. Это убирает race condition «callee подписался слишком поздно».
+4. ICE-кандидаты идут через ту же коллекцию (`type='candidate'`) с фильтром `roomId + target`. Hangup — отдельное событие `type='hangup'`, гарантированно закрывает экран на обеих сторонах в течение ~1 сек.
+5. Прямое P2P-медиа через STUN/TURN/TURNS (медиа НЕ проходит через PocketBase). TURNS на 443/TLS — обход ТСПУ.
+6. Конфигурация в `client/.env`: `POCKETBASE_URL` (обязательно), `TURN_URL` / `TURN_USERNAME` / `TURN_PASSWORD`, `TURNS_URL` / `TURNS_USERNAME` / `TURNS_PASSWORD`. Развёртывание сервера — `docs/POCKETBASE_SETUP.md`.
 
 ### P2P DataChannel (экспериментально)
 - `P2PService` устанавливает WebRTC DataChannel для прямой передачи сообщений

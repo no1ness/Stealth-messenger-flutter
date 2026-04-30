@@ -71,6 +71,16 @@ class _MyAppState extends State<MyApp> {
         );
       }
 
+      final pocketbaseUrl = dotenv.env['POCKETBASE_URL'];
+      if (pocketbaseUrl == null || pocketbaseUrl.isEmpty) {
+        throw Exception(
+          'Missing POCKETBASE_URL in client/.env. WebRTC call signaling '
+          'requires a PocketBase server — see docs/POCKETBASE_SETUP.md '
+          'for setup instructions.',
+        );
+      }
+      debugPrint('[stealth-call] PocketBase URL: $pocketbaseUrl');
+
       final prefs = await SharedPreferences.getInstance();
       final useSupabase = prefs.getBool('useSupabase') ?? true;
       final customUrl = prefs.getString('customSupabaseUrl');

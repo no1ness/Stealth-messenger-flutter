@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/supabase_service.dart';
@@ -316,6 +317,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: AppSpacing.md),
+          _SignalServerLine(),
         ],
       ),
     );
@@ -498,6 +501,45 @@ class _MiniStat extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Read-only display of the PocketBase signal server URL from `.env`.
+///
+/// Runtime override is intentionally out of scope for this iteration — the
+/// URL is configured at build time via `client/.env` (`POCKETBASE_URL`).
+class _SignalServerLine extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final url = dotenv.maybeGet('POCKETBASE_URL') ?? '';
+    final hasUrl = url.isNotEmpty;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.dns, size: 18, color: AppColors.textSecondary),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Signal server',
+                style: AppTypography.caption1.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                hasUrl ? url : 'not configured (set POCKETBASE_URL in .env)',
+                style: AppTypography.body.copyWith(
+                  color: hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

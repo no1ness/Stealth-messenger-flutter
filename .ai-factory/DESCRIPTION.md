@@ -4,7 +4,7 @@
 
 Stealth Messenger — кроссплатформенный приватный мессенджер на Flutter с end-to-end шифрованием и архитектурой **local-first / Direct P2P First**. Регистрация без номера телефона: при первом запуске генерируется локальный UUID и пара ключей X25519, приватный ключ никогда не покидает устройство.
 
-Приоритет — приватность и оффлайн-работа. Сообщения и звонки идут напрямую между устройствами через WebRTC; Supabase используется как вспомогательный канал для сигналинга, обхода NAT и резервного хранилища (History Cloud) для синхронизации в фоне.
+Приоритет — приватность и оффлайн-работа. Сообщения и звонки идут напрямую между устройствами через WebRTC. **Сигналинг звонков** идёт через собственный PocketBase-инстанс (SSE + database-source, своё DNS-имя на 443/TLS — для устойчивости к ТСПУ); Supabase остаётся вспомогательным каналом для контактов, истории и фоллбэка обмена сообщениями (History Cloud).
 
 ## Ключевая функциональность
 
@@ -23,9 +23,10 @@ Stealth Messenger — кроссплатформенный приватный м
 - **Фреймворк:** Flutter (Material + кастомная тема Apple Liquid)
 - **Криптография:** `cryptography` (X25519, AES-256-GCM, Double Ratchet)
 - **WebRTC:** `flutter_webrtc` (audio/video + DataChannel)
+- **Сигналинг звонков:** PocketBase Realtime (SSE) — `pocketbase: ^0.18.0`
 - **Локальная БД:** `idb_shim` (IndexedDB) + `sqflite` для Android, `sembast_io` для FS
 - **Безопасное хранилище ключей:** `flutter_secure_storage_x` (Android Keystore)
-- **Backend (вспомогательный):** Supabase (PostgreSQL + Realtime + Storage)
+- **Backend (вспомогательный):** Supabase (PostgreSQL + Realtime + Storage) — для контактов и истории, НЕ для сигналинга звонков
 - **Service discovery (LAN):** `nsd` (mDNS / Bonjour)
 - **Сетевые состояния:** `connectivity_plus`
 - **Конфиг и preferences:** `flutter_dotenv`, `shared_preferences`
@@ -37,6 +38,7 @@ Stealth Messenger — кроссплатформенный приватный м
 
 - **Local-first.** Все сообщения сначала пишутся в зашифрованную локальную БД, UI читает из неё мгновенно. Облако — резерв.
 - **Direct P2P First.** WebRTC PeerConnection + DataChannel для прямого обмена. Если P2P недоступно — фоллбэк на Supabase Realtime.
+- **Сигналинг = PocketBase, медиа = WebRTC P2P.** Вызовы устанавливаются через коллекцию `rtc_signaling` (offer/answer/candidate/hangup как записи БД, доставляются через SSE), сама медиа идёт через TURNS:443 для обхода блокировок. См. `docs/POCKETBASE_SETUP.md`.
 - **Background Sync.** Каждые ~30 секунд (или при восстановлении сети) локальные сообщения копируются в Supabase. Дедупликация по message ID.
 - **Платформенные абстракции.** Файлы вида `storage_service_io.dart` / `storage_service_web.dart` / `storage_service_stub.dart` для разделения web vs native.
 - **Тематизация.** `themes/apple_liquid/` содержит виджеты с glassmorphism (`glass_bottom_nav_bar`, `glass_message_input`, `glass_text_field`).
@@ -58,6 +60,8 @@ Stealth Messenger — кроссплатформенный приватный м
 - `client/lib/supabase_service.dart` — ядро: синхронизация, криптография, WebRTC сигналинг (~65 KB)
 - `client/lib/local_database_service.dart` — зашифрованное локальное хранилище
 - `client/lib/p2p_service.dart` + `p2p_discovery_service.dart` — WebRTC DataChannel и LAN discovery
+- `client/lib/services/signaling/webrtc_signaling_service.dart` — PocketBase сигналинг для WebRTC звонков (offer/answer/candidate/hangup, lazy auth, reconnect)
+- `client/lib/services/signaling/incoming_call_service.dart` — глобальная подписка на входящие звонки
 - `client/lib/sync_service.dart` — фоновая синхронизация локальной БД с Supabase
 - `client/supabase/migrations/` — 8+ SQL-миграций схемы БД
 
@@ -65,6 +69,7 @@ Stealth Messenger — кроссплатформенный приватный м
 
 - `docs/ARCHITECTURE.md` — детальная архитектура с диаграммами БД и потоками данных
 - `docs/SECURITY.md` — модель безопасности
+- `docs/POCKETBASE_SETUP.md` — деплой PocketBase, схема `rtc_signaling`, API rules, TTL cleanup
 - `docs/ТЕХНИЧЕСКОЕ_ЗАДАНИЕ.md` — функциональные требования
 - `INSTALL_ANDROID.md` — инструкции по сборке для Android
 - `MANUAL_CALL_TEST.md` — сценарий ручного тестирования звонков
