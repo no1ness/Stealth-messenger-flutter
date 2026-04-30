@@ -327,7 +327,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 
 ### Фаза 4: Тесты
 
-#### 17. Unit-тест для `RtcMessage` (сериализация/десериализация)
+#### 17. Unit-тест для `RtcMessage` (сериализация/десериализация) `[DONE]`
 
 - **Файл:** `client/test/services/signaling/rtc_message_test.dart`
 - **Покрытие:**
@@ -336,7 +336,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - `RtcMessageType.fromString` парсит `offer`/`answer`/`candidate`/`hangup`, выкидывает на неизвестных.
 - **Стиль:** обычный `flutter_test` без mock-фреймворков, чистая проверка функций.
 
-#### 18. Unit-тест для `WebRtcSignalingService` (manual-fake style)
+#### 18. Unit-тест для `WebRtcSignalingService` (manual-fake style) `[DONE]`
 
 - **Файл:** `client/test/services/signaling/webrtc_signaling_service_test.dart`
 - **Стиль:** **manual fake** в духе существующих тестов (`_FakeContactsDataSource implements ContactsDataSource` в `contacts_screen_semantics_test.dart`). НЕ добавлять `mockito`/`mocktail` — соответствуем стилю проекта.
@@ -348,7 +348,7 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
   - `connectionState` транзишит через `connected → reconnecting → connected` при синтетическом disconnect-событии.
 - **Логирование:** verbose в тесте через `debugPrint` (для дебага flaky тестов).
 
-#### 19. Smoke-тест end-to-end сигналинга через реальный PocketBase
+#### 19. Smoke-тест end-to-end сигналинга через реальный PocketBase `[DONE]`
 
 - **Файл:** `client/test/services/signaling/pocketbase_signaling_smoke_test.dart`
 - **Стиль:** **по образцу `client/test/message_flow_smoke_test.dart`** (использует реальный backend, читает URL из env, skip при отсутствии).
