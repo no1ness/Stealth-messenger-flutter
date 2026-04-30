@@ -469,11 +469,11 @@ M  pw-test/debug-emulator-source.xml                           <- мусор, м
 - [ ] Звонок 1-на-1 между двумя устройствами (native+native, web+web, native+web) проходит через PocketBase без вызова какого-либо метода `SupabaseService.send*Call*` или `SupabaseService.subscribe*Calls`.
 - [ ] В логах `[stealth-call]` присутствуют записи `[signaling] send type=offer` / `[signaling] recv type=answer`, RTP-пакеты идут (по `[rtc-stats]`).
 - [x] `flutter test` проходит для всех unit-тестов signaling. (25 passed, 1 skipped — smoke без `POCKETBASE_TEST_URL`.)
-- [ ] `flutter build web` собирается без ошибок.
+- [x] `flutter build web` собирается без ошибок.
 - [ ] `flutter build apk --debug` собирается без ошибок.
-- [ ] `flutter analyze` без warnings.
+- [x] `flutter analyze` без warnings.
 - [ ] Hangup от одной стороны корректно закрывает экран на другой стороне в течение 2 секунд (вместо 15+ сек ICE timeout).
 - [ ] Имитация разрыва сети (выключение Wi-Fi на 5 сек во время звонка) восстанавливает signaling-канал автоматически.
 - [x] `docs/POCKETBASE_SETUP.md` содержит рабочий docker-compose, схему коллекции и API rules.
 - [x] `client/.env.example` содержит `POCKETBASE_URL`, `TURNS_URL`, `TURNS_USERNAME`, `TURNS_PASSWORD`.
-- [ ] `CALL_BUG_ANALYSIS.md` обновлён или удалён (проблема устранена).
+- [x] `CALL_BUG_ANALYSIS.md` обновлён или удалён (проблема устранена).
