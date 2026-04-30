@@ -51,7 +51,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   /// Используется только для получения selfUserId/nickname. Сигналинг
   /// идёт через [_signaling].
   final SupabaseService _supabaseService = SupabaseService();
-  final WebRtcSignalingService _signaling = WebRtcSignalingService();
+
+  /// Создаётся лениво в [_startCall]. См. комментарий в native-имплементации
+  /// `webrtc_call_screen_native_impl.dart` — конструктор по умолчанию
+  /// синхронно читает `dotenv.env['POCKETBASE_URL']`, что в widget-тестах
+  /// без загруженного `.env` падает в field-init State и блокирует рендер.
+  WebRtcSignalingService? _signaling;
   final PeerResolver _peerResolver = PeerResolver();
   final List<web.RTCIceCandidateInit> _pendingRemoteCandidates =
       <web.RTCIceCandidateInit>[];
@@ -134,7 +139,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     // ignore: discarded_futures
     _signalingSub?.cancel();
     // ignore: discarded_futures
-    _signaling.disconnect();
+    _signaling?.disconnect();
     _disposeMedia();
     super.dispose();
   }
@@ -149,6 +154,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (!support.isSupported) {
         throw Exception(support.blockingIssues.join(' '));
       }
+
+      // Создаём signaling лениво — после WebRTC support gate. Не в field-init,
+      // чтобы widget-тесты без dotenv не падали на PocketBaseClient.instance.
+      debugPrint('[FIX] webrtc-call web: lazy WebRtcSignalingService init');
+      _signaling = WebRtcSignalingService();
 
       _selfUserId = await _supabaseService.getUserId();
       if (_selfUserId == null) {
@@ -174,11 +184,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       await _createLocalStream();
       await _attachLocalAudio();
 
-      await _signaling.connect(
+      await _signaling!.connect(
         roomId: widget.chatId,
         selfUserId: _selfUserId!,
       );
-      _signalingSub = _signaling.incoming.listen(_onSignalingMessage);
+      _signalingSub = _signaling!.incoming.listen(_onSignalingMessage);
 
       _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected && mounted) {
@@ -227,7 +237,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     _signalingSub?.cancel();
     _signalingSub = null;
     _disposeMedia();
-    await _signaling.disconnect();
+    await _signaling?.disconnect();
+    _signaling = null;
     _pendingRemoteCandidates.clear();
     if (!mounted) {
       return;
@@ -320,7 +331,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       final target = _targetUserId;
       if (target == null) return;
       // ignore: discarded_futures
-      _signaling.sendCandidate(
+      _signaling?.sendCandidate(
         roomId: widget.chatId,
         targetUserId: target,
         candidate: {
@@ -462,7 +473,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
           )
           .toDart;
       final nickname = await _supabaseService.getNickname();
-      await _signaling.sendOffer(
+      await _signaling!.sendOffer(
         roomId: widget.chatId,
         targetUserId: target,
         sdp: {
@@ -506,7 +517,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             ),
           )
           .toDart;
-      await _signaling.sendAnswer(
+      await _signaling!.sendAnswer(
         roomId: widget.chatId,
         targetUserId: target,
         sdp: {
@@ -748,7 +759,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     final target = _targetUserId;
     if (target != null) {
       try {
-        await _signaling.sendHangup(
+        await _signaling?.sendHangup(
           roomId: widget.chatId,
           targetUserId: target,
         );

@@ -1222,7 +1222,6 @@ class SupabaseService {
   Future<List<double>> getWeeklyActivityBars() async {
     try {
       final now = DateTime.now().toUtc();
-      final start = now.subtract(const Duration(days: 6));
 
       // Local-first activity calculation
       final localChats = await _localDb.getChats();

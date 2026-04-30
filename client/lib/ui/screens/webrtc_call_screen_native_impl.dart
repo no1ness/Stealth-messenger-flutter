@@ -53,7 +53,14 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   /// Используется ТОЛЬКО для получения локального selfUserId / nickname.
   /// Сигналинг идёт через [_signaling], не через Supabase.
   final SupabaseService _supabaseService = SupabaseService();
-  final WebRtcSignalingService _signaling = WebRtcSignalingService();
+
+  /// Создаётся лениво в [_startCall] после прохождения проверки разрешений.
+  /// Конструктор `WebRtcSignalingService()` дефолтит `pocketBase` на
+  /// `PocketBaseClient.instance`, который синхронно читает
+  /// `dotenv.env['POCKETBASE_URL']` и кидает [StateError] при пустом URL —
+  /// в widget-тестах (где dotenv не загружен) это рушило field-init State
+  /// и делало экран нерендерящимся (см. webrtc_call_screen_semantics_test).
+  WebRtcSignalingService? _signaling;
   final PeerResolver _peerResolver = PeerResolver();
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
@@ -98,7 +105,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     // ignore: discarded_futures
     _signalingSub?.cancel();
     // ignore: discarded_futures
-    _signaling.disconnect();
+    _signaling?.disconnect();
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     _disposeMedia();
@@ -122,6 +129,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         Navigator.of(context).maybePop();
         return;
       }
+
+      // Создаём signaling лениво — только после прохождения permission gate,
+      // чтобы в widget-тестах (без dotenv) field-init State не падал на
+      // PocketBaseClient.instance. См. комментарий у поля _signaling.
+      debugPrint('[FIX] webrtc-call: lazy WebRtcSignalingService init');
+      _signaling = WebRtcSignalingService();
 
       // Резолвим self и target до подписки. Для caller target резолвится
       // из локальной БД (PeerResolver), для callee — берётся из
@@ -154,11 +167,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
       // Подписываемся на сигналинг. PocketBase server-side фильтрует по
       // (roomId,target) — нам не нужно проверять `_isFromSelf`.
-      await _signaling.connect(
+      await _signaling!.connect(
         roomId: widget.chatId,
         selfUserId: _selfUserId!,
       );
-      _signalingSub = _signaling.incoming.listen(_onSignalingMessage);
+      _signalingSub = _signaling!.incoming.listen(_onSignalingMessage);
 
       _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected && mounted) {
@@ -306,7 +319,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       final target = _targetUserId;
       if (target == null) return;
       // ignore: discarded_futures
-      _signaling.sendCandidate(
+      _signaling?.sendCandidate(
         roomId: widget.chatId,
         targetUserId: target,
         candidate: candidate.toMap(),
@@ -424,7 +437,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         'nickname': nickname ?? '',
         'callType': widget.isVideoCall ? 'video' : 'audio',
       };
-      await _signaling.sendOffer(
+      await _signaling!.sendOffer(
         roomId: widget.chatId,
         targetUserId: target,
         sdp: payload,
@@ -447,7 +460,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       await _flushPendingCandidates();
       final answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
-      await _signaling.sendAnswer(
+      await _signaling!.sendAnswer(
         roomId: widget.chatId,
         targetUserId: target,
         sdp: answer.toMap(),
@@ -697,7 +710,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     final target = _targetUserId;
     if (target != null) {
       try {
-        await _signaling.sendHangup(
+        await _signaling?.sendHangup(
           roomId: widget.chatId,
           targetUserId: target,
         );
