@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,8 +7,25 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing is driven by an optional `android/key.properties` file
+// (gitignored). When the file is absent — for example in CI or on a
+// freshly cloned repository — release builds fall back to the debug
+// keystore so `flutter run --release` still works locally. Production
+// release builds must populate `key.properties` and re-run the build.
+//
+// See `docs/ANDROID_RELEASE.md` and `client/android/key.properties.example`
+// for the expected layout.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore: Boolean = if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+    true
+} else {
+    false
+}
+
 android {
-    namespace = "com.example.turbo"
+    namespace = "com.stealth.messenger"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -20,8 +39,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.turbo"
+        applicationId = "com.stealth.messenger"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -30,12 +48,38 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                // Fallback for local `flutter run --release` and CI smoke
+                // builds. Real publish builds MUST populate key.properties.
+                signingConfigs.getByName("debug")
+            }
         }
+    }
+
+    // Lint runs on release builds so regressions surface in CI. The
+    // baseline path is intentionally lazy — until `lint-baseline.xml`
+    // is generated (`./gradlew :app:updateLintBaseline`), existing
+    // legacy warnings keep `abortOnError` off so the build is not
+    // blocked. Promote `abortOnError = true` once the baseline lands.
+    lint {
+        checkReleaseBuilds = true
+        abortOnError = false
+        baseline = file("lint-baseline.xml")
     }
 }
 

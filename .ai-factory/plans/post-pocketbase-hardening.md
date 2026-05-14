@@ -247,7 +247,7 @@ P8 (Android) — последний, изолированный.
 
 **Phase 7 commit:** `test(security): regression guard against private key export`.
 
-## Phase 8 — Android release hardening
+## Phase 8 — Android release hardening ✅ done
 
 **Цель:** возможность собрать публичный APK без debug-keystore и с включённым lint.
 

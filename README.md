@@ -14,6 +14,7 @@ history, contacts and attachments never leave the device.
 - [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — signaling
   server deployment
 - [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) — Android build
+- [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — Android release signing & lint
 - [`AGENTS.md`](AGENTS.md) — baseline rules for AI assistants
 
 ## Quality gates
