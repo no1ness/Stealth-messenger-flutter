@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'package:nsd/nsd.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 
 class P2PDiscoveryService {
-  final SupabaseService _supabase = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   final String _serviceType = '_stealth-p2p._tcp';
-  
+
   Registration? _registration;
   Discovery? _discovery;
-  
+
   final StreamController<Service> _peerController = StreamController<Service>.broadcast();
   Stream<Service> get onPeerFound => _peerController.stream;
 
   Future<void> start() async {
-    final myId = await _supabase.getUserId();
+    final myId = await _appService.getUserId();
     if (myId == null) return;
 
     // Register myself

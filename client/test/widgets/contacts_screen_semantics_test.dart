@@ -6,7 +6,7 @@ import 'package:stealth/ui/screens/contacts_screen.dart';
 // Validates: Requirements 2.1, 2.4, 3.1
 
 /// Minimal fake that returns a single contact named 'Alice' without hitting
-/// Supabase or any local database.
+/// any local database.
 class _FakeContactsDataSource implements ContactsDataSource {
   @override
   Future<List<dynamic>> getContacts() async {

@@ -6,7 +6,7 @@ import 'package:stealth/constants/accessibility_ids.dart';
 
 void main() {
   testWidgets(
-    'Profile identity card exposes User ID, Username, and Copy User ID semantics labels',
+    'Profile identity card exposes User ID, Username, and Copy contact bundle semantics labels',
     (WidgetTester tester) async {
       final handle = tester.ensureSemantics();
 
@@ -16,7 +16,7 @@ void main() {
             body: Column(
               children: [
                 // Mirrors _buildIdentityCard Semantics wrappers without
-                // requiring Supabase or any async loading.
+                // requiring any async loading.
                 Semantics(
                   label: AccessibilityIds.userId,
                   readOnly: true,
@@ -27,12 +27,12 @@ void main() {
                   child: const TextField(),
                 ),
                 Semantics(
-                  label: AccessibilityIds.copyUserId,
+                  label: AccessibilityIds.copyContactBundle,
                   button: true,
                   child: FilledButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copy ID'),
+                    label: const Text('Copy contact'),
                   ),
                 ),
               ],
@@ -53,9 +53,9 @@ void main() {
         findsAtLeastNWidgets(1),
       );
 
-      // Requirement 8.4 — Copy User ID button label
+      // Requirement 8.4 — Copy contact bundle button label
       expect(
-        find.bySemanticsLabel(RegExp('Copy User ID')),
+        find.bySemanticsLabel(RegExp('Copy contact bundle')),
         findsAtLeastNWidgets(1),
       );
 

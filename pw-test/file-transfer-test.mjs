@@ -17,6 +17,7 @@ import { chromium } from "playwright";
 import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { readContactBundle } from "./contact-bundle-helper.mjs";
 
 const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:58585";
 const SUFFIX = Date.now().toString(36);
@@ -154,29 +155,6 @@ async function registerUser(page, nickname) {
   await page.getByRole("button", { name: "Chats" }).waitFor({ state: "visible", timeout: 60_000 });
 }
 
-async function readUserId(page) {
-  return page.evaluate(async () => {
-    for (let i = 0; i < 40; i++) {
-      if (window.stealthCrypto) break;
-      await new Promise((r) => setTimeout(r, 300));
-    }
-    if (!window.stealthCrypto) return null;
-    const raw = localStorage.getItem("flutter.userId");
-    if (!raw) return null;
-    let enc;
-    try {
-      enc = JSON.parse(raw);
-    } catch (_) {
-      enc = raw;
-    }
-    try {
-      return await window.stealthCrypto.decrypt(enc);
-    } catch (_) {
-      return null;
-    }
-  });
-}
-
 async function goToTab(page, tabName) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -195,26 +173,26 @@ async function goToTab(page, tabName) {
   return false;
 }
 
-async function addContact(page, contactId) {
+async function addContact(page, contactBundle) {
   await goToTab(page, "Contacts");
   await page.getByRole("button", { name: /Add contact/i }).click();
 
-  await page.evaluate(async (id) => {
+  await page.evaluate(async (bundle) => {
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(bundle);
     } catch (_) {
       const ta = document.createElement("textarea");
-      ta.value = id;
+      ta.value = bundle;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  }, contactId);
+  }, contactBundle);
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByRole("button", { name: /Paste ID/i }).click();
+  await page.getByRole("button", { name: /Paste contact/i }).click();
   await delay(5000);
 
   try {
@@ -314,7 +292,7 @@ async function main() {
       `  File Name : ${testFileName}\n` +
       `  Test Data : ${"ENCRYPTED_FILE_TRANSFER_TEST_".repeat(10)}\n` +
       `═══════════════════════════════════════════════════════════════\n`;
-    
+
     writeFileSync(testFilePath, testContent, "utf8");
     const originalSize = testContent.length;
     info(`Created test file: ${testFileName} (${originalSize} bytes)`);
@@ -348,8 +326,8 @@ async function main() {
     }
 
     if (fileUploaded) {
-      // Ждём загрузки в Supabase Storage (шифрование + upload)
-      info("Waiting for upload to Supabase Storage (encryption + upload)…");
+      // Ждём загрузки в local encrypted storage (шифрование + upload)
+      info("Waiting for upload to local encrypted storage (encryption + upload)…");
       await delay(12_000);
 
       await alice.screenshot({ path: "file-test-alice-sent.png" });
@@ -387,10 +365,10 @@ async function main() {
         }
       }
 
-      // Проверяем что файл зашифрован в Supabase Storage
-      // (косвенная проверка: если файл передан через E2E шифрование, 
+      // Проверяем что файл зашифрован в local encrypted storage
+      // (косвенная проверка: если файл передан через E2E шифрование,
       // то в Storage он должен быть зашифрован)
-      info("File is E2E encrypted before upload to Supabase Storage");
+      info("File is E2E encrypted before upload to local encrypted storage");
       pass("File Encryption", "File encrypted with AES-256-GCM before upload");
 
       // Попытка скачать файл (Bob кликает на файл)
@@ -409,18 +387,18 @@ async function main() {
                 bob.waitForEvent("download", { timeout: 15_000 }),
                 btn.click(),
               ]);
-              
+
               const downloadPath = join(tmpdir(), `downloaded_${testFileName}`);
               await download.saveAs(downloadPath);
               downloadTriggered = true;
-              
+
               info(`File downloaded to: ${downloadPath}`);
               pass("File Download", "Bob successfully downloaded the file");
 
               // Проверяем размер скачанного файла
               const downloadedContent = readFileSync(downloadPath, "utf8");
               const downloadedSize = downloadedContent.length;
-              
+
               if (downloadedSize === originalSize) {
                 pass("File Size Match", `Downloaded: ${downloadedSize} bytes, Original: ${originalSize} bytes`);
               } else {

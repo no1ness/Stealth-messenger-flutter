@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
@@ -33,7 +33,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   final TextEditingController _groupNameController = TextEditingController();
   final TextEditingController _messageSearchController =
       TextEditingController();
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   final ScrollController _messagesScrollController = ScrollController();
   final Map<String, StreamSubscription> _activeSubscriptions = {};
 
@@ -68,14 +68,15 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   void _listenToP2PMessages() {
     _activeSubscriptions['p2p_global'] =
-        P2PService.instance.onMessage.listen((event) {
+        P2PService.instance.onMessage.listen((event) async {
       final chatId = event['chat_id'] as String;
-      final message = event['message'] as Map<String, dynamic>;
+      final rawMessage = Map<String, dynamic>.from(event['message'] as Map);
+      final message = await _appService.decryptRawMessage(rawMessage);
 
       if (mounted && _selectedChatId == chatId) {
         setState(() {
           final uiMsg = _toUiMessage(message);
-          // Prevent duplicates if Realtime and P2P arrive nearly at the same time
+          // Prevent duplicates if local and P2P delivery arrive nearly at the same time.
           if (!_messages.any((m) => m['id'] == uiMsg['id'])) {
             _messages = [..._messages, uiMsg]..sort(
                 (left, right) => (left['created_at'] as String)
@@ -86,7 +87,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
       }
       // If the chat is in the list, we might want to update last message preview
-      _loadChats(); 
+      unawaited(_loadChats());
     });
   }
 
@@ -94,7 +95,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   void dispose() {
     final selectedChatId = _selectedChatId;
     if (selectedChatId != null) {
-      _supabaseService.setTypingStatus(chatId: selectedChatId, isTyping: false);
+      _appService.setTypingStatus(chatId: selectedChatId, isTyping: false);
     }
     _searchController.dispose();
     _groupNameController.dispose();
@@ -107,7 +108,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Future<void> _bootstrap() async {
-    _myUserId = await _supabaseService.getUserId();
+    _myUserId = await _appService.getUserId();
     await _loadChats();
   }
 
@@ -119,8 +120,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     try {
-      final rows = await _supabaseService.getChats();
-      final me = await _supabaseService.getUserId();
+      final rows = await _appService.getChats();
+      final me = await _appService.getUserId();
       final chats = <Map<String, dynamic>>[];
 
       // Предварительная загрузка никнеймов собеседников одним batch-запросом
@@ -139,7 +140,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         }
       }
       if (usersToFetch.isNotEmpty) {
-        await _supabaseService.getNicknames(usersToFetch);
+        await _appService.getNicknames(usersToFetch);
       }
 
       // Загрузка деталей чатов в параллельном режиме (Future.wait)
@@ -150,7 +151,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
 
         if (members.length == 1) {
-          title = (await _supabaseService.getNicknameForUser(members.first)) ??
+          title = (await _appService.getNicknameForUser(members.first)) ??
               'Chat';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
@@ -158,17 +159,17 @@ class _ChatsScreenState extends State<ChatsScreen>
             orElse: () => members.first,
           );
           title =
-              (await _supabaseService.getNicknameForUser(otherId)) ?? 'Chat';
+              (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
         }
 
         final lastMessage =
-            await _supabaseService.fetchLastMessage(row['id'] as String);
+            await _appService.fetchLastMessage(row['id'] as String);
         final createdAt =
             DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
         final lastSeen =
-            await _supabaseService.getLastSeen(row['id'] as String) ??
+            await _appService.getLastSeen(row['id'] as String) ??
                 DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread = await _supabaseService.countUnreadSince(
+        final unread = await _appService.countUnreadSince(
             row['id'] as String, lastSeen);
 
         return {
@@ -214,7 +215,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   Future<void> _showCreateGroupSheet() async {
     final contacts =
-        (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
+        (await _appService.getContacts()).cast<Map<String, dynamic>>();
     final selectedIds = <String>{};
     _groupNameController.clear();
     if (!mounted) {
@@ -228,7 +229,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         return StatefulBuilder(
           builder: (context, setModalState) {
             Future<void> createGroup() async {
-              final chatId = await _supabaseService.createGroupChat(
+              final chatId = await _appService.createGroupChat(
                 name: _groupNameController.text,
                 memberIds: selectedIds.toList(),
               );
@@ -317,9 +318,9 @@ class _ChatsScreenState extends State<ChatsScreen>
   Future<void> _showManageGroupSheet(Map<String, dynamic> chat) async {
     final chatId = chat['id'] as String;
     final contacts =
-        (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
-    final members = await _supabaseService.getChatMembers(chatId);
-    final myRole = await _supabaseService.getMyRoleInChat(chatId);
+        (await _appService.getContacts()).cast<Map<String, dynamic>>();
+    final members = await _appService.getChatMembers(chatId);
+    final myRole = await _appService.getMyRoleInChat(chatId);
     final isAdmin = myRole == 'admin';
     final memberIds =
         members.map<String>((member) => member['user_id'] as String).toSet();
@@ -338,7 +339,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           builder: (context, setModalState) {
             Future<void> refreshMembers() async {
               final updatedMembers =
-                  await _supabaseService.getChatMembers(chatId);
+                  await _appService.getChatMembers(chatId);
               final updatedIds = updatedMembers
                   .map<String>((member) => member['user_id'] as String)
                   .toSet();
@@ -428,20 +429,20 @@ class _ChatsScreenState extends State<ChatsScreen>
                                   onSelected: (action) async {
                                     try {
                                       if (action == 'remove') {
-                                        await _supabaseService
+                                        await _appService
                                             .removeMemberFromGroupChat(
                                           chatId: chatId,
                                           memberId: userId,
                                         );
                                       } else if (action == 'promote') {
-                                        await _supabaseService
+                                        await _appService
                                             .updateGroupMemberRole(
                                           chatId: chatId,
                                           memberId: userId,
                                           role: 'admin',
                                         );
                                       } else if (action == 'demote') {
-                                        await _supabaseService
+                                        await _appService
                                             .updateGroupMemberRole(
                                           chatId: chatId,
                                           memberId: userId,
@@ -519,7 +520,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                                     trailing: FilledButton(
                                       onPressed: () async {
                                         try {
-                                          await _supabaseService
+                                          await _appService
                                               .addMembersToGroupChat(
                                             chatId: chatId,
                                             memberIds: [userId],
@@ -552,7 +553,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
-      await _supabaseService.setTypingStatus(
+      await _appService.setTypingStatus(
         chatId: _selectedChatId!,
         isTyping: false,
       );
@@ -563,8 +564,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       _hasMoreMessages = true;
     });
 
-    // Start P2P connection attempt
-    P2PService.instance.connectToPeer(chatId);
+    // Start P2P connection attempt.
+    unawaited(P2PService.instance.connectToPeer(chatId));
 
     await _loadMessages(chatId);
   }
@@ -577,9 +578,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final rows =
-        await _supabaseService.getMessages(chatId, limit: 40, offset: 0);
-    final otherLastReadAt = await _supabaseService.getOtherLastReadAt(chatId);
-    final pinnedMessage = await _supabaseService.getPinnedMessage(chatId);
+        await _appService.getMessages(chatId, limit: 40, offset: 0);
+    final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
+    final pinnedMessage = await _appService.getPinnedMessage(chatId);
     if (!mounted) {
       return;
     }
@@ -596,8 +597,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       _pinnedMessage = pinnedMessage;
     });
 
-    await _supabaseService.markChatRead(chatId);
-    _subscribeToChatRealtime(chatId);
+    await _appService.markChatRead(chatId);
+    _subscribeToChatP2P(chatId);
     _scheduleScrollToBottom();
   }
 
@@ -611,7 +612,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       _loadingOlderMessages = true;
     });
 
-    final rows = await _supabaseService.getMessages(
+    final rows = await _appService.getMessages(
       chatId,
       limit: 30,
       offset: _messages.length,
@@ -648,12 +649,12 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     if (_isEditingMessage && _editingMessageId != null) {
-      await _supabaseService.editMessage(
+      await _appService.editMessage(
         messageId: _editingMessageId!,
         chatId: chatId,
         content: text,
       );
-      // For edit, Realtime subscription will update the message
+      await _loadMessages(chatId);
     } else {
       // Optimistic UI update: add message immediately to local state
       final tempMessage = {
@@ -666,7 +667,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         'created_at': DateTime.now().toIso8601String(),
         'metadata': {},
       };
-      
+
       if (mounted) {
         setState(() {
           final uiMsg = _toUiMessage(tempMessage);
@@ -680,15 +681,15 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
       }
 
-      await _supabaseService.sendMessage(
+      await _appService.sendMessage(
         chatId: chatId,
         content: text,
         type: 'text',
         replyToId: _replyToMessageId,
       );
-      // Message is now in local DB and will sync via Realtime when Supabase confirms
+      await _loadMessages(chatId);
     }
-    await _supabaseService.setTypingStatus(chatId: chatId, isTyping: false);
+    await _appService.setTypingStatus(chatId: chatId, isTyping: false);
     if (mounted) {
       setState(() {
         _replyToMessageId = null;
@@ -736,17 +737,17 @@ class _ChatsScreenState extends State<ChatsScreen>
                 onTap: () async {
                   Navigator.of(context).pop();
                   if (isPinned) {
-                    await _supabaseService.unpinMessage(
+                    await _appService.unpinMessage(
                       chatId: chatId,
                       messageId: messageId,
                     );
                   } else {
-                    await _supabaseService.pinMessage(
+                    await _appService.pinMessage(
                       chatId: chatId,
                       messageId: messageId,
                     );
                   }
-                  // Removed _loadMessages call - Realtime subscription will update UI automatically
+                  await _loadMessages(chatId);
                 },
               ),
               if (isSent)
@@ -769,9 +770,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Delete'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _supabaseService.softDeleteMessage(
+                    await _appService.softDeleteMessage(
                         messageId: messageId);
-                    // Removed _loadMessages call - Realtime subscription will update UI automatically
+                    await _loadMessages(chatId);
                   },
                 ),
             ],
@@ -781,74 +782,11 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  void _subscribeToChatRealtime(String chatId) {
+  void _subscribeToChatP2P(String chatId) {
     _activeSubscriptions[chatId]?.cancel();
     _activeSubscriptions['typing:$chatId']?.cancel();
-
-    final subscription = _supabaseService.supabase
-        .from('messages')
-        .stream(primaryKey: const ['id'])
-        .eq('chat_id', chatId)
-        .listen((records) async {
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-
-          // Realtime возвращает сырые (зашифрованные) строки. Дешифруем каждое
-          // сообщение перед тем как мапить в UI — иначе в чате будут показываться
-          // только base64-пузыри для только что пришедших/отправленных сообщений.
-          final decrypted = await Future.wait(
-            records.map(
-              (row) => _supabaseService.decryptRawMessage(
-                Map<String, dynamic>.from(row),
-              ),
-            ),
-          );
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-          setState(() {
-            _messages = decrypted
-                .where((row) => row['deleted_at'] == null)
-                .map(_toUiMessage)
-                .toList()
-              ..sort(
-                (left, right) => (left['created_at'] as String)
-                    .compareTo(right['created_at'] as String),
-              );
-          });
-          _supabaseService.markChatRead(chatId);
-          _refreshReadState();
-          _scheduleScrollToBottom();
-        });
-
-    _activeSubscriptions[chatId] = subscription;
-
-    // Отдельный поток typing сохраняет UI отзывчивым без перезагрузки сообщений.
-    final typingSubscription = _supabaseService.supabase
-        .from('chat_members')
-        .stream(primaryKey: const ['chat_id', 'user_id'])
-        .eq('chat_id', chatId)
-        .listen((records) {
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-
-          final isOtherTyping = records.any(
-            (row) =>
-                row['user_id'] != _myUserId &&
-                (row['typing'] as bool? ?? false),
-          );
-          setState(() {
-            _isOtherTyping = isOtherTyping;
-          });
-          _refreshReadState();
-        });
-
-    _activeSubscriptions['typing:$chatId'] = typingSubscription;
-
-    // Subscribe to P2P signaling events (Offer/Answer/Candidate)
-    _supabaseService.subscribeP2PSignaling(chatId);
+    // Subscribe to P2P signaling events (offer/answer/candidate) via PocketBase.
+    _appService.subscribeP2PSignaling(chatId);
   }
 
   void _scheduleScrollToBottom() {
@@ -913,7 +851,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     if (chatId == null) {
       return;
     }
-    final otherLastReadAt = await _supabaseService.getOtherLastReadAt(chatId);
+    final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
     if (!mounted) {
       return;
     }
@@ -1010,7 +948,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Cloud',
+                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -1390,7 +1328,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     if (type == 'image') {
       if (isEncrypted) {
         return FutureBuilder<Uint8List?>(
-          future: _supabaseService.downloadAttachment(content, _selectedChatId!,
+          future: _appService.downloadAttachment(content, _selectedChatId!,
               encrypted: true),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1450,7 +1388,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           icon: const Icon(Icons.play_circle_fill,
               color: AppColors.systemBlue, size: 32),
           onPressed: () async {
-            final bytes = await _supabaseService.downloadAttachment(
+            final bytes = await _appService.downloadAttachment(
               url,
               _selectedChatId!,
               encrypted: isEncrypted,
@@ -1562,7 +1500,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             if (chatId == null) {
               return;
             }
-            await _supabaseService.setTypingStatus(
+            await _appService.setTypingStatus(
               chatId: chatId,
               isTyping: isTyping,
             );
@@ -1685,7 +1623,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final publicUrl = await _supabaseService.uploadAttachmentBytes(
+    final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,
       fileName: file.name,
       chatId: chatId,
@@ -1702,13 +1640,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    await _supabaseService.sendMessage(
+    await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
       type: _resolveAttachmentType(file.name),
       metadataOverride: {'file_encrypted': true},
     );
-    // Removed _loadMessages call - Realtime subscription will update UI automatically
+    await _loadMessages(chatId);
   }
 
   Future<void> _handleVoiceRecorded(String filePath) async {
@@ -1730,7 +1668,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final publicUrl = await _supabaseService.uploadAttachmentBytes(
+    final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,
       fileName: fileName,
       chatId: chatId,
@@ -1746,13 +1684,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    await _supabaseService.sendMessage(
+    await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
       type: 'audio',
       metadataOverride: {'file_encrypted': true},
     );
-    // Removed _loadMessages call - Realtime subscription will update UI automatically
+    await _loadMessages(chatId);
   }
 
   String _resolveAttachmentType(String fileName) {

@@ -91,7 +91,7 @@ async function kickDebugMainIfNeeded(page) {
  * Reset the page to the main Chats screen.
  * page.reload() is the most reliable way to exit any sub-screen in Flutter web
  * (chat detail, call screen, modal, etc.) because Flutter's SPA navigation
- * can't be controlled via browser history.  After reload the Supabase session
+ * can't be controlled via browser history.  After reload the local session
  * and userId are restored from localStorage automatically.
  */
 async function resetToMain(page) {
@@ -279,7 +279,7 @@ async function addContact(page, contactId) {
     )
     .first();
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByRole("button", { name: /Paste ID/i }).click();
+  await page.getByRole("button", { name: /Paste contact/i }).click();
   await delay(5000);
 
   try {
@@ -457,7 +457,7 @@ async function main() {
       `Stealth Messenger — File Transfer E2E Test\n` +
       `Timestamp : ${new Date().toISOString()}\n` +
       `Unique ID : ${SUFFIX}\n` +
-      `Content   : ${"E2E encrypted file transfer via Supabase Storage. ".repeat(8)}\n`;
+      `Content   : ${"E2E encrypted file transfer via local encrypted storage. ".repeat(8)}\n`;
     writeFileSync(testFilePath, testContent);
     info(`Test file: ${testFilePath} (${testContent.length} bytes)`);
 
@@ -509,7 +509,7 @@ async function main() {
       }
 
       if (fileUploaded) {
-        await delay(10_000); // upload + Supabase + encryption
+        await delay(10_000); // local encryption + attachment handling
         await alice.screenshot({ path: "test-02-file-sent-alice.png" });
 
         await goToTab(bob, "Chats");
@@ -562,7 +562,7 @@ async function main() {
         }
 
         info("⏹  Recording stopped — uploading…");
-        await delay(8000); // upload to Supabase
+        await delay(8000); // local attachment handling
 
         await alice.screenshot({ path: "test-03-voice-sent-alice.png" });
         voiceSent = true;

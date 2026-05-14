@@ -212,7 +212,7 @@ async function addContact(page, contactId) {
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByRole("button", { name: /Paste ID/i }).click();
+  await page.getByRole("button", { name: /Paste contact/i }).click();
   await delay(5000);
 
   try {
@@ -242,7 +242,7 @@ async function getMediaStreamInfo(page, kind = "audio") {
         audio: mediaKind === "audio",
         video: mediaKind === "video",
       });
-      
+
       stream.getTracks().forEach((track) => {
         result.tracks.push({
           kind: track.kind,
@@ -470,7 +470,7 @@ async function main() {
           await gotoApp(alice);
           await enableA11y(alice);
           await alice.getByRole("button", { name: "Chats" }).waitFor({ state: "visible", timeout: 20_000 });
-          
+
           await gotoApp(bob);
           await enableA11y(bob);
           await bob.getByRole("button", { name: "Chats" }).waitFor({ state: "visible", timeout: 20_000 });

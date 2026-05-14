@@ -172,7 +172,7 @@ async function addContactWeb(page, targetId, targetNick) {
   await page.getByRole("button", { name: "Contacts" }).click();
   await page.getByRole("button", { name: /Add contact/i }).click();
 
-  // Вставляем UUID через clipboard + Paste ID
+  // Вставляем UUID через clipboard + Paste contact
   await page.evaluate(async (id) => {
     try { await navigator.clipboard.writeText(id); } catch (_) {
       const ta = document.createElement("textarea");
@@ -186,7 +186,7 @@ async function addContactWeb(page, targetId, targetNick) {
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15000 });
-  await page.getByRole("button", { name: /Paste ID/i }).click();
+  await page.getByRole("button", { name: /Paste contact/i }).click();
   await delay(5000);
 
   // Ждем появления никнейма в результатах

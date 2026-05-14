@@ -3,7 +3,7 @@
 This document describes how to deploy the PocketBase backend that the Stealth
 Messenger uses as a WebRTC signaling channel (offer / answer / candidate /
 hangup). Once `POCKETBASE_URL` in `client/.env` points at a reachable instance
-the calls work end-to-end with no Supabase involvement.
+the calls work end-to-end with no legacy cloud backend involvement.
 
 The Stealth client only needs:
 

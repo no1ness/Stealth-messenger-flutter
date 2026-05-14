@@ -59,7 +59,7 @@ class ChatBubble extends StatelessWidget {
               Navigator.pop(context);
               if (messageId != null) {
                 try {
-                  // await SupabaseService().deleteMessage(messageId: messageId!); // Re-architecture needed
+                  // await LocalAppService().softDeleteMessage(messageId: messageId!);
                   onDeleted?.call();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(

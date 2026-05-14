@@ -58,16 +58,10 @@ runApp(const AppleLiquidApp());
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'themes/apple_liquid/apple_liquid_app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Supabase.initialize(
-    url: "YOUR_SUPABASE_URL",
-    anonKey: "YOUR_SUPABASE_KEY",
-  );
 
   runApp(const AppleLiquidApp());
 }

@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
-import 'package:stealth/supabase_service.dart';
-import 'package:stealth/sync_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -26,7 +24,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   bool _isUserRegistered = false;
   bool _isLoading = true;
-  SupabaseService? _supabaseService;
+  LocalAppService? _appService;
   ThemeMode _themeMode = ThemeMode.system;
   String? _startupError;
 
@@ -34,7 +32,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadTheme();
-    _initializeSupabase();
+    _initializeApp();
   }
 
   Future<void> _loadTheme() async {
@@ -49,7 +47,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _initializeSupabase({bool afterReset = false}) async {
+  Future<void> _initializeApp({bool afterReset = false}) async {
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -60,58 +58,33 @@ class _MyAppState extends State<MyApp> {
     try {
       // Env loading stays explicit so `flutter run` behaves the same on every target.
       await dotenv.load(fileName: '.env');
-      final supabaseUrl = dotenv.env['SUPABASE_URL'];
-      final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
-      if (supabaseUrl == null ||
-          supabaseUrl.isEmpty ||
-          supabaseAnonKey == null ||
-          supabaseAnonKey.isEmpty) {
-        throw Exception(
-          'Missing SUPABASE_URL or SUPABASE_ANON_KEY in client/.env.',
-        );
-      }
-
       final pocketbaseUrl = dotenv.env['POCKETBASE_URL'];
       if (pocketbaseUrl == null || pocketbaseUrl.isEmpty) {
         throw Exception(
           'Missing POCKETBASE_URL in client/.env. WebRTC call signaling '
-          'requires a PocketBase server — see docs/POCKETBASE_SETUP.md '
+          'requires a PocketBase server - see docs/POCKETBASE_SETUP.md '
           'for setup instructions.',
         );
       }
       debugPrint('[stealth-call] PocketBase URL: $pocketbaseUrl');
 
-      final prefs = await SharedPreferences.getInstance();
-      final useSupabase = prefs.getBool('useSupabase') ?? true;
-      final customUrl = prefs.getString('customSupabaseUrl');
-
-      if (useSupabase) {
-        await Supabase.initialize(
-          url: (customUrl != null && customUrl.isNotEmpty) ? customUrl : supabaseUrl,
-          anonKey: supabaseAnonKey,
-        );
-      }
-
-      // Start background sync: pushes offline messages when connectivity returns.
-      SyncService.instance.start();
-
-      _supabaseService = SupabaseService();
+      _appService = LocalAppService();
       await _checkRegistration();
     } catch (error) {
       // Corrupted secure storage (e.g. Android Keystore key rotated after a
       // reinstall with a different signing key) manifests as a BAD_DECRYPT
       // PlatformException. Recover once by wiping local credentials and any
-      // persisted Supabase session, then retrying the startup flow.
+      // persisted app session, then retrying the startup flow.
       if (!afterReset && _looksLikeCorruptSecureStorage(error)) {
         debugPrint(
           'Detected corrupted local storage during startup, resetting: $error',
         );
         await _resetLocalCredentials();
-        await _initializeSupabase(afterReset: true);
+        await _initializeApp(afterReset: true);
         return;
       }
 
-      debugPrint('Error initializing Supabase: $error');
+      debugPrint('Error initializing app: $error');
       if (!mounted) {
         return;
       }
@@ -124,7 +97,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkRegistration() async {
-    final userId = await _supabaseService?.getUserId();
+    final userId = await _appService?.getUserId();
     if (!mounted) {
       return;
     }
@@ -150,10 +123,9 @@ class _MyAppState extends State<MyApp> {
     return error.toString().toLowerCase().contains('bad_decrypt');
   }
 
-  /// Clears every piece of local state that could keep a broken cipher around:
-  /// our secure storage (identity keys, nickname, userId) and the Supabase
-  /// session persisted in SharedPreferences. Swallows nested failures so that
-  /// a partial wipe still lets the retry proceed on a cleaner slate.
+  /// Clears every piece of local state that could keep a broken cipher around.
+  /// Swallows nested failures so that a partial wipe still lets the retry
+  /// proceed on a cleaner slate.
   Future<void> _resetLocalCredentials() async {
     try {
       await StorageService().deleteAll();
@@ -172,19 +144,6 @@ class _MyAppState extends State<MyApp> {
         }
       }
     }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final staleKeys = prefs
-          .getKeys()
-          .where((key) => key.startsWith('sb-') || key.contains('supabase'))
-          .toList();
-      for (final key in staleKeys) {
-        await prefs.remove(key);
-      }
-    } catch (error) {
-      debugPrint('Failed to purge Supabase prefs during recovery: $error');
-    }
   }
 
   @override
@@ -202,12 +161,7 @@ class _MyAppState extends State<MyApp> {
           : _startupError != null
               ? StartupErrorScreen(
                   message: _startupError!,
-                  onRetry: _initializeSupabase,
-                  onWorkOffline: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('useSupabase', false);
-                    _initializeSupabase();
-                  },
+                  onRetry: _initializeApp,
                 )
               : _isUserRegistered
                   ? const MainTabs()

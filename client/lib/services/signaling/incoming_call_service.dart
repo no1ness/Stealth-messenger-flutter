@@ -15,7 +15,7 @@ sealed class IncomingCallEvent {
 /// `WebRTCCallScreen` при открытии должен сразу применить его через
 /// `setRemoteDescription`, не дожидаясь повторной подписки.
 ///
-/// Это устраняет race condition прежней архитектуры (Supabase): callee
+/// Это устраняет race condition прежней архитектуры: callee
 /// нажимал Answer, экран открывался, экран подписывался на `chat_calls`,
 /// и только после этого caller получал `call_accept` и слал offer в
 /// канал — который callee уже мог пропустить.
@@ -145,6 +145,12 @@ class IncomingCallSignalingService {
       final message = RtcMessage.fromRecord(record);
       switch (message.type) {
         case RtcMessageType.offer:
+          if (message.payload['purpose'] == 'datachannel') {
+            debugPrint(
+              '[FIX:local-only] incoming datachannel offer ignored by call manager',
+            );
+            break;
+          }
           final isVideoCall = (message.payload['callType'] ?? '') == 'video';
           final fromNickname = (message.payload['nickname'] ?? '') as String;
           debugPrint(

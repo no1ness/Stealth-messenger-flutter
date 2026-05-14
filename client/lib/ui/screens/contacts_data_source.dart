@@ -1,7 +1,6 @@
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 
-/// Abstract interface for loading contacts data. Allows testing ContactsScreen
-/// without initializing Supabase.
+/// Abstract interface for loading local contacts data.
 abstract class ContactsDataSource {
   Future<List<dynamic>> getContacts();
   Future<void> deleteContact(String userId);
@@ -11,11 +10,11 @@ abstract class ContactsDataSource {
   Future<String?> findOrCreatePrivateChatWith(String userId);
 }
 
-/// Default implementation that delegates to SupabaseService.
-class SupabaseContactsDataSource implements ContactsDataSource {
-  SupabaseContactsDataSource(this._service);
+/// Default implementation that delegates to LocalAppService.
+class LocalContactsDataSource implements ContactsDataSource {
+  LocalContactsDataSource(this._service);
 
-  final SupabaseService _service;
+  final LocalAppService _service;
 
   @override
   Future<List<dynamic>> getContacts() => _service.getContacts();

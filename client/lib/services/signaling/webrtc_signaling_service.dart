@@ -276,7 +276,7 @@ class WebRtcSignalingService implements SignalingTransport {
   /// Используется технический email `<localUuid>@stealth.local` и случайный
   /// пароль (генерируется один раз и хранится в secure_storage). Это даёт
   /// детерминированный auth без UI и без зависимости от регистрационного
-  /// флоу Supabase.
+  /// флоу старого realtime-сигналинга.
   Future<void> _ensureAuth(String selfUserId) async {
     if (_pb.authStore.isValid) {
       debugPrint('[signaling] auth already valid, skipping');

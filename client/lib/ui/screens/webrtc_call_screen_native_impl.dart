@@ -9,7 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:stealth/services/signaling/peer_resolver.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -51,8 +51,8 @@ class WebRTCCallScreen extends StatefulWidget {
 
 class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   /// Используется ТОЛЬКО для получения локального selfUserId / nickname.
-  /// Сигналинг идёт через [_signaling], не через Supabase.
-  final SupabaseService _supabaseService = SupabaseService();
+  /// Сигналинг идёт через [_signaling] и PocketBase.
+  final LocalAppService _appService = LocalAppService();
 
   /// Создаётся лениво в [_startCall] после прохождения проверки разрешений.
   /// Конструктор `WebRtcSignalingService()` дефолтит `pocketBase` на
@@ -140,7 +140,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       // из локальной БД (PeerResolver), для callee — берётся из
       // widget.callerUserId, который проставил CallManager на основе
       // принятого offer.
-      _selfUserId = await _supabaseService.getUserId();
+      _selfUserId = await _appService.getUserId();
       if (_selfUserId == null) {
         throw StateError('Cannot start call: missing local user id');
       }
@@ -431,9 +431,10 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       // IncomingCallSignalingService на стороне callee сразу показать
       // диалог входящего звонка с правильным именем и типом, не дёргая
       // contacts collection.
-      final nickname = await _supabaseService.getNickname();
+      final nickname = await _appService.getNickname();
       final payload = <String, dynamic>{
         ...offer.toMap(),
+        'purpose': 'call',
         'nickname': nickname ?? '',
         'callType': widget.isVideoCall ? 'video' : 'audio',
       };

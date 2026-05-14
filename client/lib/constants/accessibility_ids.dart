@@ -15,7 +15,7 @@ class AccessibilityIds {
   static const String addContact = 'Add contact';
   static const String startCall = 'Start call';
   static const String startVideoCall = 'Start video call';
-  static const String contactIdInput = 'Contact ID input';
+  static const String contactBundleInput = 'Contact bundle input';
   static const String saveContact = 'Save contact';
 
   // Call screen
@@ -35,8 +35,7 @@ class AccessibilityIds {
   // Profile screen
   static const String userId = 'User ID';
   static const String username = 'Username';
-  static const String copyUserId = 'Copy User ID';
-  static const String exportPrivateKey = 'Export Private Key';
+  static const String copyContactBundle = 'Copy contact bundle';
   static const String logout = 'Logout';
 
   // Dynamic helpers

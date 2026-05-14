@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -11,7 +11,7 @@ import 'package:stealth/webrtc_support.dart';
 /// Глобальный слушатель, направляющий входящие звонки в UI.
 ///
 /// Сигналинг идёт через [IncomingCallSignalingService] поверх PocketBase.
-/// `SupabaseService` остаётся только для:
+/// `LocalAppService` остаётся только для:
 /// - получения текущего `selfUserId` (UUID, сгенерированный при
 ///   регистрации, хранится локально),
 /// - истории входящих звонков (`recordIncomingCall`,
@@ -26,7 +26,7 @@ class CallManager extends StatefulWidget {
 }
 
 class _CallManagerState extends State<CallManager> {
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   final IncomingCallSignalingService _incomingCallService =
       IncomingCallSignalingService();
 
@@ -51,7 +51,7 @@ class _CallManagerState extends State<CallManager> {
   Future<void> _initGlobalCallListener() async {
     // ignore: avoid_print
     print('[stealth-call] CallManager._initGlobalCallListener started');
-    _currentUserId = await _supabaseService.getUserId();
+    _currentUserId = await _appService.getUserId();
     // ignore: avoid_print
     print('[stealth-call] CallManager userId=$_currentUserId mounted=$mounted');
     if (_currentUserId == null || !mounted) {
@@ -105,7 +105,7 @@ class _CallManagerState extends State<CallManager> {
 
     // ignore: avoid_print
     print('[stealth-call] CallManager recording incoming call');
-    await _supabaseService.recordIncomingCall(
+    await _appService.recordIncomingCall(
       chatId: offer.roomId,
       fromUserId: offer.fromUserId,
       fromNickname: fromNickname,
@@ -144,7 +144,7 @@ class _CallManagerState extends State<CallManager> {
     }
 
     // Записываем в историю.
-    await _supabaseService.markCurrentUserCallEnded(chatId: hangup.roomId);
+    await _appService.markCurrentUserCallEnded(chatId: hangup.roomId);
     if (!mounted) return;
 
     // Если активен сам экран звонка — он сам обработает hangup через
@@ -264,7 +264,7 @@ class _CallManagerState extends State<CallManager> {
                     onPressed: () async {
                       Navigator.of(dialogContext).pop();
                       _activeDialogClosers.remove(chatId);
-                      await _supabaseService.markIncomingCallDeclined(
+                      await _appService.markIncomingCallDeclined(
                         chatId: chatId,
                         fromUserId: fromUserId,
                       );

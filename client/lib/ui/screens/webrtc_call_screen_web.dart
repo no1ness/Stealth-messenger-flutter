@@ -8,7 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:stealth/services/signaling/peer_resolver.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -50,7 +50,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   /// Используется только для получения selfUserId/nickname. Сигналинг
   /// идёт через [_signaling].
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
 
   /// Создаётся лениво в [_startCall]. См. комментарий в native-имплементации
   /// `webrtc_call_screen_native_impl.dart` — конструктор по умолчанию
@@ -160,7 +160,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       debugPrint('[FIX] webrtc-call web: lazy WebRtcSignalingService init');
       _signaling = WebRtcSignalingService();
 
-      _selfUserId = await _supabaseService.getUserId();
+      _selfUserId = await _appService.getUserId();
       if (_selfUserId == null) {
         throw StateError('Cannot start call: missing local user id');
       }
@@ -472,13 +472,14 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             ),
           )
           .toDart;
-      final nickname = await _supabaseService.getNickname();
+      final nickname = await _appService.getNickname();
       await _signaling!.sendOffer(
         roomId: widget.chatId,
         targetUserId: target,
         sdp: {
           'type': offer.type,
           'sdp': offer.sdp,
+          'purpose': 'call',
           'nickname': nickname ?? '',
           'callType': widget.isVideoCall ? 'video' : 'audio',
         },

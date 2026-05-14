@@ -1,13 +1,12 @@
-import 'dart:io' show File, Platform;
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:stealth/registration_screen.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -21,11 +20,11 @@ class ProfileScreen extends StatefulWidget {
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
-
 class _ProfileScreenState extends State<ProfileScreen> {
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   final TextEditingController _nicknameController = TextEditingController();
   String? _userId;
+  String? _contactBundle;
   String? _nickname;
   bool _bucketReady = false;
   int _storageFileCount = 0;
@@ -47,33 +46,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       debugPrint('[Profile] loading userId...');
-      final userId = await _supabaseService.getUserId();
+      final userId = await _appService.getUserId();
       debugPrint('[Profile] userId=$userId');
+      final contactBundle = await _appService.generateQRCode();
 
       debugPrint('[Profile] loading nickname...');
-      final nickname = await _supabaseService.getNickname();
+      final nickname = await _appService.getNickname();
       debugPrint('[Profile] nickname=$nickname');
 
       debugPrint('[Profile] loading storageSummary...');
-      final storageSummary = await _supabaseService.getStorageDebugSummary();
+      final storageSummary = await _appService.getStorageDebugSummary();
       debugPrint('[Profile] storageSummary=$storageSummary');
 
       debugPrint('[Profile] loading recentCalls...');
-      final recentCalls = await _supabaseService.getRecentCallHistory();
+      final recentCalls = await _appService.getRecentCallHistory();
       debugPrint('[Profile] recentCalls len=${recentCalls.length}');
 
       debugPrint('[Profile] loading dashboard...');
-      final dashboard = await _supabaseService.getDashboardSummary();
+      final dashboard = await _appService.getDashboardSummary();
       debugPrint('[Profile] dashboard=$dashboard');
 
       debugPrint('[Profile] loading weeklyActivity...');
-      final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
+      final weeklyActivity = await _appService.getWeeklyActivityBars();
       debugPrint('[Profile] weeklyActivity=$weeklyActivity');
-      
+
       if (!mounted) return;
 
       setState(() {
         _userId = userId;
+        _contactBundle = contactBundle;
         _nickname = nickname;
         _nicknameController.text = nickname ?? '';
         _bucketReady = storageSummary['bucketReady'] as bool? ?? false;
@@ -104,49 +105,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _copyUserId() async {
-    if (_userId == null) {
+  Future<void> _copyContactBundle() async {
+    final value = _contactBundle ?? _userId;
+    if (value == null || value.isEmpty) {
       return;
     }
 
-    await Clipboard.setData(ClipboardData(text: _userId!));
+    await Clipboard.setData(ClipboardData(text: value));
     if (!mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('User ID copied')),
-    );
-  }
-
-  Future<void> _exportPrivateKey() async {
-    final privateKey = await _supabaseService.getPrivateKey();
-    if (privateKey == null) {
-      return;
-    }
-
-    if (kIsWeb) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Key export is not supported on web')),
-      );
-      return;
-    }
-
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/stealth_private_key.txt');
-    await file.writeAsString(privateKey);
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Private key exported to ${file.path}')),
+      const SnackBar(content: Text('Contact bundle copied')),
     );
   }
 
   Future<void> _logout() async {
-    await _supabaseService.logout();
+    await _appService.logout();
     if (!mounted) {
       return;
     }
@@ -163,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    await _supabaseService.updateNickname(value);
+    await _appService.updateNickname(value);
     if (!mounted) {
       return;
     }
@@ -179,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     debugPrint('ProfileScreen: build called, _isLoading=$_isLoading, _userId=$_userId');
-    
+
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -272,7 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_userId != null && _userId!.isNotEmpty)
             Center(
               child: QrImageView(
-                data: _userId!,
+                data: _contactBundle ?? _userId!,
                 size: 180,
                 version: QrVersions.auto,
                 eyeStyle: const QrEyeStyle(
@@ -317,12 +293,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: Semantics(
-                  label: AccessibilityIds.copyUserId,
+                  label: AccessibilityIds.copyContactBundle,
                   button: true,
                   child: FilledButton.icon(
-                    onPressed: _copyUserId,
+                    onPressed: _copyContactBundle,
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copy ID'),
+                    label: const Text('Copy contact'),
                   ),
                 ),
               ),
@@ -368,16 +344,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.md),
           _buildMetricRow('E2E keypair', _secureStorageReady ? 'Ready' : 'Missing'),
           _buildMetricRow('Secure storage', _secureStorageReady ? 'Enabled' : 'Check device'),
-          _buildMetricRow('Media bucket', _bucketReady ? 'Reachable' : 'Missing'),
-          _buildMetricRow('Backup export', 'Available'),
+          _buildMetricRow('Local media store', _bucketReady ? 'Ready' : 'Missing'),
+          _buildMetricRow(
+            'Contact bundle',
+            _contactBundle?.isNotEmpty == true ? 'Available' : 'Missing',
+          ),
           const SizedBox(height: AppSpacing.lg),
           Semantics(
-            label: AccessibilityIds.exportPrivateKey,
+            label: AccessibilityIds.copyContactBundle,
             button: true,
             child: OutlinedButton.icon(
-              onPressed: _exportPrivateKey,
-              icon: const Icon(Icons.download),
-              label: const Text('Export private key'),
+              onPressed: _copyContactBundle,
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy contact bundle'),
             ),
           ),
         ],
@@ -460,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Text('Storage debug', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
-          _buildMetricRow('Bucket', _bucketReady ? 'chat-media ready' : 'Missing'),
+          _buildMetricRow('Local media', _bucketReady ? 'Ready' : 'Missing'),
           _buildMetricRow('Files', _storageFileCount.toString()),
           _buildMetricRow('Platform', kIsWeb ? 'web' : Platform.operatingSystem),
           const SizedBox(height: AppSpacing.md),
@@ -472,7 +451,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'This card verifies the attachment bucket used by chat media uploads.',
+            'This card verifies encrypted local attachment storage.',
             style: AppTypography.caption1.copyWith(
               color: AppColors.textSecondary,
             ),

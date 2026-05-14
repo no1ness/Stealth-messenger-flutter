@@ -329,10 +329,10 @@ async function main() {
   console.log("Alice: нажимаем Add contact…");
   await alice.getByRole("button", { name: /Add contact/i }).last().click();
 
-  // Вставляем Bob UUID через буфер обмена → кнопка "Paste ID" → одиночный search()
+  // Вставляем Bob UUID через буфер обмена → кнопка "Paste contact" → одиночный search()
   // Это надёжнее чем keyboard.type(), который вызывает onChanged на КАЖДЫЙ символ
-  // и создаёт 36 параллельных Supabase-запросов с race condition.
-  console.log("Alice: копируем UUID Bob в буфер и нажимаем Paste ID…");
+  // и создаёт 36 параллельных local searchов с race condition.
+  console.log("Alice: копируем UUID Bob в буфер и нажимаем Paste contact…");
   await alice.evaluate(async (id) => {
     // Запись в clipboard
     try {
@@ -352,11 +352,11 @@ async function main() {
   const searchField = getContactSearchInput(alice);
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
 
-  // Нажимаем «Paste ID» — Flutter читает clipboard и вызывает search() один раз
-  await alice.getByRole("button", { name: /Paste ID/i }).click();
+  // Нажимаем «Paste contact» — Flutter читает clipboard и вызывает search() один раз
+  await alice.getByRole("button", { name: /Paste contact/i }).click();
 
-  // Ждём завершения Supabase-запроса (один запрос вместо 36)
-  console.log("Alice: ждём результаты поиска (единственный Supabase-запрос)…");
+  // Ждём завершения local searchа (один запрос вместо 36)
+  console.log("Alice: ждём результаты поиска (единственный local search)…");
   await delay(5_000);
 
   // Ждём появления никнейма Bob в результатах модала

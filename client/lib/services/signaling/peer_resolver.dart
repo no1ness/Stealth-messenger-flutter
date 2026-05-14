@@ -16,12 +16,10 @@ class PeerResolutionException implements Exception {
 /// Резолв `targetUserId` (UUID собеседника) по `chatId`. Чисто локальный
 /// путь — читает из IndexedDB / sqflite через `LocalDatabaseService`.
 ///
-/// Это последняя точка, где раньше был неявный поход в Supabase
-/// (`SupabaseService._getOtherUserId`). После Phase 3 call-путь полностью
-/// независим от Supabase.
+/// Это локальная точка резолва peer id для call/datachannel сигналинга.
 ///
 /// Ограничение: чат должен быть закэширован локально. Это происходит при
-/// любом `SupabaseService.getChats()` (см. поле `members[]` в чат-объекте),
+/// любом `LocalAppService.getChats()` (см. поле `members[]` в чат-объекте),
 /// поэтому в нормальном flow приложения чат уже есть к моменту инициации
 /// звонка. Если нет — UI должен поймать [PeerResolutionException] и
 /// показать сообщение «Cannot start call: contact not synced yet».

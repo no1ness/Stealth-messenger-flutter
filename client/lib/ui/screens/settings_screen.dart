@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/sync_service.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
@@ -22,17 +21,13 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
   bool _contactVerification = true;
   bool _newMessageNotifications = true;
   bool _callNotifications = true;
   bool _useP2P = true;
-  bool _useSupabase = true;
-  bool _forceP2P = false;
-  int _syncIntervalSeconds = 30;
-  String _customSupabaseUrl = '';
   Timer? _previewTimer;
   int _countdown = 24;
   int _messageCount = 0;
@@ -64,8 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     final prefs = await SharedPreferences.getInstance();
-    final dashboard = await _supabaseService.getDashboardSummary();
-    final weeklyActivity = await _supabaseService.getWeeklyActivityBars();
+    final dashboard = await _appService.getDashboardSummary();
+    final weeklyActivity = await _appService.getWeeklyActivityBars();
     final webrtcSupport = await getWebRTCSupport();
     if (!mounted) {
       return;
@@ -74,10 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
       _useP2P = prefs.getBool('useP2P') ?? true;
-      _useSupabase = prefs.getBool('useSupabase') ?? true;
-      _forceP2P = prefs.getBool('forceP2P') ?? false;
-      _syncIntervalSeconds = prefs.getInt('syncIntervalSeconds') ?? 30;
-      _customSupabaseUrl = prefs.getString('customSupabaseUrl') ?? '';
       _messageCount = dashboard['messageCount'] as int? ?? 0;
       _callCount = dashboard['callCount'] as int? ?? 0;
       _chatCount = dashboard['chatCount'] as int? ?? 0;
@@ -121,7 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _logout() async {
-    await _supabaseService.logout();
+    await _appService.logout();
     if (!mounted) {
       return;
     }
@@ -249,71 +240,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Direct P2P messaging'),
             subtitle: const Text('Send messages directly to devices when online'),
           ),
-          SwitchListTile.adaptive(
-            value: _useSupabase,
-            onChanged: (value) async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('useSupabase', value);
-              setState(() => _useSupabase = value);
-            },
-            title: const Text('Use Supabase Cloud'),
-            subtitle: const Text('Store history in cloud for sync'),
-          ),
-          SwitchListTile.adaptive(
-            value: _forceP2P,
-            onChanged: (value) async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('forceP2P', value);
-              setState(() => _forceP2P = value);
-            },
-            title: const Text('Force P2P Only'),
-            subtitle: const Text('Disables cloud backup for messages. Absolute privacy.'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Background Sync Interval: $_syncIntervalSeconds s',
-                  style: AppTypography.body,
-                ),
-                Slider(
-                  value: _syncIntervalSeconds.toDouble(),
-                  min: 5,
-                  max: 300,
-                  divisions: 59,
-                  onChanged: (value) {
-                    setState(() => _syncIntervalSeconds = value.toInt());
-                  },
-                  onChangeEnd: (value) async {
-                    final sync = SyncService.instance;
-                    await sync.setSyncInterval(value.toInt());
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextFormField(
-            key: ValueKey(_customSupabaseUrl),
-            initialValue: _customSupabaseUrl,
-            decoration: const InputDecoration(
-              labelText: 'Custom Signal Relay (URL)',
-              hintText: 'https://your-relay.com',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (value) async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('customSupabaseUrl', value);
-            },
-          ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            _useSupabase ? 'Cloud sync active' : 'Offline mode: Local only',
+            'Local-only storage active',
             style: AppTypography.body.copyWith(
-              color: _useSupabase ? AppColors.systemGreen : AppColors.systemOrange,
+              color: AppColors.systemGreen,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -435,7 +366,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _MiniStat(
-                  label: 'Media bucket',
+                  label: 'Local media',
                   value: _bucketReady ? 'Ready' : 'Check',
                 ),
               ),

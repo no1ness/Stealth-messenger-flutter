@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/registration_screen.dart';
 import 'liquid_theme.dart';
 import 'screens/liquid_main_screen.dart';
 
 /// Apple Liquid Glass UI Theme App Entry Point
-/// 
+///
 /// This is an alternative app entry point using the Apple Liquid Glass theme.
 /// To use this theme, update your main.dart to use AppleLiquidApp instead of MyApp.
 class AppleLiquidApp extends StatefulWidget {
@@ -18,7 +18,7 @@ class AppleLiquidApp extends StatefulWidget {
 class _AppleLiquidAppState extends State<AppleLiquidApp> {
   bool _isUserRegistered = false;
   bool _isLoading = true;
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
 
   @override
   void initState() {
@@ -27,7 +27,7 @@ class _AppleLiquidAppState extends State<AppleLiquidApp> {
   }
 
   Future<void> _checkUserRegistration() async {
-    final String? userId = await _supabaseService.getUserId();
+    final String? userId = await _appService.getUserId();
     setState(() {
       _isUserRegistered = userId != null;
       _isLoading = false;
