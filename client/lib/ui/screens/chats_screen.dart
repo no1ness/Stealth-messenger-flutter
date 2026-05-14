@@ -14,6 +14,8 @@ import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
 import 'package:stealth/themes/apple_liquid/widgets/glass_message_input.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
+import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
@@ -213,343 +215,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
   }
 
-  Future<void> _showCreateGroupSheet() async {
-    final contacts =
-        (await _appService.getContacts()).cast<Map<String, dynamic>>();
-    final selectedIds = <String>{};
-    _groupNameController.clear();
-    if (!mounted) {
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> createGroup() async {
-              final chatId = await _appService.createGroupChat(
-                name: _groupNameController.text,
-                memberIds: selectedIds.toList(),
-              );
-              if (!context.mounted || chatId == null) {
-                return;
-              }
-              Navigator.of(context).pop();
-              await _loadChats();
-              if (!mounted) {
-                return;
-              }
-              await _selectChat(chatId);
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Create group chat',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _groupNameController,
-                    decoration: const InputDecoration(
-                      hintText: 'Group name',
-                      prefixIcon: Icon(Icons.group),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 300,
-                    child: contacts.isEmpty
-                        ? const Center(child: Text('Add contacts first'))
-                        : ListView.builder(
-                            itemCount: contacts.length,
-                            itemBuilder: (context, index) {
-                              final contact = contacts[index];
-                              final userId = contact['user_id'] as String;
-                              final selected = selectedIds.contains(userId);
-                              return CheckboxListTile(
-                                value: selected,
-                                onChanged: (value) {
-                                  setModalState(() {
-                                    if (value == true) {
-                                      selectedIds.add(userId);
-                                    } else {
-                                      selectedIds.remove(userId);
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                    contact['name'] as String? ?? 'Unknown'),
-                                subtitle: Text(
-                                  userId,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: selectedIds.length >= 2 ? createGroup : null,
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('Create group'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showManageGroupSheet(Map<String, dynamic> chat) async {
-    final chatId = chat['id'] as String;
-    final contacts =
-        (await _appService.getContacts()).cast<Map<String, dynamic>>();
-    final members = await _appService.getChatMembers(chatId);
-    final myRole = await _appService.getMyRoleInChat(chatId);
-    final isAdmin = myRole == 'admin';
-    final memberIds =
-        members.map<String>((member) => member['user_id'] as String).toSet();
-    final availableContacts = contacts
-        .where((contact) => !memberIds.contains(contact['user_id'] as String))
-        .toList();
-    if (!mounted) {
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> refreshMembers() async {
-              final updatedMembers =
-                  await _appService.getChatMembers(chatId);
-              final updatedIds = updatedMembers
-                  .map<String>((member) => member['user_id'] as String)
-                  .toSet();
-              setModalState(() {
-                members
-                  ..clear()
-                  ..addAll(updatedMembers);
-                availableContacts
-                  ..clear()
-                  ..addAll(
-                    contacts.where(
-                      (contact) => !updatedIds.contains(
-                        contact['user_id'] as String,
-                      ),
-                    ),
-                  );
-              });
-              await _loadChats();
-              if (_selectedChatId == chatId) {
-                await _loadMessages(chatId);
-              }
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Manage group',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      isAdmin
-                          ? 'You are an admin. You can manage members and roles.'
-                          : 'You are a member. You can view participants but not change them.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Members',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  SizedBox(
-                    height: 220,
-                    child: ListView.builder(
-                      itemCount: members.length,
-                      itemBuilder: (context, index) {
-                        final member = members[index];
-                        final userId = member['user_id'] as String;
-                        final role = member['role'] as String? ?? 'member';
-                        final canRemove = isAdmin && userId != _myUserId;
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: Text(_initials(member['name'] as String?)),
-                          ),
-                          title: Text(member['name'] as String? ?? 'Unknown'),
-                          subtitle: Text(
-                            '$userId • $role',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          titleTextStyle:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: role == 'admin'
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                          trailing: canRemove
-                              ? PopupMenuButton<String>(
-                                  onSelected: (action) async {
-                                    try {
-                                      if (action == 'remove') {
-                                        await _appService
-                                            .removeMemberFromGroupChat(
-                                          chatId: chatId,
-                                          userId: userId,
-                                        );
-                                      } else if (action == 'promote') {
-                                        await _appService
-                                            .updateGroupMemberRole(
-                                          chatId: chatId,
-                                          userId: userId,
-                                          role: 'admin',
-                                        );
-                                      } else if (action == 'demote') {
-                                        await _appService
-                                            .updateGroupMemberRole(
-                                          chatId: chatId,
-                                          userId: userId,
-                                          role: 'member',
-                                        );
-                                      }
-                                      await refreshMembers();
-                                    } catch (error) {
-                                      if (!context.mounted) {
-                                        return;
-                                      }
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(content: Text('$error')),
-                                      );
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    if (role != 'admin')
-                                      const PopupMenuItem(
-                                        value: 'promote',
-                                        child: Text('Promote to admin'),
-                                      ),
-                                    if (role == 'admin')
-                                      const PopupMenuItem(
-                                        value: 'demote',
-                                        child: Text('Demote to member'),
-                                      ),
-                                    const PopupMenuItem(
-                                      value: 'remove',
-                                      child: Text('Remove from group'),
-                                    ),
-                                  ],
-                                )
-                              : Icon(
-                                  role == 'admin'
-                                      ? Icons.shield_outlined
-                                      : Icons.person_outline,
-                                ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Add contacts',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  SizedBox(
-                    height: 220,
-                    child: availableContacts.isEmpty
-                        ? const Center(child: Text('No more contacts to add'))
-                        : !isAdmin
-                            ? const Center(
-                                child: Text('Only admins can add members'),
-                              )
-                            : ListView.builder(
-                                itemCount: availableContacts.length,
-                                itemBuilder: (context, index) {
-                                  final contact = availableContacts[index];
-                                  final userId = contact['user_id'] as String;
-                                  return ListTile(
-                                    leading: CircleAvatar(
-                                      child: Text(
-                                        _initials(contact['name'] as String?),
-                                      ),
-                                    ),
-                                    title: Text(contact['name'] as String? ??
-                                        'Unknown'),
-                                    subtitle: Text(
-                                      userId,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    trailing: FilledButton(
-                                      onPressed: () async {
-                                        try {
-                                          await _appService
-                                              .addMembersToGroupChat(
-                                            chatId: chatId,
-                                            memberIds: [userId],
-                                          );
-                                          await refreshMembers();
-                                        } catch (error) {
-                                          if (!context.mounted) {
-                                            return;
-                                          }
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(content: Text('$error')),
-                                          );
-                                        }
-                                      },
-                                      child: const Text('Add'),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
@@ -843,33 +508,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     };
   }
 
-  Future<void> _refreshReadState() async {
-    final chatId = _selectedChatId;
-    if (chatId == null) {
-      return;
-    }
-    final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _otherLastReadAt = otherLastReadAt;
-      _messages = _messages
-          .map(
-            (message) => {
-              ...message,
-              'isRead': (message['isSent'] as bool? ?? false) &&
-                  DateTime.tryParse(message['created_at'] as String? ?? '')
-                          ?.isAfter(otherLastReadAt ??
-                              DateTime.fromMillisecondsSinceEpoch(0)) ==
-                      false,
-            },
-          )
-          .toList();
-    });
-  }
-
   String _initials(String? value) {
     if (value == null || value.trim().isEmpty) {
       return '?';
@@ -1052,7 +690,17 @@ class _ChatsScreenState extends State<ChatsScreen>
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _showCreateGroupSheet,
+                    onPressed: () => showCreateGroupSheet(
+                      context: context,
+                      appService: _appService,
+                      nameController: _groupNameController,
+                      onGroupCreated: (chatId) async {
+                        await _loadChats();
+                        if (mounted) {
+                          await _selectChat(chatId);
+                        }
+                      },
+                    ),
                     icon: const Icon(Icons.group_add),
                     label: const Text('New group'),
                   ),
@@ -1111,7 +759,20 @@ class _ChatsScreenState extends State<ChatsScreen>
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         onTap: () => _selectChat(chat['id'] as String),
-        onLongPress: isPrivate ? null : () => _showManageGroupSheet(chat),
+        onLongPress: isPrivate
+            ? null
+            : () => showManageGroupSheet(
+                  context: context,
+                  chat: chat,
+                  appService: _appService,
+                  myUserId: _myUserId,
+                  onMembersChanged: () async {
+                    await _loadChats();
+                    if (_selectedChatId == chat['id']) {
+                      await _loadMessages(chat['id'] as String);
+                    }
+                  },
+                ),
         leading: CircleAvatar(
           backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
           child: Text(

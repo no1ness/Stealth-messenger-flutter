@@ -169,7 +169,14 @@ P8 (Android) — последний, изолированный.
 
 **Цель:** снизить когнитивную нагрузку и улучшить покрытие тестами. Целевой размер модуля — до ~500 строк.
 
-### Task 5.1 — Разрезать `chats_screen.dart` (1794 → ~3 файла)
+### Task 5.1 — Разрезать `chats_screen.dart` (1794 → ~3 файла) ✅ partial
+
+**Реальный исход:** extract двух модальных шитов (group-management, create-group)
++ удаление мёртвого `_refreshReadState`. `chats_screen.dart` сжат
+1794 → 1452 строк (-19%). Тяжёлые `_buildConversationPanel` и
+`_buildConversationFooter` остались — они сильно завязаны на state и
+требуют разделения через notifier/controller, что в одном коммите
+рискованно без UI-теста. Завершить можно отдельной итерацией.
 
 - **Файл-источник:** `client/lib/ui/screens/chats_screen.dart`.
 - **Извлечь:**
