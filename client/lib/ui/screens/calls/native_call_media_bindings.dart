@@ -1,0 +1,435 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:stealth/logging/logger.dart';
+
+/// Native (mobile/desktop) WebRTC media plumbing for [WebRTCCallScreen].
+///
+/// Plain class — no [ChangeNotifier]. Owns the peer connection, local/remote
+/// streams, video renderers, the stats timer, and the pending remote
+/// candidates buffer. Signaling and UI state live in `NativeCallController`,
+/// which wires media events back via the callbacks passed to
+/// [createPeerConnection].
+class NativeCallMediaBindings {
+  NativeCallMediaBindings();
+
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  final List<RTCIceCandidate> _pendingRemoteCandidates = [];
+
+  RTCPeerConnection? _peerConnection;
+  MediaStream? _localStream;
+  MediaStream? _remoteStream;
+  Timer? _statsTimer;
+
+  bool _speakerphoneOn = true;
+  bool _offerSent = false;
+
+  RTCVideoRenderer get localRenderer => _localRenderer;
+  RTCVideoRenderer get remoteRenderer => _remoteRenderer;
+  MediaStream? get localStream => _localStream;
+  MediaStream? get remoteStream => _remoteStream;
+
+  bool get hasLocalVideo =>
+      _localStream != null && _localStream!.getVideoTracks().isNotEmpty;
+  bool get hasRemoteVideo =>
+      _remoteStream != null && _remoteStream!.getVideoTracks().isNotEmpty;
+
+  Future<void> initializeRenderers() async {
+    if (kIsWeb) return;
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+  }
+
+  /// Returns `null` when all needed permissions are granted, otherwise the
+  /// error message the caller can surface to the user.
+  Future<String?> requestPermissions({required bool isVideoCall}) async {
+    try {
+      final mic = await Permission.microphone.request();
+      if (!mic.isGranted) {
+        return 'Enable microphone access in settings.';
+      }
+      if (isVideoCall) {
+        final cam = await Permission.camera.request();
+        if (!cam.isGranted) {
+          return 'Enable camera access in settings.';
+        }
+      }
+      return null;
+    } catch (error) {
+      debugPrint('Permission request error: $error');
+      return null;
+    }
+  }
+
+  Future<void> createPeerConnection({
+    required void Function(RTCIceCandidate candidate) onLocalCandidate,
+    required Future<void> Function() onRemoteStreamReady,
+    required void Function(RTCIceConnectionState state) onIceConnectionState,
+  }) async {
+    final configuration = <String, dynamic>{
+      'iceServers': _buildIceServers(),
+      'sdpSemantics': 'unified-plan',
+      'iceCandidatePoolSize': 4,
+      'iceTransportPolicy': 'all',
+    };
+
+    final pc =
+        await createPeerConnectionFactory(configuration);
+    _peerConnection = pc;
+
+    pc.onIceCandidate = (candidate) {
+      final value = candidate.candidate;
+      if (value == null || value.isEmpty) return;
+      onLocalCandidate(candidate);
+    };
+
+    pc.onTrack = (event) async {
+      debugPrint(
+        '[stealth-call] onTrack kind=${event.track.kind} id=${event.track.id} '
+        'enabled=${event.track.enabled} streams=${event.streams.length}',
+      );
+      if (event.streams.isNotEmpty) {
+        final stream = event.streams.first;
+        for (final track in stream.getTracks()) {
+          track.enabled = true;
+        }
+        await _attachRemoteStream(stream, addedTrack: event.track);
+        await onRemoteStreamReady();
+        return;
+      }
+      final fallback = _remoteStream ?? await createLocalMediaStream('remote');
+      if (!fallback.getTracks().any((track) => track.id == event.track.id)) {
+        fallback.addTrack(event.track);
+      }
+      event.track.enabled = true;
+      await _attachRemoteStream(fallback, addedTrack: event.track);
+      await onRemoteStreamReady();
+    };
+
+    pc.onIceConnectionState = (state) {
+      debugPrint('[stealth-call] iceState=$state');
+      onIceConnectionState(state);
+    };
+
+    pc.onConnectionState = (state) {
+      debugPrint('[stealth-call] peerState=$state');
+    };
+  }
+
+  Future<void> createLocalStream({required bool isVideoCall}) async {
+    try {
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': isVideoCall
+            ? {
+                'facingMode': 'user',
+                'width': {'ideal': 640},
+                'height': {'ideal': 480},
+              }
+            : false,
+      });
+    } catch (error) {
+      debugPrint(
+          '[stealth-call] getUserMedia strict failed: $error, falling back');
+      _localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': true,
+        'video': isVideoCall,
+      });
+    }
+    final audioTracks = _localStream?.getAudioTracks() ?? const [];
+    debugPrint(
+      '[stealth-call] local stream ready: audio=${audioTracks.length} '
+      'ids=${audioTracks.map((t) => t.id).toList()} '
+      'enabled=${audioTracks.map((t) => t.enabled).toList()}',
+    );
+    if (_localStream != null && isVideoCall) {
+      _localRenderer.srcObject = _localStream;
+    }
+  }
+
+  Future<void> attachLocalMedia({required bool isVideoCall}) async {
+    final connection = _peerConnection;
+    final stream = _localStream;
+    if (connection == null || stream == null) return;
+    final audioTracks = stream.getAudioTracks();
+    if (audioTracks.isEmpty) {
+      throw Exception('No microphone track available.');
+    }
+    for (final track in audioTracks) {
+      await connection.addTrack(track, stream);
+    }
+    if (isVideoCall) {
+      for (final track in stream.getVideoTracks()) {
+        await connection.addTrack(track, stream);
+      }
+    }
+  }
+
+  /// Создаёт offer, выставляет local description и возвращает payload как
+  /// Map для отправки через signaling. Идемпотентен — повторный вызов после
+  /// успешного offer не отправит ничего и вернёт `null`.
+  Future<Map<String, dynamic>?> createLocalOffer({
+    required bool isVideoCall,
+  }) async {
+    final connection = _peerConnection;
+    if (connection == null || _offerSent) return null;
+    try {
+      final offer = await connection.createOffer({
+        'offerToReceiveAudio': 1,
+        'offerToReceiveVideo': isVideoCall ? 1 : 0,
+      });
+      await connection.setLocalDescription(offer);
+      _offerSent = true;
+      return offer.toMap();
+    } catch (error) {
+      debugPrint('Offer creation error: $error');
+      return null;
+    }
+  }
+
+  /// Применяет принятый offer и возвращает answer payload для отправки.
+  Future<Map<String, dynamic>?> applyRemoteOffer(
+      RTCSessionDescription offer) async {
+    final connection = _peerConnection;
+    if (connection == null) return null;
+    try {
+      await connection.setRemoteDescription(offer);
+      await flushPendingCandidates();
+      final answer = await connection.createAnswer();
+      await connection.setLocalDescription(answer);
+      debugPrint('[stealth-call] answer ready');
+      return answer.toMap();
+    } catch (error) {
+      debugPrint('[stealth-call] applyRemoteOffer error: $error');
+      return null;
+    }
+  }
+
+  Future<void> applyRemoteAnswer(RTCSessionDescription answer) async {
+    final connection = _peerConnection;
+    if (connection == null) return;
+    try {
+      await connection.setRemoteDescription(answer);
+      await flushPendingCandidates();
+      debugPrint('[stealth-call] remote answer applied');
+    } catch (error) {
+      debugPrint('[stealth-call] Answer handling error: $error');
+    }
+  }
+
+  Future<void> addOrBufferRemoteCandidate(RTCIceCandidate candidate) async {
+    final connection = _peerConnection;
+    if (connection == null) return;
+    try {
+      if (await connection.getRemoteDescription() != null) {
+        await connection.addCandidate(candidate);
+      } else {
+        _pendingRemoteCandidates.add(candidate);
+      }
+    } catch (error) {
+      debugPrint('[stealth-call] Remote candidate error: $error');
+    }
+  }
+
+  Future<void> flushPendingCandidates() async {
+    final connection = _peerConnection;
+    if (connection == null) return;
+    for (final candidate in _pendingRemoteCandidates) {
+      await connection.addCandidate(candidate);
+    }
+    _pendingRemoteCandidates.clear();
+  }
+
+  Future<void> _attachRemoteStream(
+    MediaStream stream, {
+    MediaStreamTrack? addedTrack,
+  }) async {
+    _remoteStream = stream;
+    if (addedTrack != null && addedTrack.kind == 'audio') {
+      addedTrack.enabled = true;
+    }
+    final audioTracks = stream.getAudioTracks();
+    final videoTracks = stream.getVideoTracks();
+    for (final track in audioTracks) {
+      track.enabled = true;
+    }
+    Logger.info('[stealth-call] remote stream attached', extras: {
+      'audioTracks': audioTracks.length,
+      'ids': audioTracks.map((t) => t.id).toList(),
+    });
+    if (videoTracks.isNotEmpty) {
+      _remoteRenderer.srcObject = stream;
+    }
+    await applyAudioRouting();
+  }
+
+  void setMicrophoneEnabled(bool enabled) {
+    final stream = _localStream;
+    if (stream == null) return;
+    for (final track in stream.getAudioTracks()) {
+      track.enabled = enabled;
+    }
+  }
+
+  void setCameraEnabled(bool enabled) {
+    final stream = _localStream;
+    if (stream == null) return;
+    for (final track in stream.getVideoTracks()) {
+      track.enabled = enabled;
+    }
+  }
+
+  Future<void> switchCamera() async {
+    final stream = _localStream;
+    if (stream == null) return;
+    final videoTracks = stream.getVideoTracks();
+    if (videoTracks.isEmpty) return;
+    await Helper.switchCamera(videoTracks.first);
+  }
+
+  Future<void> setSpeakerphoneOn(bool enabled) async {
+    _speakerphoneOn = enabled;
+    await applyAudioRouting();
+  }
+
+  /// Принудительно маршрутизирует аудио на громкий динамик / earpiece в
+  /// соответствии с текущим значением `_speakerphoneOn`. Без этого при
+  /// audio-only звонке flutter_webrtc оставляет вывод в earpiece, из-за
+  /// чего собеседника может быть не слышно (особенно на эмуляторе, где
+  /// earpiece не озвучен).
+  Future<void> applyAudioRouting() async {
+    if (kIsWeb) return;
+    try {
+      await Helper.setSpeakerphoneOn(_speakerphoneOn);
+      Logger.info('[stealth-call] speakerphone',
+          extras: {'enabled': _speakerphoneOn});
+    } catch (error) {
+      Logger.warn('[stealth-call] setSpeakerphoneOn error',
+          extras: {'error': error});
+    }
+  }
+
+  /// Периодически логируем аудио-статистику peer connection.
+  void startStatsLogger() {
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final connection = _peerConnection;
+      if (connection == null) return;
+      try {
+        final reports = await connection.getStats();
+        for (final report in reports) {
+          final type = report.type;
+          if (type != 'outbound-rtp' &&
+              type != 'inbound-rtp' &&
+              type != 'media-source' &&
+              type != 'track') {
+            continue;
+          }
+          final kind = report.values['kind'] ?? report.values['mediaType'];
+          if (kind != null && kind != 'audio') continue;
+          debugPrint(
+            '[rtc-stats] $type id=${report.id} '
+            'bytesSent=${report.values['bytesSent']} '
+            'bytesReceived=${report.values['bytesReceived']} '
+            'packetsSent=${report.values['packetsSent']} '
+            'packetsReceived=${report.values['packetsReceived']} '
+            'audioLevel=${report.values['audioLevel']} '
+            'totalAudioEnergy=${report.values['totalAudioEnergy']} '
+            'totalSamplesDuration=${report.values['totalSamplesDuration']}',
+          );
+        }
+      } catch (error) {
+        debugPrint('[rtc-stats] error: $error');
+      }
+    });
+  }
+
+  Future<void> dispose() async {
+    _statsTimer?.cancel();
+    _localStream?.getTracks().forEach((track) => track.stop());
+    await _localStream?.dispose();
+    _remoteStream?.getTracks().forEach((track) => track.stop());
+    await _remoteStream?.dispose();
+    await _peerConnection?.close();
+    await _localRenderer.dispose();
+    await _remoteRenderer.dispose();
+  }
+
+  /// Собирает список ICE-серверов. STUN идёт всегда. Дополнительно
+  /// добавляются TURN и TURNS — обе пары независимы. TURNS на 443/TLS
+  /// критичен для обхода ТСПУ в РФ: маскируется под обычный HTTPS.
+  List<Map<String, dynamic>> _buildIceServers() {
+    final servers = <Map<String, dynamic>>[
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+        ],
+      },
+    ];
+    _appendTurnServer(
+      servers,
+      label: 'TURN',
+      urlsEnv: dotenv.env['TURN_URL'],
+      userEnv: dotenv.env['TURN_USERNAME'],
+      passEnv: dotenv.env['TURN_PASSWORD'],
+    );
+    _appendTurnServer(
+      servers,
+      label: 'TURNS',
+      urlsEnv: dotenv.env['TURNS_URL'],
+      userEnv: dotenv.env['TURNS_USERNAME'],
+      passEnv: dotenv.env['TURNS_PASSWORD'],
+    );
+    if (servers.length == 1) {
+      debugPrint(
+        '[stealth-call] WARNING: no TURN/TURNS in .env — P2P will fail '
+        'across NAT/VPN. Set TURN_URL/TURN_USERNAME/TURN_PASSWORD or '
+        'TURNS_URL/TURNS_USERNAME/TURNS_PASSWORD.',
+      );
+    }
+    return servers;
+  }
+
+  void _appendTurnServer(
+    List<Map<String, dynamic>> servers, {
+    required String label,
+    required String? urlsEnv,
+    required String? userEnv,
+    required String? passEnv,
+  }) {
+    final urls = urlsEnv?.trim();
+    if (urls == null || urls.isEmpty) return;
+    final user = userEnv?.trim();
+    final pass = passEnv?.trim();
+    servers.add({
+      'urls': urls
+          .split(',')
+          .map((u) => u.trim())
+          .where((u) => u.isNotEmpty)
+          .toList(),
+      if (user != null && user.isNotEmpty) 'username': user,
+      if (pass != null && pass.isNotEmpty) 'credential': pass,
+    });
+    debugPrint('[stealth-call] $label configured: $urls');
+  }
+}
+
+/// Глобальная функция `createPeerConnection` из `flutter_webrtc` конфликтует
+/// с методом в [NativeCallMediaBindings]. Чтобы не использовать prefix-import
+/// на всю библиотеку, оборачиваем вызов здесь.
+Future<RTCPeerConnection> createPeerConnectionFactory(
+    Map<String, dynamic> configuration) {
+  return createPeerConnection(configuration, {
+    'mandatory': <String, dynamic>{},
+    'optional': <dynamic>[],
+  });
+}
