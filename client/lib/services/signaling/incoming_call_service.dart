@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 
@@ -82,7 +83,8 @@ class IncomingCallSignalingService {
 
   Future<void> start({required String selfUserId}) async {
     _selfUserId = selfUserId;
-    final filter = "target='$selfUserId' && "
+    final pbSelfId = pbIdFromLocalUuid(selfUserId);
+    final filter = "target='$pbSelfId' && "
         "(type='offer' || type='hangup')";
     debugPrint('[signaling] incoming-call subscribe filter=$filter');
     try {
@@ -120,14 +122,17 @@ class IncomingCallSignalingService {
     required String callerUserId,
     required String selfUserId,
   }) async {
+    final pbCreator = pbIdFromLocalUuid(selfUserId);
+    final pbTarget = pbIdFromLocalUuid(callerUserId);
     debugPrint(
-      '[signaling] decline call roomId=$roomId caller=$callerUserId',
+      '[signaling] decline call roomId=$roomId caller=$pbTarget '
+      '(localUuid=$callerUserId)',
     );
     try {
       await _pb.collection('rtc_signaling').create(body: {
         'roomId': roomId,
-        'creator': selfUserId,
-        'target': callerUserId,
+        'creator': pbCreator,
+        'target': pbTarget,
         'type': RtcMessageType.hangup.wireValue,
         'payload': const <String, dynamic>{},
       });

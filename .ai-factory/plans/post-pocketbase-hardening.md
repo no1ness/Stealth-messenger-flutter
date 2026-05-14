@@ -44,7 +44,7 @@ P6 (crypto docs) и P7 (key export guard) — независимы.
 P8 (Android) — последний, изолированный.
 ```
 
-## Phase 1 — Signaling identity (CRITICAL)
+## Phase 1 — Signaling identity (CRITICAL) ✅ done
 
 **Цель:** `creator` и `target` в `rtc_signaling` должны совпадать с `request.auth.id`, чтобы продакшен-rules (см. `docs/POCKETBASE_SETUP.md:124-132`) не отбрасывали запросы.
 

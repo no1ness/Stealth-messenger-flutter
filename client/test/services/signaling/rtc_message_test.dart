@@ -235,4 +235,47 @@ void main() {
     expect(body['type'], 'answer');
     expect(body['payload']['sdp'], 'v=0\r\n');
   });
+
+  group('PocketBase id translation', () {
+    const localUuid = '550e8400-e29b-41d4-a716-446655440000';
+    const pbId = '550e8400e29b41d4a716446655440000';
+
+    test('fromRecord rehydrates pb-id back into canonical UUID form', () {
+      final record = RecordModel(
+        id: 'rec_uuid',
+        created: '2026-05-14 00:00:00.000Z',
+        collectionName: 'rtc_signaling',
+        data: <String, dynamic>{
+          'roomId': 'room-1',
+          // Wire-level ids do NOT contain dashes (PocketBase record ids).
+          'creator': pbId,
+          'target': pbId,
+          'type': 'offer',
+          'payload': const <String, dynamic>{},
+        },
+      );
+
+      final msg = RtcMessage.fromRecord(record);
+
+      expect(msg.creator, localUuid);
+      expect(msg.target, localUuid);
+    });
+
+    test('toCreateBody strips dashes when emitting wire payload', () {
+      final msg = RtcMessage(
+        id: '',
+        roomId: 'room-1',
+        creator: localUuid,
+        target: localUuid,
+        type: RtcMessageType.offer,
+        payload: const <String, dynamic>{},
+        created: DateTime.utc(2026, 5, 14),
+      );
+
+      final body = msg.toCreateBody();
+
+      expect(body['creator'], pbId);
+      expect(body['target'], pbId);
+    });
+  });
 }

@@ -432,20 +432,20 @@ class _ChatsScreenState extends State<ChatsScreen>
                                         await _appService
                                             .removeMemberFromGroupChat(
                                           chatId: chatId,
-                                          memberId: userId,
+                                          userId: userId,
                                         );
                                       } else if (action == 'promote') {
                                         await _appService
                                             .updateGroupMemberRole(
                                           chatId: chatId,
-                                          memberId: userId,
+                                          userId: userId,
                                           role: 'admin',
                                         );
                                       } else if (action == 'demote') {
                                         await _appService
                                             .updateGroupMemberRole(
                                           chatId: chatId,
-                                          memberId: userId,
+                                          userId: userId,
                                           role: 'member',
                                         );
                                       }
@@ -737,10 +737,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 onTap: () async {
                   Navigator.of(context).pop();
                   if (isPinned) {
-                    await _appService.unpinMessage(
-                      chatId: chatId,
-                      messageId: messageId,
-                    );
+                    await _appService.unpinMessage(chatId: chatId);
                   } else {
                     await _appService.pinMessage(
                       chatId: chatId,

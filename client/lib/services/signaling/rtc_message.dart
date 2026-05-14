@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 
 /// Тип сигнального сообщения, передаваемого между пирами WebRTC через
 /// коллекцию `rtc_signaling` в PocketBase.
@@ -59,8 +60,11 @@ class RtcMessage {
         ? Map<String, dynamic>.from(payloadRaw)
         : <String, dynamic>{};
     final roomId = record.getStringValue('roomId');
-    final creator = record.getStringValue('creator');
-    final target = record.getStringValue('target');
+    // Wire-level ids are PocketBase record ids (canonical UUID without
+    // dashes). Convert back to the local UUID form so downstream consumers
+    // can match against contacts / chat membership directly.
+    final creator = localUuidFromPbId(record.getStringValue('creator'));
+    final target = localUuidFromPbId(record.getStringValue('target'));
     final created =
         DateTime.tryParse(record.created) ?? DateTime.now().toUtc();
 
@@ -81,11 +85,14 @@ class RtcMessage {
   }
 
   /// Тело для `pb.collection('rtc_signaling').create(body: ...)`.
+  ///
+  /// Wire-level `creator`/`target` are PocketBase record ids; the helpers
+  /// strip dashes from canonical UUIDs and pass non-UUID inputs through.
   Map<String, dynamic> toCreateBody() {
     return <String, dynamic>{
       'roomId': roomId,
-      'creator': creator,
-      'target': target,
+      'creator': pbIdFromLocalUuid(creator),
+      'target': pbIdFromLocalUuid(target),
       'type': type.wireValue,
       'payload': payload,
     };

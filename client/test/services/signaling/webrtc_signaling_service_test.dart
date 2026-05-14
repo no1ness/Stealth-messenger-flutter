@@ -407,6 +407,17 @@ class _FakePocketBase extends PocketBase {
 class _FakeAuthStore extends AuthStore {
   @override
   bool get isValid => true;
+
+  // Provide a RecordModel matching the harness selfUserId ('user-A') so the
+  // identity check inside `_ensureAuth` early-returns (avoiding any network
+  // attempt to the fake users collection). The harness wires selfUserId
+  // verbatim, so the value is hardcoded here for the same reason.
+  @override
+  dynamic get model => RecordModel(
+        id: 'user-A',
+        collectionId: 'users',
+        collectionName: 'users',
+      );
 }
 
 class _FakeRecordService extends RecordService {

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/signaling_transport.dart';
@@ -23,13 +24,21 @@ const String _kPbPasswordKey = 'pb_password';
 /// Кратко:
 ///
 /// - Подписка `pb.collection('rtc_signaling').subscribe('*', cb,
-///   filter: "roomId='\$roomId' && target='\$selfUserId'")` ловит ВСЕ
+///   filter: "roomId='\$roomId' && target='\$pbSelfId'")` ловит ВСЕ
 ///   адресованные пиру сообщения (offer/answer/candidate/hangup).
+///   `pbSelfId` — PocketBase record id (локальный UUID без дефисов),
+///   совпадает с `request.auth.id` под строгими API rules.
 /// - Send-методы делают `create()` с body, сформированным в [RtcMessage].
+///   `creator`/`target` записываются как PB-id (см. `pb_user_id.dart`),
+///   что удовлетворяет правилу `@request.data.creator = @request.auth.id`.
 /// - Аутентификация ленивая: на первый `connect()` пытается восстановить
-///   токен из `flutter_secure_storage_x`; если его нет — регистрирует
-///   технический PocketBase-аккаунт `<localUuid>@stealth.local` и
-///   сохраняет токен.
+///   токен из `flutter_secure_storage_x`; если идентичность изменилась
+///   (старый PB-id != ожидаемого из текущего UUID) — выполняется
+///   single-shot миграция: локальные creds стираются и регистрируется
+///   новая запись с явным `id = pbSelfId`. Технический email содержит
+///   тот же PB-id (`<pbSelfId>@stealth.local`) — это позволяет создать
+///   новую запись поверх отсутствующего/orphan legacy аккаунта без
+///   email-конфликта.
 /// - Reconnect: при ошибке подписки или смене сети переподключается с
 ///   экспоненциальным backoff (1→2→4→8→16→30 секунд), эмитит состояние
 ///   через [connectionState].
@@ -167,17 +176,19 @@ class WebRtcSignalingService implements SignalingTransport {
         'WebRtcSignalingService.connect must be called before sending messages',
       );
     }
+    final pbCreator = pbIdFromLocalUuid(selfUserId);
+    final pbTarget = pbIdFromLocalUuid(targetUserId);
     final body = <String, dynamic>{
       'roomId': roomId,
-      'creator': selfUserId,
-      'target': targetUserId,
+      'creator': pbCreator,
+      'target': pbTarget,
       'type': type.wireValue,
       'payload': payload,
     };
     final payloadSize = payload.toString().length;
     debugPrint(
       '[signaling] send type=${type.wireValue} room=$roomId '
-      'to=$targetUserId payloadSize=$payloadSize',
+      'to=$pbTarget (localUuid=$targetUserId) payloadSize=$payloadSize',
     );
     try {
       await _pb.collection(_kSignalingCollection).create(body: body);
@@ -201,7 +212,8 @@ class WebRtcSignalingService implements SignalingTransport {
       } catch (_) {/* ignore stale unsubscribe failure */}
     }
 
-    final filter = "roomId='$roomId' && target='$selfUserId'";
+    final pbSelfId = pbIdFromLocalUuid(selfUserId);
+    final filter = "roomId='$roomId' && target='$pbSelfId'";
     debugPrint("[signaling] subscribed filter='$filter'");
     try {
       _unsubscribe = await _pb
@@ -273,25 +285,46 @@ class WebRtcSignalingService implements SignalingTransport {
 
   /// Восстанавливает либо создаёт PocketBase-аккаунт для текущего юзера.
   ///
-  /// Используется технический email `<localUuid>@stealth.local` и случайный
-  /// пароль (генерируется один раз и хранится в secure_storage). Это даёт
-  /// детерминированный auth без UI и без зависимости от регистрационного
-  /// флоу старого realtime-сигналинга.
+  /// Контракт идентичности: запись в коллекции `users` имеет
+  /// `id == pbIdFromLocalUuid(selfUserId)`. Это требуется строгими API
+  /// rules (`@request.data.creator = @request.auth.id`) и достигается
+  /// явной передачей `id` в `create()` body. Email строится из того же
+  /// PB-id (`<pbId>@stealth.local`), чтобы устаревшие email от прежних
+  /// сборок (с дефисами в адресе) не блокировали повторную регистрацию.
+  ///
+  /// Migration path: если в secure_storage сохранён `pb_user_id`, который
+  /// не совпадает с ожидаемым PB-id (legacy auto-generated id), локальные
+  /// PB-credentials стираются. Прежняя запись на сервере остаётся
+  /// orphan — она недоступна под новой identity, а истечёт через
+  /// signaling TTL hook (см. `docs/POCKETBASE_SETUP.md`).
   Future<void> _ensureAuth(String selfUserId) async {
+    final expectedPbId = pbIdFromLocalUuid(selfUserId);
+
+    await _migrateLegacyAuthIfNeeded(expectedPbId);
+
     if (_pb.authStore.isValid) {
-      debugPrint('[signaling] auth already valid, skipping');
-      return;
+      final model = _pb.authStore.model;
+      final modelId = (model is RecordModel) ? model.id : null;
+      if (modelId == expectedPbId) {
+        debugPrint('[signaling] auth already valid pbId=$expectedPbId');
+        return;
+      }
+      debugPrint(
+        '[signaling] authStore identity mismatch '
+        '(model.id=$modelId, expected=$expectedPbId) — clearing',
+      );
+      _pb.authStore.clear();
     }
+
     final storedToken = await _storage.read(_kPbTokenKey);
     final storedPbUserId = await _storage.read(_kPbUserIdKey);
     if (storedToken != null &&
         storedToken.isNotEmpty &&
-        storedPbUserId != null &&
-        storedPbUserId.isNotEmpty) {
+        storedPbUserId == expectedPbId) {
       _pb.authStore.save(
         storedToken,
         RecordModel(
-          id: storedPbUserId,
+          id: storedPbUserId!,
           collectionId: 'users',
           collectionName: 'users',
         ),
@@ -300,37 +333,65 @@ class WebRtcSignalingService implements SignalingTransport {
       return;
     }
 
-    final email = '$selfUserId@stealth.local';
+    final email = '$expectedPbId@stealth.local';
     String? password = await _storage.read(_kPbPasswordKey);
     if (password == null || password.isEmpty) {
       password = _generatePassword();
       await _storage.write(_kPbPasswordKey, password);
     }
 
+    RecordAuth auth;
     try {
-      final auth = await _pb.collection('users').authWithPassword(
-            email,
-            password,
-          );
-      await _storage.write(_kPbTokenKey, auth.token);
-      await _storage.write(_kPbUserIdKey, auth.record?.id ?? '');
-      debugPrint('[signaling] auth restored via password pbId=${auth.record?.id}');
-    } catch (_) {
-      // Учётная запись ещё не существует — создаём.
-      final created = await _pb.collection('users').create(body: {
+      auth = await _pb.collection('users').authWithPassword(email, password);
+      debugPrint(
+        '[signaling] auth restored via password pbId=${auth.record?.id}',
+      );
+    } catch (loginError) {
+      debugPrint(
+        '[signaling] login failed, creating new account: $loginError',
+      );
+      await _pb.collection('users').create(body: <String, dynamic>{
+        'id': expectedPbId,
         'email': email,
         'password': password,
         'passwordConfirm': password,
         'name': selfUserId,
       });
-      final auth = await _pb.collection('users').authWithPassword(
-            email,
-            password,
-          );
-      await _storage.write(_kPbTokenKey, auth.token);
-      await _storage.write(_kPbUserIdKey, created.id);
-      debugPrint('[signaling] auth created new user pbId=${created.id}');
+      auth = await _pb.collection('users').authWithPassword(email, password);
+      debugPrint(
+        '[signaling] auth created new user pbId=${auth.record?.id} '
+        '(expected=$expectedPbId)',
+      );
     }
+
+    final actualPbId = auth.record?.id;
+    if (actualPbId == null || actualPbId != expectedPbId) {
+      throw StateError(
+        '[signaling] auth id mismatch: expected=$expectedPbId, '
+        'got=${actualPbId ?? "null"}. The PocketBase users collection '
+        'rejected the custom id or a legacy account is shadowing the '
+        'email. Reset local credentials to recover.',
+      );
+    }
+    await _storage.write(_kPbTokenKey, auth.token);
+    await _storage.write(_kPbUserIdKey, actualPbId);
+  }
+
+  /// Wipes locally cached PocketBase auth if the stored id no longer matches
+  /// the deterministic id derived from the current local UUID. This handles
+  /// upgrades from builds that used an auto-generated PB record id.
+  Future<void> _migrateLegacyAuthIfNeeded(String expectedPbId) async {
+    final storedPbUserId = await _storage.read(_kPbUserIdKey);
+    if (storedPbUserId == null || storedPbUserId.isEmpty) return;
+    if (storedPbUserId == expectedPbId) return;
+    debugPrint(
+      '[signaling] legacy auth detected, migrating pbId=$storedPbUserId → '
+      '$expectedPbId',
+    );
+    await _storage.delete(_kPbTokenKey);
+    await _storage.delete(_kPbUserIdKey);
+    await _storage.delete(_kPbPasswordKey);
+    _pb.authStore.clear();
   }
 
   String _generatePassword() {

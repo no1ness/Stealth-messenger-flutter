@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,19 +11,28 @@ import 'package:stealth/storage_service.dart';
 /// Smoke test that runs the full signaling flow against a real PocketBase
 /// instance.
 ///
-/// Modeled after `client/test/message_flow_smoke_test.dart`:
-/// reads connection details from environment variables and skips when the
-/// backend is not configured. Requires a PocketBase server with the
-/// `rtc_signaling` collection (see `docs/POCKETBASE_SETUP.md`) — without it
-/// the test is silently skipped so that the regular `flutter test` run stays
-/// green.
+/// The test relies on `WebRtcSignalingService` to self-register PocketBase
+/// users via `_ensureAuth` — it does NOT pre-provision users itself. This
+/// exercises the identity contract introduced in Phase 1 of the
+/// post-PocketBase hardening plan:
+///
+///   PocketBase `users.id` == `pbIdFromLocalUuid(selfUserId)`
+///
+/// which makes the deployment compatible with strict API rules on the
+/// `rtc_signaling` collection (`@request.data.creator = @request.auth.id`).
 ///
 /// Required env:
 ///   POCKETBASE_TEST_URL  — e.g. http://127.0.0.1:8090
 ///
-/// Optional env (admin endpoints used to provision throwaway users):
+/// Optional env (used to delete the throwaway users at the end of the run):
 ///   POCKETBASE_TEST_ADMIN_EMAIL
 ///   POCKETBASE_TEST_ADMIN_PASSWORD
+///
+/// Optional manual step to also validate strict API rules:
+///   On the test server, set `rtc_signaling.createRule` to
+///   `@request.auth.id != "" && @request.data.creator = @request.auth.id`
+///   and re-run this test. It must still pass — the SUT writes
+///   `creator = request.auth.id` by construction.
 void main() {
   final pbUrl = Platform.environment['POCKETBASE_TEST_URL'];
   if (pbUrl == null || pbUrl.isEmpty) {
@@ -52,25 +60,12 @@ void main() {
       final pbA = PocketBase(pbUrl);
       final pbB = PocketBase(pbUrl);
 
-      _TestUser? userA;
-      _TestUser? userB;
       WebRtcSignalingService? serviceA;
       WebRtcSignalingService? serviceB;
+      String? pbRecIdA;
+      String? pbRecIdB;
 
       try {
-        userA = await _provisionUser(
-          pbA,
-          adminEmail: adminEmail,
-          adminPassword: adminPassword,
-          localId: userIdA,
-        );
-        userB = await _provisionUser(
-          pbB,
-          adminEmail: adminEmail,
-          adminPassword: adminPassword,
-          localId: userIdB,
-        );
-
         serviceA = WebRtcSignalingService(
           pocketBase: pbA,
           storage: _NoopStorage(),
@@ -82,12 +77,29 @@ void main() {
           connectivity: _SilentConnectivity(),
         );
 
-        // Capture B's incoming messages first so we don't lose the offer.
+        // Capture B's incoming first so we don't lose the offer.
         final bReceived = <RtcMessage>[];
         final bSub = serviceB.incoming.listen(bReceived.add);
 
+        // The service registers each user with an explicit `id` matching
+        // `selfUserId` (no dashes ⇒ already a valid PB id). After connect
+        // we verify the round-trip succeeded — this is the identity check
+        // that strict API rules will enforce server-side.
         await serviceB.connect(roomId: roomId, selfUserId: userIdB);
         await serviceA.connect(roomId: roomId, selfUserId: userIdA);
+
+        final modelA = pbA.authStore.model;
+        final modelB = pbB.authStore.model;
+        pbRecIdA = (modelA is RecordModel) ? modelA.id : null;
+        pbRecIdB = (modelB is RecordModel) ? modelB.id : null;
+        expect(
+          pbRecIdA,
+          userIdA,
+          reason: 'WebRtcSignalingService must register users.id == selfUserId '
+              'so that strict createRule (@request.data.creator = @request.auth.id) '
+              'accepts the writes.',
+        );
+        expect(pbRecIdB, userIdB);
 
         // Allow PocketBase realtime to propagate subscriptions.
         await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -144,66 +156,17 @@ void main() {
       } finally {
         await serviceA?.disconnect();
         await serviceB?.disconnect();
-        // Best-effort cleanup of provisioned users (only when admin auth was
+        // Best-effort cleanup of throwaway users (only when admin auth was
         // supplied — otherwise we leave the records and rely on the
         // collection's TTL hook documented in POCKETBASE_SETUP.md).
         if (adminEmail != null && adminPassword != null) {
-          await _safeDeleteUser(pbUrl, adminEmail, adminPassword, userA?.id);
-          await _safeDeleteUser(pbUrl, adminEmail, adminPassword, userB?.id);
+          await _safeDeleteUser(pbUrl, adminEmail, adminPassword, pbRecIdA);
+          await _safeDeleteUser(pbUrl, adminEmail, adminPassword, pbRecIdB);
         }
       }
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
-}
-
-class _TestUser {
-  _TestUser({required this.id, required this.email, required this.password});
-  final String id;
-  final String email;
-  final String password;
-}
-
-Future<_TestUser> _provisionUser(
-  PocketBase pb, {
-  required String? adminEmail,
-  required String? adminPassword,
-  required String localId,
-}) async {
-  final email = '$localId@stealth.local';
-  final password = _randomPassword();
-
-  // Ensure the user exists. With admin credentials we can be authoritative;
-  // otherwise we fall back to plain create (works only if the collection
-  // allows unauthenticated `users.create`).
-  if (adminEmail != null && adminPassword != null) {
-    final adminPb = PocketBase(pb.baseUrl);
-    await adminPb.admins.authWithPassword(adminEmail, adminPassword);
-    try {
-      await adminPb.collection('users').create(body: {
-        'email': email,
-        'password': password,
-        'passwordConfirm': password,
-        'name': localId,
-      });
-    } on ClientException catch (_) {
-      // Already exists from a previous run: ignore and reuse.
-    }
-  } else {
-    try {
-      await pb.collection('users').create(body: {
-        'email': email,
-        'password': password,
-        'passwordConfirm': password,
-        'name': localId,
-      });
-    } on ClientException catch (_) {
-      // ignore — assume password from a previous run; we'll fail fast on auth.
-    }
-  }
-
-  final auth = await pb.collection('users').authWithPassword(email, password);
-  return _TestUser(id: auth.record!.id, email: email, password: password);
 }
 
 Future<void> _safeDeleteUser(
@@ -234,16 +197,6 @@ Future<void> _waitFor(
     await Future<void>.delayed(step);
   }
   fail('Timed out waiting for: $description');
-}
-
-String _randomPassword() {
-  const alphabet =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  final rand = math.Random.secure();
-  return List<String>.generate(
-    24,
-    (_) => alphabet[rand.nextInt(alphabet.length)],
-  ).join();
 }
 
 class _NoopStorage implements StorageService {
