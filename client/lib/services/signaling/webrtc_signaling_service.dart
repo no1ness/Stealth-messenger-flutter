@@ -70,6 +70,13 @@ class WebRtcSignalingService implements SignalingTransport {
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
 
+  // Guards `_ensureAuth` against concurrent re-entry. The global
+  // PocketBaseClient.instance can be shared between
+  // WebRtcSignalingService and IncomingCallSignalingService, and a
+  // fast `connect()` + reconnect race could otherwise issue two parallel
+  // `users.create` calls under the same email.
+  Future<void>? _authInFlight;
+
   static const int _maxBackoffSeconds = 30;
 
   @override
@@ -307,7 +314,12 @@ class WebRtcSignalingService implements SignalingTransport {
   /// PB-credentials стираются. Прежняя запись на сервере остаётся
   /// orphan — она недоступна под новой identity, а истечёт через
   /// signaling TTL hook (см. `docs/POCKETBASE_SETUP.md`).
-  Future<void> _ensureAuth(String selfUserId) async {
+  Future<void> _ensureAuth(String selfUserId) {
+    return _authInFlight ??=
+        _doEnsureAuth(selfUserId).whenComplete(() => _authInFlight = null);
+  }
+
+  Future<void> _doEnsureAuth(String selfUserId) async {
     final expectedPbId = pbIdFromLocalUuid(selfUserId);
 
     await _migrateLegacyAuthIfNeeded(expectedPbId);

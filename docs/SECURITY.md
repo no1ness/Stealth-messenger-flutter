@@ -12,7 +12,12 @@
 - Identity keypair: X25519.
 - Private chat secret: X25519 shared secret.
 - Message encryption: AES-256-GCM.
-- Ratchet helpers используются для private message keys.
+- Ratchet helpers используются для private message keys. **Это НЕ Double
+  Ratchet и НЕ обеспечивает Perfect Forward Secrecy.** Текущая
+  реализация (`client/lib/crypto/ratchet_service.dart`) — stateless
+  symmetric KDF chain поверх X25519 shared secret. План перехода на
+  настоящий Double Ratchet зафиксирован в
+  [`.ai-factory/RESEARCH.md`](../.ai-factory/RESEARCH.md).
 - Local database payloads дополнительно шифруются локальным ключом.
 
 ## Хранение ключей

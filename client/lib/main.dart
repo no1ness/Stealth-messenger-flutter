@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
@@ -28,7 +29,8 @@ void _applyDartDefineOverrides() {
     final fromDefine = _fromEnvironmentByKey(key);
     if (fromDefine.isNotEmpty) {
       dotenv.env[key] = fromDefine;
-      debugPrint('[stealth-call] $key overridden via --dart-define');
+      Logger.info('[bootstrap] env key overridden via --dart-define',
+          extras: {'key': key});
     }
   }
 }
@@ -128,7 +130,8 @@ class _MyAppState extends State<MyApp> {
           'docs/POCKETBASE_SETUP.md for the full deployment guide.',
         );
       }
-      debugPrint('[stealth-call] PocketBase URL: $pocketbaseUrl');
+      Logger.info('[bootstrap] PocketBase URL configured',
+          extras: {'url': pocketbaseUrl});
 
       _appService = LocalAppService();
       await _checkRegistration();
@@ -138,15 +141,15 @@ class _MyAppState extends State<MyApp> {
       // PlatformException. Recover once by wiping local credentials and any
       // persisted app session, then retrying the startup flow.
       if (!afterReset && _looksLikeCorruptSecureStorage(error)) {
-        debugPrint(
-          'Detected corrupted local storage during startup, resetting: $error',
-        );
+        Logger.warn(
+            '[bootstrap] corrupted local storage detected, resetting',
+            extras: {'error': error});
         await _resetLocalCredentials();
         await _initializeApp(afterReset: true);
         return;
       }
 
-      debugPrint('Error initializing app: $error');
+      Logger.error('[bootstrap] init failed', extras: {'error': error});
       if (!mounted) {
         return;
       }
@@ -192,7 +195,8 @@ class _MyAppState extends State<MyApp> {
     try {
       await StorageService().deleteAll();
     } catch (error) {
-      debugPrint('StorageService.deleteAll failed during recovery: $error');
+      Logger.warn('[bootstrap] StorageService.deleteAll failed during recovery',
+          extras: {'error': error});
       for (final key in const [
         'userId',
         'nickname',
