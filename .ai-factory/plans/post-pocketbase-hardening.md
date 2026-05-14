@@ -279,18 +279,24 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 
 ## Commit Plan
 
-| #   | После задачи | Commit                                                                       |
-| --- | ------------ | ---------------------------------------------------------------------------- |
-| 1   | 1.1–1.3      | `fix(signaling): bind PocketBase user id to local UUID, add migration`       |
-| 2   | 2.1–2.3      | `ci: add GitHub Actions for analyze/test/build`                              |
-| 3   | 3.1–3.3      | `fix(bootstrap): defaults env + setup guide UX, decouple .env asset`         |
-| 4   | 4.1–4.4      | `feat(logging): structured logger with id redaction across lib/`             |
-| 5   | 5.1          | `refactor(ui): split chats_screen into controller/composer/list`             |
-| 6   | 5.2          | `refactor(ui): split webrtc_call_screen_web into controller/media/view`      |
-| 7   | 5.3          | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view` |
-| 8   | 6.1–6.3      | `docs(crypto): align RatchetService and docs with actual capability`         |
-| 9   | 7.1–7.2      | `test(security): regression guard against private key export`                |
-| 10  | 8.1–8.3      | `chore(android): release signing, lint, public applicationId`                |
+Фактически ушедшие коммиты в ветке `feature/pocketbase-signaling`:
+
+| #   | Задачи  | Commit                                                                                   | Статус                                  |
+| --- | ------- | ---------------------------------------------------------------------------------------- | --------------------------------------- |
+| 1   | 1.1–1.3 | `fix(signaling): bind PocketBase user id to local UUID, add migration` (`5feef2e`)       | ✅ shipped                              |
+| 2   | 2.1–2.3 | `ci: add GitHub Actions workflow for analyze/test/build/smoke` (`f23f7bf`)               | ✅ shipped                              |
+| 3   | 3.1–3.3 | `fix(bootstrap): decouple .env asset, add committed defaults, dart-define overrides` (`297f67c`) | ✅ shipped                              |
+| 4   | 4.1–4.4 | `feat(logging): structured logger with id redaction across signaling and call paths` (`4ea9f89`) | ✅ shipped                              |
+| 5a  | 5.1 ч.1 | `refactor(ui): extract group sheets from chats_screen, drop dead read-state code` (`d048a5f`) | ✅ shipped                              |
+| 5b  | 5.1 ч.2 | `refactor(ui): extract conversation panel/footer/attachment from chats_screen` (`106a0c6`) | ✅ shipped                              |
+| —   | 5.2     | `refactor(ui): split webrtc_call_screen_web into controller/media/view`                  | ⏭ deferred → `call-screens-controller-split.md` |
+| —   | 5.3     | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view`          | ⏭ deferred → `call-screens-controller-split.md` |
+| 6   | 6.1–6.3 | `docs(crypto): align RatchetService docstring with actual capability` (`3bd92d2`)        | ✅ shipped                              |
+| 7   | 7.1–7.2 | `test(security): regression guard against private key export paths` (`d5f18ff`)          | ✅ shipped                              |
+| 8   | 8.1–8.3 | `chore(android): release signing, public applicationId, lint baseline workflow` (`b33ae77`) | ✅ shipped                              |
+| +   | follow  | `refactor: address /aif-review follow-ups (auth race, bootstrap logger, security cross-link)` (`45474a1`) | ✅ shipped (review feedback)            |
+| +   | follow  | `docs(aif): reflect post-PocketBase hardening modules in DESCRIPTION.md` (`553a914`)     | ✅ shipped                              |
+| +   | follow  | `docs(plan): add call-screens controller-pattern split (follow-up to P5.2/P5.3)` (`4d654fc`) | ✅ shipped (планы P5.2/P5.3 вынесены)   |
 
 ## Логирование (общая политика)
 
@@ -315,8 +321,11 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 
 ## Следующие шаги
 
-```
-/aif-implement
-```
+План закрыт по всем фазам кроме P5.2/P5.3 (вынесены в
+`call-screens-controller-split.md`).
 
-Будет идти по фазам в указанном порядке. После каждого commit-checkpoint следует ручная проверка (build/manual smoke) или CI после Phase 2.
+Pre-merge для `feature/pocketbase-signaling`:
+
+1. `git push origin feature/pocketbase-signaling` (через SSH-remote, см. memory `git_push_setup`).
+2. Открыть PR в `main`, дождаться зелёного CI (analyze + test + build web + build android).
+3. После merge — переход на `feature/call-screens-controller-split` (см. соответствующий план).
