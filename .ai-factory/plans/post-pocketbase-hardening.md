@@ -76,7 +76,7 @@ P8 (Android) — последний, изолированный.
 
 **Phase 1 commit:** `fix(signaling): bind PocketBase user id to local UUID, add migration`.
 
-## Phase 2 — CI gate
+## Phase 2 — CI gate ✅ done
 
 **Цель:** дать gate для всех последующих изменений. Без CI пользователь не может запустить `flutter analyze/test` в текущей среде (нет Flutter в PATH).
 
