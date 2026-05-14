@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
@@ -49,27 +50,25 @@ class _CallManagerState extends State<CallManager> {
   }
 
   Future<void> _initGlobalCallListener() async {
-    // ignore: avoid_print
-    print('[stealth-call] CallManager._initGlobalCallListener started');
+    Logger.info('[stealth-call] CallManager._initGlobalCallListener started');
     _currentUserId = await _appService.getUserId();
-    // ignore: avoid_print
-    print('[stealth-call] CallManager userId=$_currentUserId mounted=$mounted');
+    Logger.info('[stealth-call] CallManager identity resolved',
+        extras: {'userId': _currentUserId, 'mounted': mounted});
     if (_currentUserId == null || !mounted) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager NOT subscribing (userId null or not mounted)');
+      Logger.warn(
+          '[stealth-call] CallManager NOT subscribing (userId null or not mounted)');
       return;
     }
 
-    // ignore: avoid_print
-    print('[stealth-call] CallManager subscribing to PocketBase rtc_signaling');
+    Logger.info(
+        '[stealth-call] CallManager subscribing to PocketBase rtc_signaling');
     try {
       await _incomingCallService.start(selfUserId: _currentUserId!);
       _eventsSub = _incomingCallService.events.listen(_handleIncomingEvent);
-      // ignore: avoid_print
-      print('[stealth-call] CallManager subscribed successfully');
+      Logger.info('[stealth-call] CallManager subscribed successfully');
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager subscribe error: $error');
+      Logger.warn('[stealth-call] CallManager subscribe error',
+          extras: {'error': error});
     }
   }
 
@@ -83,14 +82,15 @@ class _CallManagerState extends State<CallManager> {
   }
 
   void _handleIncomingOffer(IncomingCallOffer offer) async {
-    // ignore: avoid_print
-    print(
-      '[stealth-call] CallManager._handleIncomingOffer roomId=${offer.roomId} '
-      'from=${offer.fromUserId} isInCall=$_isInCall mounted=$mounted',
-    );
+    Logger.info('[stealth-call] CallManager._handleIncomingOffer', extras: {
+      'roomId': offer.roomId,
+      'fromUserId': offer.fromUserId,
+      'isInCall': _isInCall,
+      'mounted': mounted,
+    });
     if (_isInCall || !mounted) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager ignoring call (already in call or not mounted)');
+      Logger.info(
+          '[stealth-call] CallManager ignoring call (already in call or not mounted)');
       return;
     }
     if (offer.fromUserId == _currentUserId) {
@@ -103,21 +103,19 @@ class _CallManagerState extends State<CallManager> {
         ? 'Unknown'
         : offer.fromNickname;
 
-    // ignore: avoid_print
-    print('[stealth-call] CallManager recording incoming call');
+    Logger.info('[stealth-call] CallManager recording incoming call');
     await _appService.recordIncomingCall(
       chatId: offer.roomId,
       fromUserId: offer.fromUserId,
       fromNickname: fromNickname,
     );
     if (!mounted) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager not mounted after recordIncomingCall');
+      Logger.warn(
+          '[stealth-call] CallManager not mounted after recordIncomingCall');
       return;
     }
 
-    // ignore: avoid_print
-    print('[stealth-call] CallManager showing incoming call dialog');
+    Logger.info('[stealth-call] CallManager showing incoming call dialog');
     _showIncomingCallDialog(
       chatId: offer.roomId,
       fromUserId: offer.fromUserId,
@@ -128,18 +126,17 @@ class _CallManagerState extends State<CallManager> {
   }
 
   void _handleIncomingHangup(IncomingCallHangup hangup) async {
-    // ignore: avoid_print
-    print(
-      '[stealth-call] CallManager._handleIncomingHangup roomId=${hangup.roomId} '
-      'isInCall=$_isInCall mounted=$mounted',
-    );
+    Logger.info('[stealth-call] CallManager._handleIncomingHangup', extras: {
+      'roomId': hangup.roomId,
+      'isInCall': _isInCall,
+      'mounted': mounted,
+    });
     if (!mounted) return;
 
     // Если для этого roomId открыт диалог — закрываем.
     final closer = _activeDialogClosers.remove(hangup.roomId);
     if (closer != null) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager closing dialog due to remote hangup');
+      Logger.info('[stealth-call] CallManager closing dialog due to remote hangup');
       closer();
     }
 
@@ -298,8 +295,8 @@ class _CallManagerState extends State<CallManager> {
                     onPressed: !canAnswer
                         ? null
                         : () async {
-                            // ignore: avoid_print
-                            print('[stealth-call] Answer pressed for chat=$chatId');
+                            Logger.info('[stealth-call] Answer pressed',
+                                extras: {'chatId': chatId});
                             final navigatorRoot = Navigator.of(
                               context,
                               rootNavigator: true,
@@ -312,10 +309,8 @@ class _CallManagerState extends State<CallManager> {
                                 await requestWebRTCAudioPreflight(
                               requireVideo: isVideoCall,
                             );
-                            // ignore: avoid_print
-                            print(
-                              '[stealth-call] preflight result: ${preflightError ?? 'OK'}',
-                            );
+                            Logger.info('[stealth-call] preflight result',
+                                extras: {'error': preflightError ?? 'OK'});
                             if (preflightError != null) {
                               if (dialogContext.mounted) {
                                 messenger.showSnackBar(
@@ -331,13 +326,13 @@ class _CallManagerState extends State<CallManager> {
                             setState(() => _isInCall = true);
 
                             if (!mounted) {
-                              // ignore: avoid_print
-                              print('[stealth-call] not mounted after dialog pop');
+                              Logger.warn(
+                                  '[stealth-call] not mounted after dialog pop');
                               return;
                             }
 
-                            // ignore: avoid_print
-                            print('[stealth-call] pushing WebRTCCallScreen with initialOffer');
+                            Logger.info(
+                                '[stealth-call] pushing WebRTCCallScreen with initialOffer');
                             await navigatorRoot.push(
                               MaterialPageRoute(
                                 builder: (_) => WebRTCCallScreen(
@@ -350,8 +345,7 @@ class _CallManagerState extends State<CallManager> {
                                 ),
                               ),
                             );
-                            // ignore: avoid_print
-                            print('[stealth-call] call screen popped');
+                            Logger.info('[stealth-call] call screen popped');
 
                             if (mounted) {
                               setState(() => _isInCall = false);

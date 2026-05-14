@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:stealth/local_database_service.dart';
+import 'package:stealth/logging/logger.dart';
 
 /// Бросается, когда `PeerResolver` не смог определить второго участника
 /// чата для сигналинга — обычно это означает, что чат ещё не
@@ -55,9 +55,10 @@ class PeerResolver {
         'chat $chatId has no peer member (members=$members, self=$selfUserId)',
       );
     }
-    debugPrint(
-      '[signaling] resolved target for chatId=$chatId → $target',
-    );
+    Logger.info('[signaling] resolved target', extras: {
+      'chatId': chatId,
+      'target': target,
+    });
     return target;
   }
 }

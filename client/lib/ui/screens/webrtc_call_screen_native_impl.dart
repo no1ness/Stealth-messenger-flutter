@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/peer_resolver.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
@@ -572,11 +573,10 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     for (final track in audioTracks) {
       track.enabled = true;
     }
-    // ignore: avoid_print
-    print(
-      '[stealth-call] remote stream attached: audioTracks=${audioTracks.length} '
-      'ids=${audioTracks.map((t) => t.id).toList()}',
-    );
+    Logger.info('[stealth-call] remote stream attached', extras: {
+      'audioTracks': audioTracks.length,
+      'ids': audioTracks.map((t) => t.id).toList(),
+    });
     if (videoTracks.isNotEmpty) {
       _remoteRenderer.srcObject = stream;
     }
@@ -691,21 +691,25 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     if (kIsWeb) return;
     try {
       await Helper.setSpeakerphoneOn(_speakerEnabled);
-      // ignore: avoid_print
-      print('[stealth-call] speakerphone=$_speakerEnabled');
+      Logger.info('[stealth-call] speakerphone',
+          extras: {'enabled': _speakerEnabled});
     } catch (error) {
-      // ignore: avoid_print
-      print('[stealth-call] setSpeakerphoneOn error: $error');
+      Logger.warn('[stealth-call] setSpeakerphoneOn error',
+          extras: {'error': error});
     }
   }
 
   Future<void> _hangUp() async {
-    // ignore: avoid_print
-    print(
-      '[stealth-call] _hangUp() isCaller=${widget.isCaller} '
-      'connected=$_connected closing=$_closing '
-      'stack=${StackTrace.current.toString().split("\n").take(6).join(" | ")}',
-    );
+    Logger.info('[stealth-call] _hangUp()', extras: {
+      'isCaller': widget.isCaller,
+      'connected': _connected,
+      'closing': _closing,
+      'stack': StackTrace.current
+          .toString()
+          .split('\n')
+          .take(6)
+          .join(' | '),
+    });
     if (_closing) return;
     _closing = true;
     final target = _targetUserId;
@@ -748,11 +752,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
-        // ignore: avoid_print
-        print(
-          '[stealth-call] PopScope didPop=$didPop isCaller=${widget.isCaller} '
-          'connected=$_connected closing=$_closing',
-        );
+        Logger.info('[stealth-call] PopScope', extras: {
+          'didPop': didPop,
+          'isCaller': widget.isCaller,
+          'connected': _connected,
+          'closing': _closing,
+        });
         if (!didPop) await _hangUp();
       },
       child: Scaffold(

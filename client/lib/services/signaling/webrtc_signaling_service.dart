@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
@@ -84,9 +84,8 @@ class WebRtcSignalingService implements SignalingTransport {
     required String roomId,
     required String selfUserId,
   }) async {
-    debugPrint(
-      '[signaling] connect roomId=$roomId selfUserId=$selfUserId',
-    );
+    Logger.info('[signaling] connect',
+        extras: {'roomId': roomId, 'selfUserId': selfUserId});
     _activeRoomId = roomId;
     _activeSelfUserId = selfUserId;
 
@@ -140,7 +139,7 @@ class WebRtcSignalingService implements SignalingTransport {
 
   @override
   Future<void> disconnect() async {
-    debugPrint('[signaling] disconnect roomId=$_activeRoomId');
+    Logger.info('[signaling] disconnect', extras: {'roomId': _activeRoomId});
     _disposed = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -152,7 +151,7 @@ class WebRtcSignalingService implements SignalingTransport {
       try {
         await unsubscribe();
       } catch (error) {
-        debugPrint('[signaling] unsubscribe error: $error');
+        Logger.warn('[signaling] unsubscribe error', extras: {'error': error});
       }
     }
     if (!_stateController.isClosed) {
@@ -186,14 +185,18 @@ class WebRtcSignalingService implements SignalingTransport {
       'payload': payload,
     };
     final payloadSize = payload.toString().length;
-    debugPrint(
-      '[signaling] send type=${type.wireValue} room=$roomId '
-      'to=$pbTarget (localUuid=$targetUserId) payloadSize=$payloadSize',
-    );
+    Logger.info('[signaling] send', extras: {
+      'type': type.wireValue,
+      'roomId': roomId,
+      'pbTarget': pbTarget,
+      'targetUserId': targetUserId,
+      'payloadSize': payloadSize,
+    });
     try {
       await _pb.collection(_kSignalingCollection).create(body: body);
     } catch (error) {
-      debugPrint('[signaling] send error type=${type.wireValue}: $error');
+      Logger.warn('[signaling] send error',
+          extras: {'type': type.wireValue, 'error': error});
       rethrow;
     }
   }
@@ -214,7 +217,10 @@ class WebRtcSignalingService implements SignalingTransport {
 
     final pbSelfId = pbIdFromLocalUuid(selfUserId);
     final filter = "roomId='$roomId' && target='$pbSelfId'";
-    debugPrint("[signaling] subscribed filter='$filter'");
+    Logger.info('[signaling] subscribed', extras: {
+      'roomId': roomId,
+      'pbSelfId': pbSelfId,
+    });
     try {
       _unsubscribe = await _pb
           .collection(_kSignalingCollection)
@@ -222,7 +228,7 @@ class WebRtcSignalingService implements SignalingTransport {
       _reconnectAttempt = 0;
       _emitState(SignalingConnectionState.connected);
     } catch (error) {
-      debugPrint('[signaling] subscribe error: $error');
+      Logger.warn('[signaling] subscribe error', extras: {'error': error});
       _emitState(SignalingConnectionState.error);
       _scheduleReconnect();
     }
@@ -238,21 +244,25 @@ class WebRtcSignalingService implements SignalingTransport {
     }
     try {
       final message = RtcMessage.fromRecord(record);
-      debugPrint(
-        '[signaling] recv type=${message.type.wireValue} '
-        'room=${message.roomId} from=${message.creator}',
-      );
+      Logger.info('[signaling] recv', extras: {
+        'type': message.type.wireValue,
+        'roomId': message.roomId,
+        'creator': message.creator,
+      });
       if (!_incomingController.isClosed) {
         _incomingController.add(message);
       }
     } catch (error) {
-      debugPrint('[signaling] failed to parse record: $error');
+      Logger.warn('[signaling] failed to parse record', extras: {'error': error});
     }
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) {
     final hasNetwork = results.any((r) => r != ConnectivityResult.none);
-    debugPrint('[signaling] connectivity changed: $results hasNetwork=$hasNetwork');
+    Logger.debug('[signaling] connectivity changed', extras: {
+      'results': results,
+      'hasNetwork': hasNetwork,
+    });
     if (hasNetwork) {
       _scheduleReconnect(immediate: true);
     } else {
@@ -267,10 +277,10 @@ class WebRtcSignalingService implements SignalingTransport {
         ? 0
         : math.min(_maxBackoffSeconds, math.pow(2, _reconnectAttempt).toInt());
     _reconnectAttempt += 1;
-    debugPrint(
-      '[signaling] reconnect scheduled attempt=$_reconnectAttempt '
-      'delay=${delaySeconds}s',
-    );
+    Logger.info('[signaling] reconnect scheduled', extras: {
+      'attempt': _reconnectAttempt,
+      'delaySeconds': delaySeconds,
+    });
     _emitState(SignalingConnectionState.reconnecting);
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
       if (_disposed) return;
@@ -306,12 +316,13 @@ class WebRtcSignalingService implements SignalingTransport {
       final model = _pb.authStore.model;
       final modelId = (model is RecordModel) ? model.id : null;
       if (modelId == expectedPbId) {
-        debugPrint('[signaling] auth already valid pbId=$expectedPbId');
+        Logger.debug('[signaling] auth already valid',
+            extras: {'pbId': expectedPbId});
         return;
       }
-      debugPrint(
-        '[signaling] authStore identity mismatch '
-        '(model.id=$modelId, expected=$expectedPbId) — clearing',
+      Logger.warn(
+        '[signaling] authStore identity mismatch — clearing',
+        extras: {'modelId': modelId, 'expectedPbId': expectedPbId},
       );
       _pb.authStore.clear();
     }
@@ -329,7 +340,8 @@ class WebRtcSignalingService implements SignalingTransport {
           collectionName: 'users',
         ),
       );
-      debugPrint('[signaling] auth restored from storage pbId=$storedPbUserId');
+      Logger.info('[signaling] auth restored from storage',
+          extras: {'pbId': storedPbUserId});
       return;
     }
 
@@ -343,13 +355,11 @@ class WebRtcSignalingService implements SignalingTransport {
     RecordAuth auth;
     try {
       auth = await _pb.collection('users').authWithPassword(email, password);
-      debugPrint(
-        '[signaling] auth restored via password pbId=${auth.record?.id}',
-      );
+      Logger.info('[signaling] auth restored via password',
+          extras: {'pbId': auth.record?.id});
     } catch (loginError) {
-      debugPrint(
-        '[signaling] login failed, creating new account: $loginError',
-      );
+      Logger.info('[signaling] login failed, creating new account',
+          extras: {'error': loginError});
       await _pb.collection('users').create(body: <String, dynamic>{
         'id': expectedPbId,
         'email': email,
@@ -358,10 +368,10 @@ class WebRtcSignalingService implements SignalingTransport {
         'name': selfUserId,
       });
       auth = await _pb.collection('users').authWithPassword(email, password);
-      debugPrint(
-        '[signaling] auth created new user pbId=${auth.record?.id} '
-        '(expected=$expectedPbId)',
-      );
+      Logger.info('[signaling] auth created new user', extras: {
+        'pbId': auth.record?.id,
+        'expectedPbId': expectedPbId,
+      });
     }
 
     final actualPbId = auth.record?.id;
@@ -384,10 +394,10 @@ class WebRtcSignalingService implements SignalingTransport {
     final storedPbUserId = await _storage.read(_kPbUserIdKey);
     if (storedPbUserId == null || storedPbUserId.isEmpty) return;
     if (storedPbUserId == expectedPbId) return;
-    debugPrint(
-      '[signaling] legacy auth detected, migrating pbId=$storedPbUserId → '
-      '$expectedPbId',
-    );
+    Logger.info('[signaling] legacy auth detected, migrating', extras: {
+      'storedPbUserId': storedPbUserId,
+      'expectedPbId': expectedPbId,
+    });
     await _storage.delete(_kPbTokenKey);
     await _storage.delete(_kPbUserIdKey);
     await _storage.delete(_kPbPasswordKey);

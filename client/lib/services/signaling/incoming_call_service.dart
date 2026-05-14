@@ -1,7 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
@@ -86,26 +87,29 @@ class IncomingCallSignalingService {
     final pbSelfId = pbIdFromLocalUuid(selfUserId);
     final filter = "target='$pbSelfId' && "
         "(type='offer' || type='hangup')";
-    debugPrint('[signaling] incoming-call subscribe filter=$filter');
+    Logger.info('[signaling] incoming-call subscribe',
+        extras: {'pbSelfId': pbSelfId});
     try {
       _unsubscribe = await _pb
           .collection('rtc_signaling')
           .subscribe('*', _onRecord, filter: filter);
     } catch (error) {
-      debugPrint('[signaling] incoming-call subscribe error: $error');
+      Logger.warn('[signaling] incoming-call subscribe error',
+          extras: {'error': error});
       rethrow;
     }
   }
 
   Future<void> stop() async {
-    debugPrint('[signaling] incoming-call stop');
+    Logger.info('[signaling] incoming-call stop');
     final unsub = _unsubscribe;
     _unsubscribe = null;
     if (unsub != null) {
       try {
         await unsub();
       } catch (error) {
-        debugPrint('[signaling] incoming-call unsubscribe error: $error');
+        Logger.warn('[signaling] incoming-call unsubscribe error',
+            extras: {'error': error});
       }
     }
     if (!_eventsController.isClosed) {
@@ -124,10 +128,11 @@ class IncomingCallSignalingService {
   }) async {
     final pbCreator = pbIdFromLocalUuid(selfUserId);
     final pbTarget = pbIdFromLocalUuid(callerUserId);
-    debugPrint(
-      '[signaling] decline call roomId=$roomId caller=$pbTarget '
-      '(localUuid=$callerUserId)',
-    );
+    Logger.info('[signaling] decline call', extras: {
+      'roomId': roomId,
+      'pbTarget': pbTarget,
+      'callerUserId': callerUserId,
+    });
     try {
       await _pb.collection('rtc_signaling').create(body: {
         'roomId': roomId,
@@ -137,7 +142,7 @@ class IncomingCallSignalingService {
         'payload': const <String, dynamic>{},
       });
     } catch (error) {
-      debugPrint('[signaling] decline error: $error');
+      Logger.warn('[signaling] decline error', extras: {'error': error});
     }
   }
 
@@ -151,17 +156,17 @@ class IncomingCallSignalingService {
       switch (message.type) {
         case RtcMessageType.offer:
           if (message.payload['purpose'] == 'datachannel') {
-            debugPrint(
+            Logger.debug(
               '[FIX:local-only] incoming datachannel offer ignored by call manager',
             );
             break;
           }
           final isVideoCall = (message.payload['callType'] ?? '') == 'video';
           final fromNickname = (message.payload['nickname'] ?? '') as String;
-          debugPrint(
-            '[signaling] incoming offer detected roomId=${message.roomId} '
-            'from=${message.creator}',
-          );
+          Logger.info('[signaling] incoming offer detected', extras: {
+            'roomId': message.roomId,
+            'fromUserId': message.creator,
+          });
           _eventsController.add(IncomingCallOffer(
             roomId: message.roomId,
             fromUserId: message.creator,
@@ -171,10 +176,10 @@ class IncomingCallSignalingService {
           ));
           break;
         case RtcMessageType.hangup:
-          debugPrint(
-            '[signaling] incoming hangup roomId=${message.roomId} '
-            'from=${message.creator}',
-          );
+          Logger.info('[signaling] incoming hangup', extras: {
+            'roomId': message.roomId,
+            'fromUserId': message.creator,
+          });
           _eventsController.add(IncomingCallHangup(
             roomId: message.roomId,
             fromUserId: message.creator,
@@ -187,7 +192,8 @@ class IncomingCallSignalingService {
           break;
       }
     } catch (error) {
-      debugPrint('[signaling] incoming-call parse error: $error');
+      Logger.warn('[signaling] incoming-call parse error',
+          extras: {'error': error});
     }
   }
 

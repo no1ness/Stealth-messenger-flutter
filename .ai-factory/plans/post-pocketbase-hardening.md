@@ -134,7 +134,7 @@ P8 (Android) — последний, изолированный.
 
 **Phase 3 commit:** `fix(bootstrap): defaults env + setup guide UX, decouple .env asset`.
 
-## Phase 4 — Structured logger + redaction
+## Phase 4 — Structured logger + redaction ✅ done
 
 **Цель:** заменить разрозненный `debugPrint` единым модулем; не светить user_id в логах.
 
