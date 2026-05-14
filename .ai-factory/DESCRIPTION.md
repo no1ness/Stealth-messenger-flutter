@@ -13,6 +13,9 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - P2P messaging использует WebRTC DataChannel.
 - WebRTC signaling использует собственный PocketBase (`POCKETBASE_URL`) через SSE.
 - Звонки идут через WebRTC; PocketBase хранит только временные signaling events.
+- PocketBase identity: `users.id == pbIdFromLocalUuid(selfUserId)` (локальный UUID без дефисов) — это контракт между клиентом и API rules коллекции `rtc_signaling`, см. `client/lib/services/signaling/pb_user_id.dart` и `docs/POCKETBASE_SETUP.md`.
+- Структурированное логирование через `client/lib/logging/logger.dart` (`Logger.debug/info/warn/error`) с auto-redaction sensitive ids выше DEBUG уровня. Прямой `print()` в `lib/` запрещён (project rule + regression test `client/test/security/private_key_no_export_test.dart`).
+- Env-конфиг: committed `.env.defaults` (асет), runtime override через `--dart-define=<KEY>=value`. `.env` остаётся в `.gitignore` и больше не входит в asset bundle.
 
 ## Стек
 
@@ -26,13 +29,18 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 
 ## Ключевые файлы
 
-- `client/lib/main.dart` - bootstrap, `.env`, startup recovery
-- `client/lib/local_app_service.dart` - local-first application facade
-- `client/lib/local_database_service.dart` - зашифрованное локальное хранилище
-- `client/lib/p2p_service.dart` - WebRTC DataChannel messaging
-- `client/lib/services/signaling/webrtc_signaling_service.dart` - PocketBase signaling transport
-- `client/lib/services/signaling/incoming_call_service.dart` - global incoming-call subscription
-- `client/lib/ui/screens/` - основные экраны
+- `client/lib/main.dart` — bootstrap, `.env.defaults` + dart-define, startup recovery
+- `client/lib/local_app_service.dart` — local-first application facade
+- `client/lib/local_database_service.dart` — зашифрованное локальное хранилище
+- `client/lib/p2p_service.dart` — WebRTC DataChannel messaging
+- `client/lib/logging/logger.dart` — структурированный логгер + redaction
+- `client/lib/services/signaling/webrtc_signaling_service.dart` — PocketBase signaling transport
+- `client/lib/services/signaling/incoming_call_service.dart` — global incoming-call subscription
+- `client/lib/services/signaling/pb_user_id.dart` — двунаправленная трансформация local UUID ↔ PB record id
+- `client/lib/crypto/ratchet_service.dart` — symmetric KDF chain (НЕ Double Ratchet, без PFS; future-work в `.ai-factory/RESEARCH.md`)
+- `client/lib/ui/screens/` — основные экраны (chats, calls, profile, settings, contacts)
+- `client/lib/ui/screens/chats/` — выделенные модули chats (group sheets)
+- `.github/workflows/ci.yml` — quality gate (analyze + test + build web + build apk + optional signaling smoke)
 
 ## Правило проекта
 
