@@ -1,13 +1,34 @@
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 
-/// Упрощённая реализация алгоритма Double Ratchet.
-/// 
-/// Обеспечивает Perfect Forward Secrecy (PFS) путём постоянной смены 
-/// ключей шифрования для каждого отдельного сообщения (Symmetric Ratchet).
-/// 
-/// Старые ключи цепочки (Chain Key) уничтожаются (отбрасываются) при вычислении новых,
-/// поэтому взлом текущего состояния не позволяет расшифровать старые переписки.
+/// Stateless symmetric KDF chain built on top of the X25519 shared
+/// secret.
+///
+/// **What this is NOT**
+///
+/// - This is NOT the Signal Double Ratchet. There is no DH ratchet
+///   step per message — only an HMAC-based forward chain derived
+///   deterministically from a shared `rootChainKey`.
+/// - It does NOT provide Perfect Forward Secrecy. `getNthMessageKey`
+///   recomputes the message key by iterating from the root chain on
+///   every call, so the root key is never destroyed. A leak of the
+///   root chain key compromises every past and future message in the
+///   chain.
+/// - It does NOT provide post-compromise security: there is no
+///   mechanism to recover from a leaked chain key.
+///
+/// **What this is**
+///
+/// - A deterministic message-key derivation by index. Two peers that
+///   agree on the same root chain (via X25519 ECDH) and the same
+///   per-message index compute identical encryption keys without
+///   storing any per-message state locally. This is what the rest of
+///   the messenger relies on for per-message AES-GCM keys.
+/// - A starting point. Promoting this to a real Double Ratchet with
+///   DH steps and key deletion is tracked in
+///   `.ai-factory/RESEARCH.md` (see `Crypto upgrade: real Double
+///   Ratchet`). Until that work lands, do not claim PFS in product
+///   copy or threat models.
 class RatchetService {
   final Hmac _hmac = Hmac.sha256();
   final AesGcm _aes = AesGcm.with256bits();

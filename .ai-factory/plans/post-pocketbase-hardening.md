@@ -208,7 +208,7 @@ P8 (Android) — последний, изолированный.
 2. `refactor(ui): split webrtc_call_screen_web into controller/media/view`.
 3. `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view`.
 
-## Phase 6 — Crypto claims × реальность
+## Phase 6 — Crypto claims × реальность ✅ done
 
 **Цель:** убрать ложные claims о Double Ratchet и PFS из исходников и докуметов; зафиксировать настоящую модель.
 
