@@ -39,17 +39,21 @@ jobs:
           flutter --version
           dart --version
 
-      - name: Validate .env.example completeness
+      - name: Validate env files completeness
         run: |
           required_keys="POCKETBASE_URL TURN_URL TURN_USERNAME TURN_PASSWORD TURNS_URL TURNS_USERNAME TURNS_PASSWORD"
-          missing=""
-          for key in $required_keys; do
-            grep -qE "^${key}=" .env.example || missing="$missing $key"
+          fail=0
+          for file in .env.example .env.defaults; do
+            missing=""
+            for key in $required_keys; do
+              grep -qE "^${key}=" "$file" || missing="$missing $key"
+            done
+            if [ -n "$missing" ]; then
+              echo "::error file=client/${file}::missing keys:$missing"
+              fail=1
+            fi
           done
-          if [ -n "$missing" ]; then
-            echo "::error file=client/.env.example::missing keys:$missing"
-            exit 1
-          fi
+          exit $fail
 
       - name: flutter pub get
         run: flutter pub get
@@ -77,14 +81,9 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      # The web build expects a .env asset (see pubspec.yaml).
-      # CI does not carry secrets; emit a stub so the bundle step succeeds.
-      # Real values are injected at deploy time, not at build time.
-      - name: Stub .env for build
-        run: |
-          if [ ! -f .env ]; then
-            cp .env.example .env
-          fi
+      # `.env.defaults` is bundled directly (see pubspec.yaml), so no
+      # secrets are needed for CI builds. Real values are injected via
+      # `--dart-define=POCKETBASE_URL=...` at deploy time.
 
       - name: flutter build web --release
         run: flutter build web --release --no-tree-shake-icons
@@ -111,12 +110,6 @@ jobs:
 
       - name: flutter pub get
         run: flutter pub get
-
-      - name: Stub .env for build
-        run: |
-          if [ ! -f .env ]; then
-            cp .env.example .env
-          fi
 
       - name: Cache Gradle
         uses: actions/cache@v4

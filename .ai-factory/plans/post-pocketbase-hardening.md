@@ -106,7 +106,7 @@ P8 (Android) — последний, изолированный.
 
 **Phase 2 commit:** `ci: add GitHub Actions for analyze/test/build` (+ doc badge).
 
-## Phase 3 — Bootstrap hardening
+## Phase 3 — Bootstrap hardening ✅ done
 
 **Цель:** чистая `flutter build` без локального `.env` должна давать понятную ошибку, а не падать на ассете.
 

@@ -9,6 +9,60 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
+/// Environment keys that can be overridden at build time via
+/// `--dart-define=<key>=<value>`. Any non-empty value is pushed into
+/// [dotenv.env] after the committed defaults load, so existing readers
+/// (`dotenv.env[X]`) automatically pick up the override.
+const List<String> _kDartDefineEnvKeys = <String>[
+  'POCKETBASE_URL',
+  'TURN_URL',
+  'TURN_USERNAME',
+  'TURN_PASSWORD',
+  'TURNS_URL',
+  'TURNS_USERNAME',
+  'TURNS_PASSWORD',
+];
+
+void _applyDartDefineOverrides() {
+  for (final key in _kDartDefineEnvKeys) {
+    final fromDefine = _fromEnvironmentByKey(key);
+    if (fromDefine.isNotEmpty) {
+      dotenv.env[key] = fromDefine;
+      debugPrint('[stealth-call] $key overridden via --dart-define');
+    }
+  }
+}
+
+/// `String.fromEnvironment` only accepts compile-time constant names, so
+/// the keys are spelled out explicitly here.
+String _fromEnvironmentByKey(String key) {
+  switch (key) {
+    case 'POCKETBASE_URL':
+      return const String.fromEnvironment('POCKETBASE_URL');
+    case 'TURN_URL':
+      return const String.fromEnvironment('TURN_URL');
+    case 'TURN_USERNAME':
+      return const String.fromEnvironment('TURN_USERNAME');
+    case 'TURN_PASSWORD':
+      return const String.fromEnvironment('TURN_PASSWORD');
+    case 'TURNS_URL':
+      return const String.fromEnvironment('TURNS_URL');
+    case 'TURNS_USERNAME':
+      return const String.fromEnvironment('TURNS_USERNAME');
+    case 'TURNS_PASSWORD':
+      return const String.fromEnvironment('TURNS_PASSWORD');
+    default:
+      return '';
+  }
+}
+
+bool _isPlaceholderPocketbaseUrl(String url) {
+  final lower = url.toLowerCase();
+  return lower.endsWith('signal.example.com') ||
+      lower.endsWith('signal.example.com/') ||
+      lower.contains('change_me');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -56,14 +110,22 @@ class _MyAppState extends State<MyApp> {
     }
 
     try {
-      // Env loading stays explicit so `flutter run` behaves the same on every target.
-      await dotenv.load(fileName: '.env');
-      final pocketbaseUrl = dotenv.env['POCKETBASE_URL'];
-      if (pocketbaseUrl == null || pocketbaseUrl.isEmpty) {
+      // Load committed defaults first. `.env.defaults` is bundled as an
+      // asset (see pubspec.yaml) so this call always succeeds on a clean
+      // clone and in CI. Real values come from `--dart-define` build
+      // flags below or from local edits to `.env.defaults` — see the
+      // file header for the override matrix.
+      await dotenv.load(fileName: '.env.defaults');
+      _applyDartDefineOverrides();
+
+      final pocketbaseUrl = dotenv.env['POCKETBASE_URL']?.trim() ?? '';
+      if (pocketbaseUrl.isEmpty || _isPlaceholderPocketbaseUrl(pocketbaseUrl)) {
         throw Exception(
-          'Missing POCKETBASE_URL in client/.env. WebRTC call signaling '
-          'requires a PocketBase server - see docs/POCKETBASE_SETUP.md '
-          'for setup instructions.',
+          'POCKETBASE_URL is unset or pointing at the bundled placeholder '
+          '"$pocketbaseUrl". Provide a real signaling endpoint via '
+          '--dart-define=POCKETBASE_URL=https://signal.your.tld (recommended) '
+          'or by editing client/.env.defaults locally. See '
+          'docs/POCKETBASE_SETUP.md for the full deployment guide.',
         );
       }
       debugPrint('[stealth-call] PocketBase URL: $pocketbaseUrl');

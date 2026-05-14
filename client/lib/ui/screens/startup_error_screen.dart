@@ -66,12 +66,28 @@ class StartupErrorScreen extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Text(
-                            'Check client/.env, then verify POCKETBASE_URL before retrying.',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.caption1.copyWith(
-                              color: Colors.white,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Provide a real POCKETBASE_URL via one of:',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.caption1.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                '• flutter run --dart-define=POCKETBASE_URL=…\n'
+                                '• edit client/.env.defaults locally\n'
+                                '• see docs/POCKETBASE_SETUP.md',
+                                textAlign: TextAlign.left,
+                                style: AppTypography.caption1.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
