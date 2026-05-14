@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -16,7 +16,7 @@ import 'package:stealth/webrtc_support.dart';
 class ContactsScreen extends StatefulWidget {
   ContactsScreen({super.key, ContactsDataSource? dataSource})
       : _dataSource = dataSource ??
-            SupabaseContactsDataSource(SupabaseService());
+            LocalContactsDataSource(LocalAppService());
 
   final ContactsDataSource _dataSource;
 
@@ -28,7 +28,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _addContactController = TextEditingController();
-  ContactsDataSource get _supabaseService => widget._dataSource;
+  ContactsDataSource get _appService => widget._dataSource;
   bool _loading = true;
   bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];
@@ -55,7 +55,7 @@ class _ContactsScreenState extends State<ContactsScreen>
         _loading = true;
       });
     }
-    final rows = await _supabaseService.getContacts();
+    final rows = await _appService.getContacts();
     if (!mounted) {
       return;
     }
@@ -73,7 +73,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    await _supabaseService.deleteContact(userId);
+    await _appService.deleteContact(userId);
     await _loadContacts();
     if (!mounted) {
       return;
@@ -168,7 +168,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       );
     }
 
-    final safetyNumber = await _supabaseService.getSafetyNumber(userId);
+    final safetyNumber = await _appService.getSafetyNumber(userId);
 
     if (mounted) {
       Navigator.of(context).pop(); // Закрываем диалог загрузки
@@ -219,7 +219,7 @@ class _ContactsScreenState extends State<ContactsScreen>
         return StatefulBuilder(
           builder: (context, setModalState) {
             Future<void> search() async {
-              final rows = await _supabaseService.searchUsers(
+              final rows = await _appService.searchUsers(
                 _addContactController.text,
               );
               setModalState(() {
@@ -257,12 +257,12 @@ class _ContactsScreenState extends State<ContactsScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Semantics(
-                    label: AccessibilityIds.contactIdInput,
+                    label: AccessibilityIds.contactBundleInput,
                     textField: true,
                     child: TextField(
                       controller: _addContactController,
                       decoration: const InputDecoration(
-                        hintText: 'Search by nickname or full user ID',
+                        hintText: 'Paste contact bundle',
                         prefixIcon: Icon(Icons.search),
                       ),
                       onChanged: (_) => search(),
@@ -272,7 +272,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Tip: open Profile on the other device and copy its User ID for exact search.',
+                      'Tip: open Profile on the other device and copy its contact bundle for E2E messaging.',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -281,7 +281,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                     child: OutlinedButton.icon(
                       onPressed: pasteAndSearch,
                       icon: const Icon(Icons.content_paste),
-                      label: const Text('Paste ID'),
+                      label: const Text('Paste contact'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -310,7 +310,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                   button: true,
                                   child: FilledButton(
                                     onPressed: () async {
-                                      await _supabaseService.addContact(
+                                      await _appService.addContact(
                                         result['user_id'] as String,
                                       );
                                       if (!context.mounted) {
@@ -341,7 +341,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    final chatId = await _supabaseService.findOrCreatePrivateChatWith(userId);
+    final chatId = await _appService.findOrCreatePrivateChatWith(userId);
     if (!mounted || chatId == null) {
       return;
     }
@@ -394,7 +394,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    final chatId = await _supabaseService.findOrCreatePrivateChatWith(userId);
+    final chatId = await _appService.findOrCreatePrivateChatWith(userId);
     if (!mounted || chatId == null) {
       if (mounted) {
         setState(() => _startingCall = false);
@@ -402,14 +402,9 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    await _supabaseService.sendCallInitiation(
-      chatId: chatId,
-      isVideoCall: isVideoCall,
-    );
-    if (!mounted) {
-      return;
-    }
-
+    // В PocketBase-архитектуре sendCallInitiation удалён: сам offer,
+    // который шлёт WebRTCCallScreen после открытия, и есть «звонок».
+    // Это устраняет лишний канал связи и упрощает race-conditions.
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WebRTCCallScreen(

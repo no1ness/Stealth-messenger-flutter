@@ -1,0 +1,16 @@
+# Template for the release signing config consumed by app/build.gradle.kts.
+#
+# Copy this file to `client/android/key.properties` (gitignored) and fill
+# in real values BEFORE running `flutter build apk --release` or
+# `flutter build appbundle --release`. If the file is missing the build
+# falls back to the debug keystore (so `flutter run --release` still
+# works during local development), but the resulting artifact is NOT
+# suitable for Play Store / F-Droid publication.
+#
+# See `docs/ANDROID_RELEASE.md` for the full workflow including
+# `keytool` invocation.
+
+storeFile=/absolute/path/to/your/stealth-release.jks
+storePassword=replace-with-store-password
+keyAlias=stealth
+keyPassword=replace-with-key-password

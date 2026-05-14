@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
@@ -14,7 +13,7 @@ class DebugStatusBar extends StatefulWidget {
 }
 
 class _DebugStatusBarState extends State<DebugStatusBar> {
-  bool _isSupabaseConnected = false;
+  bool _isLocalReady = true;
   int _latencyMs = 0;
   Timer? _monitorTimer;
 
@@ -37,28 +36,12 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
 
   Future<void> _checkStatus() async {
     final start = DateTime.now();
-    try {
-      // Simple ping to check connection
-      await Supabase.instance.client
-          .from('users')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-      
-      final end = DateTime.now();
-      
-      if (mounted) {
-        setState(() {
-          _isSupabaseConnected = true;
-          _latencyMs = end.difference(start).inMilliseconds;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSupabaseConnected = false;
-        });
-      }
+    final end = DateTime.now();
+    if (mounted) {
+      setState(() {
+        _isLocalReady = true;
+        _latencyMs = end.difference(start).inMilliseconds;
+      });
     }
   }
 
@@ -74,8 +57,8 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
             vertical: 4,
           ),
           decoration: BoxDecoration(
-            color: _isSupabaseConnected 
-                ? AppColors.glassUltraDark 
+            color: _isLocalReady
+                ? AppColors.glassUltraDark
                 : AppColors.systemRed.withValues(alpha: 0.2),
             border: Border(
               bottom: BorderSide(
@@ -95,11 +78,11 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _isSupabaseConnected ? AppColors.systemGreen : AppColors.systemRed,
+                        color: _isLocalReady ? AppColors.systemGreen : AppColors.systemRed,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (_isSupabaseConnected ? AppColors.systemGreen : AppColors.systemRed)
+                            color: (_isLocalReady ? AppColors.systemGreen : AppColors.systemRed)
                                 .withValues(alpha: 0.5),
                             blurRadius: 4,
                             spreadRadius: 1,
@@ -109,7 +92,7 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'SUPABASE',
+                      'LOCAL',
                       style: AppTypography.caption2.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -121,7 +104,7 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
                 Text(
                   '${_latencyMs}ms',
                   style: AppTypography.caption2.copyWith(
-                    color: _latencyMs < 200 ? AppColors.systemGreen : 
+                    color: _latencyMs < 200 ? AppColors.systemGreen :
                            _latencyMs < 500 ? AppColors.systemOrange : AppColors.systemRed,
                     fontFamily: 'monospace',
                   ),

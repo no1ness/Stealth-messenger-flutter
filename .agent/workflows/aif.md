@@ -511,7 +511,7 @@ Install skills, configure MCP, generate `AGENTS.md` in resolved `language.artifa
 ```
 
 ### Postgres
-**When:** Uses PostgreSQL, Prisma, Drizzle, Supabase
+**When:** Uses PostgreSQL, Prisma, Drizzle
 
 ```json
 {

@@ -79,7 +79,7 @@ class LocalDatabaseService {
   }
 
   /// Saves a message to the local DB.
-  /// [synced] — true if already persisted to Supabase, false if written offline.
+  /// [synced] is kept as a generic delivery marker for P2P/local import paths.
   Future<Object?> saveMessage(
     Map<String, dynamic> message, {
     bool synced = true,
@@ -95,15 +95,17 @@ class LocalDatabaseService {
       final index = store.index('messageId');
       final existingKey = await index.getKey(messageId);
       if (existingKey != null) {
-        // Already exists, maybe update sync status if it was not synced before
+        // Already exists; refresh the encrypted payload and delivery marker.
         final existing = await store.getObject(existingKey);
         if (existing is Map) {
           final val = Map<String, dynamic>.from(existing);
-          // Only update if sync status changed from 0 to 1
-          if (synced && (val['synced'] as int? ?? 1) == 0) {
-            val['synced'] = 1;
-            await store.put(val, existingKey);
-          }
+          final encrypted =
+              await CryptoHelper.encryptData(jsonEncode(message), _dbKey!);
+          val['payload'] = encrypted;
+          val['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+          val['chatId'] = message['chat_id'];
+          val['synced'] = synced ? 1 : (val['synced'] as int? ?? 1);
+          await store.put(val, existingKey);
         }
         await txn.completed;
         return existingKey;
@@ -182,7 +184,7 @@ class LocalDatabaseService {
     await txn.completed;
   }
 
-  /// Marks a locally stored message as synced with Supabase using its messageId.
+  /// Marks a locally stored message as delivered using its messageId.
   Future<void> markMessageSynced(String messageId) async {
     await _ensureInitialized();
     final txn = _db!.transaction(messagesStore, idbModeReadWrite);

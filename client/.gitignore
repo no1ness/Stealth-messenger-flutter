@@ -27,5 +27,5 @@ build/
 # Logs
 *.log
 
-# Supabase keys (никогда не коммитьте!)
-supabase_keys.dart
+# Local environment files
+.env

@@ -1,77 +1,50 @@
 # Модель безопасности Stealth Messenger
 
+## Что защищаем
+
+- Приватные ключи пользователя.
+- Plaintext сообщений.
+- Вложения до шифрования и после расшифровки.
+- Локальную историю контактов, чатов и звонков.
+
 ## Криптография
 
-### Алгоритмы
-| Назначение | Алгоритм | Библиотека |
-|-----------|----------|-----------|
-| Обмен ключами | X25519 (Curve25519 ECDH) | `cryptography: ^2.7.0` |
-| Шифрование сообщений | AES-256-GCM | `cryptography: ^2.7.0` |
-| Генерация ID | UUID v4 | `uuid: ^4.5.1` |
-
-### Формат шифрованного сообщения
-```
-[nonce: 12 байт][ciphertext: N байт][MAC: 16 байт] → Base64
-```
-
-### Приватные чаты
-1. Каждый пользователь генерирует пару ключей X25519 при регистрации
-2. Shared secret = `X25519(myPrivate, theirPublic)` — идентичен для обоих сторон
-3. Каждое сообщение шифруется `AES-256-GCM` со свежим nonce (12 байт)
-4. Shared secret кэшируется в памяти, **не сохраняется на диск**
-
-### Групповые чаты
-1. Генерируется симметричный AES-256 ключ группы
-2. Ключ оборачивается (encrypted envelope) для каждого участника через его shared secret
-3. Обёртки хранятся в `group_key_envelopes`
-4. При изменении состава группы — rekey (генерация нового ключа)
+- Identity keypair: X25519.
+- Private chat secret: X25519 shared secret.
+- Message encryption: AES-256-GCM.
+- Ratchet helpers используются для private message keys. **Это НЕ Double
+  Ratchet и НЕ обеспечивает Perfect Forward Secrecy.** Текущая
+  реализация (`client/lib/crypto/ratchet_service.dart`) — stateless
+  symmetric KDF chain поверх X25519 shared secret. План перехода на
+  настоящий Double Ratchet зафиксирован в
+  [`.ai-factory/RESEARCH.md`](../.ai-factory/RESEARCH.md).
+- Local database payloads дополнительно шифруются локальным ключом.
 
 ## Хранение ключей
 
-| Платформа | Механизм | Уровень защиты |
-|-----------|---------|---------------|
-| Android | `flutter_secure_storage_x` → Android Keystore | ✅ Аппаратное шифрование |
-| Web | `SharedPreferences` → localStorage | ⚠️ **Уязвимо для XSS** |
+- Android/native: secure storage abstraction поверх device-backed storage.
+- Web: browser storage abstraction; это слабее native и остается зоной риска при XSS.
+- Приватный ключ не экспортируется из UI.
+- Profile показывает contact bundle только с public key.
 
-> **⚠️ Известное ограничение:** На Web-платформе приватные ключи хранятся в localStorage. При XSS-атаке злоумышленник может извлечь ключи. Рекомендуемая миграция: Web Crypto API + IndexedDB.
+## Серверная видимость
 
-## Данные на сервере
+PocketBase видит только временные signaling events и их metadata: room, target, creator, type, timestamps, SDP/ICE payload. Он не хранит историю сообщений, контакты, вложения или plaintext.
 
-Принцип: **минимум данных на сервере**
+WebRTC media шифруется механизмами WebRTC (DTLS-SRTP). PocketBase не переносит media packets.
 
-| Хранится на сервере | НЕ хранится на сервере |
-|--------------------|-----------------------|
-| UUID пользователя | Приватный ключ |
-| Публичный ключ | Расшифрованные сообщения |
-| Зашифрованный контент сообщений | Контакты (только связки ID) |
-| Зашифрованные файлы | Пароли (нет паролей) |
-| Метка времени | Телефон / email |
+## Главные риски
 
-## Известные ограничения и риски
+- Web storage уязвим к XSS.
+- Contact bundle нужно сравнивать/проверять через safety number, иначе возможна подмена public key.
+- Metadata звонков в signaling layer видима оператору PocketBase.
+- Нет полноценного multi-device key management.
+- Нет механизма revoke/rotate для identity key.
 
-### 🔴 Критические (Остались)
-1. **Web-хранилище ключей** — localStorage не защищает от XSS
+## Рекомендации
 
-### ✅ Устраненные риски
-- **Включен RLS (Row Level Security)** — политики настроены через `auth.uid()`.
-- **Интегрирована Supabase Auth** — используется анонимная авторизация.
-- **Внедрен Rate Limiting** — ограничения на стороне базы данных.
-
-### 🟡 Средние
-4. **Нет Forward Secrecy** — компрометация ключа раскрывает все прошлые сообщения. Нужно: Double Ratchet (Signal Protocol)
-5. **Нет верификации ключей** — отсутствует механизм сравнения fingerprint'ов публичных ключей (Safety Numbers)
-6. **Фиксированный shared secret** — один shared secret для всех сообщений с одним пользователем
-
-### 🟢 Низкие
-7. **Метаданные не шифруются** — `message_type`, `sender_id`, `created_at` видны серверу
-8. **Нет механизма отзыва ключей** при компрометации
-9. **Нет проверки целостности** при импорте/экспорте ключей
-
-## Рекомендации по усилению
-
-1. ~~**Включить RLS** в Supabase для всех таблиц~~ (Выполнено)
-2. **Реализовать Double Ratchet** для Perfect Forward Secrecy
-3. **Мигрировать Web-хранилище** на Web Crypto API + IndexedDB
-4. **Добавить Safety Numbers** для верификации ключей
-5. ~~**Внедрить Supabase Auth** или кастомный JWT вместо локальных UUID~~ (Выполнено)
-6. ~~**Rate limiting** через Supabase Edge Functions или RLS-политики~~ (Выполнено)
+1. Добавить explicit safety-number verification перед первым E2E-чатом.
+2. Усилить Web build CSP и убрать inline script риски.
+3. Добавить key rotation/revocation.
+4. Добавить TTL cleanup для PocketBase signaling collection.
+5. Проверить TURN/TURNS deployment и certificate hygiene.

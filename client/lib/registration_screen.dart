@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
@@ -17,7 +17,7 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _nicknameController = TextEditingController();
   bool _isLoading = false;
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
 
   Future<void> _register() async {
     final nickname = _nicknameController.text.trim();
@@ -27,7 +27,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _isLoading = true;
     });
     try {
-      await _supabaseService.registerUser(nickname);
+      await _appService.registerUser(nickname);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainTabs()),

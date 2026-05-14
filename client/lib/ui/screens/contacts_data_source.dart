@@ -1,7 +1,6 @@
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 
-/// Abstract interface for loading contacts data. Allows testing ContactsScreen
-/// without initializing Supabase.
+/// Abstract interface for loading local contacts data.
 abstract class ContactsDataSource {
   Future<List<dynamic>> getContacts();
   Future<void> deleteContact(String userId);
@@ -9,17 +8,13 @@ abstract class ContactsDataSource {
   Future<List<dynamic>> searchUsers(String query);
   Future<void> addContact(String userId);
   Future<String?> findOrCreatePrivateChatWith(String userId);
-  Future<void> sendCallInitiation({
-    required String chatId,
-    required bool isVideoCall,
-  });
 }
 
-/// Default implementation that delegates to SupabaseService.
-class SupabaseContactsDataSource implements ContactsDataSource {
-  SupabaseContactsDataSource(this._service);
+/// Default implementation that delegates to LocalAppService.
+class LocalContactsDataSource implements ContactsDataSource {
+  LocalContactsDataSource(this._service);
 
-  final SupabaseService _service;
+  final LocalAppService _service;
 
   @override
   Future<List<dynamic>> getContacts() => _service.getContacts();
@@ -42,11 +37,4 @@ class SupabaseContactsDataSource implements ContactsDataSource {
   @override
   Future<String?> findOrCreatePrivateChatWith(String userId) =>
       _service.findOrCreatePrivateChatWith(userId);
-
-  @override
-  Future<void> sendCallInitiation({
-    required String chatId,
-    required bool isVideoCall,
-  }) =>
-      _service.sendCallInitiation(chatId: chatId, isVideoCall: isVideoCall);
 }

@@ -1,102 +1,102 @@
-# Установка Stealth Messenger на Android
+# РЈСЃС‚Р°РЅРѕРІРєР° Stealth Messenger РЅР° Android
 
-## Способ 1: Сборка APK (рекомендуется)
+## РЎРїРѕСЃРѕР± 1: РЎР±РѕСЂРєР° APK (СЂРµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ)
 
-### Предварительные требования:
-- Flutter SDK установлен и добавлен в PATH
-- Android SDK установлен
-- Телефон подключен по USB с включенной отладкой по USB
+### РџСЂРµРґРІР°СЂРёС‚РµР»СЊРЅС‹Рµ С‚СЂРµР±РѕРІР°РЅРёСЏ:
+- Flutter SDK СѓСЃС‚Р°РЅРѕРІР»РµРЅ Рё РґРѕР±Р°РІР»РµРЅ РІ PATH
+- Android SDK СѓСЃС‚Р°РЅРѕРІР»РµРЅ
+- РўРµР»РµС„РѕРЅ РїРѕРґРєР»СЋС‡РµРЅ РїРѕ USB СЃ РІРєР»СЋС‡РµРЅРЅРѕР№ РѕС‚Р»Р°РґРєРѕР№ РїРѕ USB
 
-### Шаги:
+### РЁР°РіРё:
 
-#### 1. Проверка окружения
+#### 1. РџСЂРѕРІРµСЂРєР° РѕРєСЂСѓР¶РµРЅРёСЏ
 ```bash
 flutter doctor
 ```
 
-Убедитесь что:
-- ✅ Flutter установлен
-- ✅ Android toolchain установлен
-- ✅ Android Studio / Android SDK доступны
+РЈР±РµРґРёС‚РµСЃСЊ С‡С‚Рѕ:
+- вњ… Flutter СѓСЃС‚Р°РЅРѕРІР»РµРЅ
+- вњ… Android toolchain СѓСЃС‚Р°РЅРѕРІР»РµРЅ
+- вњ… Android Studio / Android SDK РґРѕСЃС‚СѓРїРЅС‹
 
-#### 2. Подключение телефона
+#### 2. РџРѕРґРєР»СЋС‡РµРЅРёРµ С‚РµР»РµС„РѕРЅР°
 ```bash
-# Включите на телефоне: Настройки → О телефоне → 7 раз нажать "Номер сборки"
-# Затем: Настройки → Для разработчиков → Отладка по USB (включить)
+# Р’РєР»СЋС‡РёС‚Рµ РЅР° С‚РµР»РµС„РѕРЅРµ: РќР°СЃС‚СЂРѕР№РєРё в†’ Рћ С‚РµР»РµС„РѕРЅРµ в†’ 7 СЂР°Р· РЅР°Р¶Р°С‚СЊ "РќРѕРјРµСЂ СЃР±РѕСЂРєРё"
+# Р—Р°С‚РµРј: РќР°СЃС‚СЂРѕР№РєРё в†’ Р”Р»СЏ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєРѕРІ в†’ РћС‚Р»Р°РґРєР° РїРѕ USB (РІРєР»СЋС‡РёС‚СЊ)
 
-# Проверьте что телефон виден:
+# РџСЂРѕРІРµСЂСЊС‚Рµ С‡С‚Рѕ С‚РµР»РµС„РѕРЅ РІРёРґРµРЅ:
 flutter devices
-# или
+# РёР»Рё
 adb devices
 ```
 
-Должно показать ваше устройство, например:
+Р”РѕР»Р¶РЅРѕ РїРѕРєР°Р·Р°С‚СЊ РІР°С€Рµ СѓСЃС‚СЂРѕР№СЃС‚РІРѕ, РЅР°РїСЂРёРјРµСЂ:
 ```
 List of devices attached
 ABC123XYZ       device
 ```
 
-#### 3. Сборка и установка APK
+#### 3. РЎР±РѕСЂРєР° Рё СѓСЃС‚Р°РЅРѕРІРєР° APK
 
-**Вариант A: Прямая установка на подключенный телефон**
+**Р’Р°СЂРёР°РЅС‚ A: РџСЂСЏРјР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РЅР° РїРѕРґРєР»СЋС‡РµРЅРЅС‹Р№ С‚РµР»РµС„РѕРЅ**
 ```bash
 cd client
 flutter run --release
 ```
 
-**Вариант B: Сборка APK файла**
+**Р’Р°СЂРёР°РЅС‚ B: РЎР±РѕСЂРєР° APK С„Р°Р№Р»Р°**
 ```bash
 cd client
 flutter build apk --release
 ```
 
-APK будет создан в:
+APK Р±СѓРґРµС‚ СЃРѕР·РґР°РЅ РІ:
 ```
 client/build/app/outputs/flutter-apk/app-release.apk
 ```
 
-Размер: ~50-80 MB
+Р Р°Р·РјРµСЂ: ~50-80 MB
 
-#### 4. Установка APK на телефон
+#### 4. РЈСЃС‚Р°РЅРѕРІРєР° APK РЅР° С‚РµР»РµС„РѕРЅ
 
-**Способ 1: Через ADB**
+**РЎРїРѕСЃРѕР± 1: Р§РµСЂРµР· ADB**
 ```bash
 adb install client/build/app/outputs/flutter-apk/app-release.apk
 ```
 
-**Способ 2: Копирование файла**
-1. Скопируйте `app-release.apk` на телефон (через USB, облако, мессенджер)
-2. Откройте файл на телефоне
-3. Разрешите установку из неизвестных источников (если попросит)
-4. Нажмите "Установить"
+**РЎРїРѕСЃРѕР± 2: РљРѕРїРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»Р°**
+1. РЎРєРѕРїРёСЂСѓР№С‚Рµ `app-release.apk` РЅР° С‚РµР»РµС„РѕРЅ (С‡РµСЂРµР· USB, РѕР±Р»Р°РєРѕ, РјРµСЃСЃРµРЅРґР¶РµСЂ)
+2. РћС‚РєСЂРѕР№С‚Рµ С„Р°Р№Р» РЅР° С‚РµР»РµС„РѕРЅРµ
+3. Р Р°Р·СЂРµС€РёС‚Рµ СѓСЃС‚Р°РЅРѕРІРєСѓ РёР· РЅРµРёР·РІРµСЃС‚РЅС‹С… РёСЃС‚РѕС‡РЅРёРєРѕРІ (РµСЃР»Рё РїРѕРїСЂРѕСЃРёС‚)
+4. РќР°Р¶РјРёС‚Рµ "РЈСЃС‚Р°РЅРѕРІРёС‚СЊ"
 
 ---
 
-## Способ 2: Сборка App Bundle (для Google Play)
+## РЎРїРѕСЃРѕР± 2: РЎР±РѕСЂРєР° App Bundle (РґР»СЏ Google Play)
 
-Если планируете публиковать в Google Play:
+Р•СЃР»Рё РїР»Р°РЅРёСЂСѓРµС‚Рµ РїСѓР±Р»РёРєРѕРІР°С‚СЊ РІ Google Play:
 
 ```bash
 cd client
 flutter build appbundle --release
 ```
 
-Файл будет создан в:
+Р¤Р°Р№Р» Р±СѓРґРµС‚ СЃРѕР·РґР°РЅ РІ:
 ```
 client/build/app/outputs/bundle/release/app-release.aab
 ```
 
 ---
 
-## Настройка перед сборкой
+## РќР°СЃС‚СЂРѕР№РєР° РїРµСЂРµРґ СЃР±РѕСЂРєРѕР№
 
-### 1. Изменить Application ID (опционально)
+### 1. РР·РјРµРЅРёС‚СЊ Application ID (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
 
-Отредактируйте `client/android/app/build.gradle.kts`:
+РћС‚СЂРµРґР°РєС‚РёСЂСѓР№С‚Рµ `client/android/app/build.gradle.kts`:
 
 ```kotlin
 defaultConfig {
-    applicationId = "com.stealth.messenger"  // ← измените на свой
+    applicationId = "com.stealth.messenger"  // в†ђ РёР·РјРµРЅРёС‚Рµ РЅР° СЃРІРѕР№
     minSdk = 21
     targetSdk = 34
     versionCode = 1
@@ -104,27 +104,29 @@ defaultConfig {
 }
 ```
 
-### 2. Настроить .env файл
+### 2. РќР°СЃС‚СЂРѕРёС‚СЊ .env С„Р°Р№Р»
 
-Создайте `client/.env` с вашими Supabase credentials:
+Создайте `client/.env` с настройками PocketBase/TURN:
 
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
+POCKETBASE_URL=https://signal.example.com
 TURN_URL=turn:your-turn-server.com:3478
 TURN_USERNAME=your-username
 TURN_PASSWORD=your-password
+TURNS_URL=turns:your-turn-server.com:443?transport=tcp
+TURNS_USERNAME=your-username
+TURNS_PASSWORD=your-password
 ```
 
-### 3. Подписать APK (для production)
+### 3. РџРѕРґРїРёСЃР°С‚СЊ APK (РґР»СЏ production)
 
-Для production-сборки нужно создать keystore:
+Р”Р»СЏ production-СЃР±РѕСЂРєРё РЅСѓР¶РЅРѕ СЃРѕР·РґР°С‚СЊ keystore:
 
 ```bash
 keytool -genkey -v -keystore ~/stealth-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias stealth
 ```
 
-Создайте `client/android/key.properties`:
+РЎРѕР·РґР°Р№С‚Рµ `client/android/key.properties`:
 ```properties
 storePassword=your-store-password
 keyPassword=your-key-password
@@ -132,9 +134,9 @@ keyAlias=stealth
 storeFile=/path/to/stealth-release-key.jks
 ```
 
-Обновите `client/android/app/build.gradle.kts`:
+РћР±РЅРѕРІРёС‚Рµ `client/android/app/build.gradle.kts`:
 ```kotlin
-// Добавьте перед android {}
+// Р”РѕР±Р°РІСЊС‚Рµ РїРµСЂРµРґ android {}
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -143,7 +145,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     // ...
-    
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
@@ -152,7 +154,7 @@ android {
             storePassword = keystoreProperties["storePassword"] as String
         }
     }
-    
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -163,48 +165,48 @@ android {
 
 ---
 
-## Проверка установки
+## РџСЂРѕРІРµСЂРєР° СѓСЃС‚Р°РЅРѕРІРєРё
 
-После установки:
+РџРѕСЃР»Рµ СѓСЃС‚Р°РЅРѕРІРєРё:
 
-1. Откройте приложение "Stealth" на телефоне
-2. Введите никнейм
-3. Нажмите "GET STARTED"
-4. Приложение должно загрузиться и показать главный экран с табами
+1. РћС‚РєСЂРѕР№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёРµ "Stealth" РЅР° С‚РµР»РµС„РѕРЅРµ
+2. Р’РІРµРґРёС‚Рµ РЅРёРєРЅРµР№Рј
+3. РќР°Р¶РјРёС‚Рµ "GET STARTED"
+4. РџСЂРёР»РѕР¶РµРЅРёРµ РґРѕР»Р¶РЅРѕ Р·Р°РіСЂСѓР·РёС‚СЊСЃСЏ Рё РїРѕРєР°Р·Р°С‚СЊ РіР»Р°РІРЅС‹Р№ СЌРєСЂР°РЅ СЃ С‚Р°Р±Р°РјРё
 
 ---
 
-## Устранение проблем
+## РЈСЃС‚СЂР°РЅРµРЅРёРµ РїСЂРѕР±Р»РµРј
 
-### Ошибка: "Flutter not found"
+### РћС€РёР±РєР°: "Flutter not found"
 ```bash
-# Добавьте Flutter в PATH:
+# Р”РѕР±Р°РІСЊС‚Рµ Flutter РІ PATH:
 # Windows (PowerShell):
 $env:Path += ";C:\path\to\flutter\bin"
 
-# Или добавьте постоянно через Системные переменные
+# РР»Рё РґРѕР±Р°РІСЊС‚Рµ РїРѕСЃС‚РѕСЏРЅРЅРѕ С‡РµСЂРµР· РЎРёСЃС‚РµРјРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ
 ```
 
-### Ошибка: "Android SDK not found"
+### РћС€РёР±РєР°: "Android SDK not found"
 ```bash
-# Установите Android SDK через Android Studio
-# Или установите command-line tools:
+# РЈСЃС‚Р°РЅРѕРІРёС‚Рµ Android SDK С‡РµСЂРµР· Android Studio
+# РР»Рё СѓСЃС‚Р°РЅРѕРІРёС‚Рµ command-line tools:
 # https://developer.android.com/studio#command-tools
 ```
 
-### Ошибка: "device not found"
+### РћС€РёР±РєР°: "device not found"
 ```bash
-# Проверьте USB-отладку:
+# РџСЂРѕРІРµСЂСЊС‚Рµ USB-РѕС‚Р»Р°РґРєСѓ:
 adb devices
 
-# Если "unauthorized" — разрешите отладку на телефоне
-# Если не видит — переподключите USB, попробуйте другой кабель
+# Р•СЃР»Рё "unauthorized" вЂ” СЂР°Р·СЂРµС€РёС‚Рµ РѕС‚Р»Р°РґРєСѓ РЅР° С‚РµР»РµС„РѕРЅРµ
+# Р•СЃР»Рё РЅРµ РІРёРґРёС‚ вЂ” РїРµСЂРµРїРѕРґРєР»СЋС‡РёС‚Рµ USB, РїРѕРїСЂРѕР±СѓР№С‚Рµ РґСЂСѓРіРѕР№ РєР°Р±РµР»СЊ
 ```
 
-### Ошибка при сборке: "Execution failed for task ':app:lintVitalAnalyzeRelease'"
+### РћС€РёР±РєР° РїСЂРё СЃР±РѕСЂРєРµ: "Execution failed for task ':app:lintVitalAnalyzeRelease'"
 ```bash
-# Отключите lint проверки (временно):
-# В android/app/build.gradle.kts добавьте:
+# РћС‚РєР»СЋС‡РёС‚Рµ lint РїСЂРѕРІРµСЂРєРё (РІСЂРµРјРµРЅРЅРѕ):
+# Р’ android/app/build.gradle.kts РґРѕР±Р°РІСЊС‚Рµ:
 android {
     lintOptions {
         checkReleaseBuilds = false
@@ -213,55 +215,55 @@ android {
 }
 ```
 
-### Приложение крашится при запуске
+### РџСЂРёР»РѕР¶РµРЅРёРµ РєСЂР°С€РёС‚СЃСЏ РїСЂРё Р·Р°РїСѓСЃРєРµ
 ```bash
-# Проверьте логи:
+# РџСЂРѕРІРµСЂСЊС‚Рµ Р»РѕРіРё:
 adb logcat | grep -i flutter
 
-# Убедитесь что .env файл присутствует и содержит корректные данные
+# РЈР±РµРґРёС‚РµСЃСЊ С‡С‚Рѕ .env С„Р°Р№Р» РїСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ Рё СЃРѕРґРµСЂР¶РёС‚ РєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ
 ```
 
 ---
 
-## Размер APK
+## Р Р°Р·РјРµСЂ APK
 
 - **Debug APK:** ~80-100 MB
 - **Release APK:** ~50-70 MB
-- **Release APK (split-per-abi):** ~20-30 MB на архитектуру
+- **Release APK (split-per-abi):** ~20-30 MB РЅР° Р°СЂС…РёС‚РµРєС‚СѓСЂСѓ
 
-Для уменьшения размера используйте split APKs:
+Р”Р»СЏ СѓРјРµРЅСЊС€РµРЅРёСЏ СЂР°Р·РјРµСЂР° РёСЃРїРѕР»СЊР·СѓР№С‚Рµ split APKs:
 ```bash
 flutter build apk --release --split-per-abi
 ```
 
-Это создаст отдельные APK для:
+Р­С‚Рѕ СЃРѕР·РґР°СЃС‚ РѕС‚РґРµР»СЊРЅС‹Рµ APK РґР»СЏ:
 - `app-armeabi-v7a-release.apk` (32-bit ARM)
 - `app-arm64-v8a-release.apk` (64-bit ARM)
 - `app-x86_64-release.apk` (64-bit x86)
 
-Установите тот, который подходит для вашего телефона (обычно arm64-v8a).
+РЈСЃС‚Р°РЅРѕРІРёС‚Рµ С‚РѕС‚, РєРѕС‚РѕСЂС‹Р№ РїРѕРґС…РѕРґРёС‚ РґР»СЏ РІР°С€РµРіРѕ С‚РµР»РµС„РѕРЅР° (РѕР±С‹С‡РЅРѕ arm64-v8a).
 
 ---
 
-## Быстрая команда (всё в одном)
+## Р‘С‹СЃС‚СЂР°СЏ РєРѕРјР°РЅРґР° (РІСЃС‘ РІ РѕРґРЅРѕРј)
 
 ```bash
-# 1. Перейти в папку проекта
+# 1. РџРµСЂРµР№С‚Рё РІ РїР°РїРєСѓ РїСЂРѕРµРєС‚Р°
 cd client
 
-# 2. Проверить устройства
+# 2. РџСЂРѕРІРµСЂРёС‚СЊ СѓСЃС‚СЂРѕР№СЃС‚РІР°
 flutter devices
 
-# 3. Собрать и установить на подключенный телефон
+# 3. РЎРѕР±СЂР°С‚СЊ Рё СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РЅР° РїРѕРґРєР»СЋС‡РµРЅРЅС‹Р№ С‚РµР»РµС„РѕРЅ
 flutter run --release
 
-# Или собрать APK
+# РР»Рё СЃРѕР±СЂР°С‚СЊ APK
 flutter build apk --release --split-per-abi
 
-# Установить конкретный APK
+# РЈСЃС‚Р°РЅРѕРІРёС‚СЊ РєРѕРЅРєСЂРµС‚РЅС‹Р№ APK
 adb install build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 
 ---
 
-**Готово!** Приложение установлено на телефон. Теперь можно протестировать реальные звонки, передачу файлов и изображений на реальном устройстве.
+**Р“РѕС‚РѕРІРѕ!** РџСЂРёР»РѕР¶РµРЅРёРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅРѕ РЅР° С‚РµР»РµС„РѕРЅ. РўРµРїРµСЂСЊ РјРѕР¶РЅРѕ РїСЂРѕС‚РµСЃС‚РёСЂРѕРІР°С‚СЊ СЂРµР°Р»СЊРЅС‹Рµ Р·РІРѕРЅРєРё, РїРµСЂРµРґР°С‡Сѓ С„Р°Р№Р»РѕРІ Рё РёР·РѕР±СЂР°Р¶РµРЅРёР№ РЅР° СЂРµР°Р»СЊРЅРѕРј СѓСЃС‚СЂРѕР№СЃС‚РІРµ.

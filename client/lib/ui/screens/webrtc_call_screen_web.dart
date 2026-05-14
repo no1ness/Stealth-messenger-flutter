@@ -5,7 +5,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/services/signaling/peer_resolver.dart';
+import 'package:stealth/services/signaling/rtc_message.dart';
+import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -20,12 +23,22 @@ class WebRTCCallScreen extends StatefulWidget {
   final bool isCaller;
   final bool isVideoCall;
 
+  /// Уже принятый offer от другого пира (Map с ключами `sdp` и `type`).
+  /// Передаётся `CallManager` callee'у при открытии экрана, чтобы избежать
+  /// race condition подписки. Для caller всегда `null`.
+  final Map<String, dynamic>? initialOffer;
+
+  /// UUID звонящего; заполняется только для callee.
+  final String? callerUserId;
+
   const WebRTCCallScreen({
     super.key,
     required this.peerName,
     required this.chatId,
     required this.isCaller,
     this.isVideoCall = false,
+    this.initialOffer,
+    this.callerUserId,
   });
 
   @override
@@ -35,7 +48,16 @@ class WebRTCCallScreen extends StatefulWidget {
 class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   static final Set<String> _registeredViewTypes = <String>{};
 
-  final SupabaseService _supabaseService = SupabaseService();
+  /// Используется только для получения selfUserId/nickname. Сигналинг
+  /// идёт через [_signaling].
+  final LocalAppService _appService = LocalAppService();
+
+  /// Создаётся лениво в [_startCall]. См. комментарий в native-имплементации
+  /// `webrtc_call_screen_native_impl.dart` — конструктор по умолчанию
+  /// синхронно читает `dotenv.env['POCKETBASE_URL']`, что в widget-тестах
+  /// без загруженного `.env` падает в field-init State и блокирует рендер.
+  WebRtcSignalingService? _signaling;
+  final PeerResolver _peerResolver = PeerResolver();
   final List<web.RTCIceCandidateInit> _pendingRemoteCandidates =
       <web.RTCIceCandidateInit>[];
 
@@ -48,7 +70,10 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   Timer? _connectionTimeout;
   Timer? _callTimer;
   Timer? _audioAuditTimer;
-  StreamSubscription<Map<String, dynamic>>? _callAcceptedSub;
+  StreamSubscription<RtcMessage>? _signalingSub;
+
+  String? _selfUserId;
+  String? _targetUserId;
 
   bool _microphoneEnabled = true;
   bool _cameraEnabled = true;
@@ -111,9 +136,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     _connectionTimeout?.cancel();
     _callTimer?.cancel();
     _audioAuditTimer?.cancel();
-    _callAcceptedSub?.cancel();
+    // ignore: discarded_futures
+    _signalingSub?.cancel();
+    // ignore: discarded_futures
+    _signaling?.disconnect();
     _disposeMedia();
-    _supabaseService.unsubscribeCalls();
     super.dispose();
   }
 
@@ -127,16 +154,41 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (!support.isSupported) {
         throw Exception(support.blockingIssues.join(' '));
       }
+
+      // Создаём signaling лениво — после WebRTC support gate. Не в field-init,
+      // чтобы widget-тесты без dotenv не падали на PocketBaseClient.instance.
+      debugPrint('[FIX] webrtc-call web: lazy WebRtcSignalingService init');
+      _signaling = WebRtcSignalingService();
+
+      _selfUserId = await _appService.getUserId();
+      if (_selfUserId == null) {
+        throw StateError('Cannot start call: missing local user id');
+      }
+      if (widget.isCaller) {
+        _targetUserId = await _peerResolver.resolveTarget(
+          chatId: widget.chatId,
+          selfUserId: _selfUserId!,
+        );
+      } else {
+        _targetUserId = widget.callerUserId;
+        if (_targetUserId == null) {
+          throw StateError('Callee opened without callerUserId');
+        }
+      }
+      debugPrint(
+        '[stealth-call] web using signaling=PocketBase '
+        'self=$_selfUserId target=$_targetUserId isCaller=${widget.isCaller}',
+      );
+
       await _createPeerConnection();
       await _createLocalStream();
       await _attachLocalAudio();
 
-      await _supabaseService.subscribeCalls(
-        chatId: widget.chatId,
-        onOfferReceived: _handleOffer,
-        onAnswerReceived: _handleAnswer,
-        onIceCandidateReceived: _handleRemoteCandidate,
+      await _signaling!.connect(
+        roomId: widget.chatId,
+        selfUserId: _selfUserId!,
       );
+      _signalingSub = _signaling!.incoming.listen(_onSignalingMessage);
 
       _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected && mounted) {
@@ -146,19 +198,19 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         }
       });
 
-      // Вызывающая сторона откладывает отправку offer до тех пор, пока
-      // принимающая не подтвердила приём (`call_accept`). Без этой задержки
-      // offer может отправиться в канал раньше, чем callee успевает
-      // подписаться на `chat_calls`, и сигналинг теряется.
       if (widget.isCaller) {
-        _callAcceptedSub = SupabaseService.callAcceptedStream.listen((payload) {
-          if (payload['chat_id'] != widget.chatId) return;
-          debugPrint('[stealth-call] web call_accept received — creating offer');
-          _createOffer();
-        });
+        debugPrint('[stealth-call] web caller — creating offer immediately');
+        await _createOffer();
       } else {
-        debugPrint('[stealth-call] web sending call_accept (subscription ready)');
-        await _supabaseService.sendCallAccept(chatId: widget.chatId);
+        final offerMap = widget.initialOffer;
+        if (offerMap != null) {
+          debugPrint('[stealth-call] web callee — applying initialOffer');
+          await _applyRemoteOffer(offerMap);
+        } else {
+          debugPrint(
+            '[stealth-call] web callee — waiting for offer via signaling',
+          );
+        }
       }
 
       if (mounted) {
@@ -181,10 +233,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
   }
 
   Future<void> _retrySetup() async {
-    _callAcceptedSub?.cancel();
-    _callAcceptedSub = null;
+    // ignore: discarded_futures
+    _signalingSub?.cancel();
+    _signalingSub = null;
     _disposeMedia();
-    await _supabaseService.unsubscribeCalls();
+    await _signaling?.disconnect();
+    _signaling = null;
     _pendingRemoteCandidates.clear();
     if (!mounted) {
       return;
@@ -205,6 +259,32 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     await _startCall();
   }
 
+  void _appendWebTurnServer(
+    List<web.RTCIceServer> servers, {
+    required String label,
+    required String? urlsEnv,
+    required String? userEnv,
+    required String? passEnv,
+  }) {
+    final raw = urlsEnv?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final urls = raw
+        .split(',')
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .map((u) => u.toJS)
+        .toList()
+        .toJS;
+    servers.add(
+      web.RTCIceServer(
+        urls: urls,
+        username: userEnv?.trim() ?? '',
+        credential: passEnv?.trim() ?? '',
+      ),
+    );
+    debugPrint('[stealth-call] web $label configured: $raw');
+  }
+
   Future<void> _createPeerConnection() async {
     final iceServers = <web.RTCIceServer>[
       web.RTCIceServer(
@@ -214,28 +294,23 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         ].map((u) => u.toJS).toList().toJS,
       ),
     ];
-    final turnUrls = dotenv.env['TURN_URL']?.trim();
-    final turnUser = dotenv.env['TURN_USERNAME']?.trim();
-    final turnPass = dotenv.env['TURN_PASSWORD']?.trim();
-    if (turnUrls != null && turnUrls.isNotEmpty) {
-      final urls = turnUrls
-          .split(',')
-          .map((u) => u.trim())
-          .where((u) => u.isNotEmpty)
-          .map((u) => u.toJS)
-          .toList()
-          .toJS;
-      iceServers.add(
-        web.RTCIceServer(
-          urls: urls,
-          username: turnUser ?? '',
-          credential: turnPass ?? '',
-        ),
-      );
-      debugPrint('[stealth-call] web TURN configured: $turnUrls');
-    } else {
+    _appendWebTurnServer(
+      iceServers,
+      label: 'TURN',
+      urlsEnv: dotenv.env['TURN_URL'],
+      userEnv: dotenv.env['TURN_USERNAME'],
+      passEnv: dotenv.env['TURN_PASSWORD'],
+    );
+    _appendWebTurnServer(
+      iceServers,
+      label: 'TURNS',
+      urlsEnv: dotenv.env['TURNS_URL'],
+      userEnv: dotenv.env['TURNS_USERNAME'],
+      passEnv: dotenv.env['TURNS_PASSWORD'],
+    );
+    if (iceServers.length == 1) {
       debugPrint(
-        '[stealth-call] web: no TURN in .env — P2P may fail across NAT',
+        '[stealth-call] web: no TURN/TURNS in .env — P2P may fail across NAT',
       );
     }
     final configuration = web.RTCConfiguration(
@@ -253,8 +328,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       if (candidate == null || candidate.candidate.isEmpty) {
         return;
       }
-      _supabaseService.sendIceCandidate(
-        chatId: widget.chatId,
+      final target = _targetUserId;
+      if (target == null) return;
+      // ignore: discarded_futures
+      _signaling?.sendCandidate(
+        roomId: widget.chatId,
+        targetUserId: target,
         candidate: {
           'candidate': candidate.candidate,
           'sdpMid': candidate.sdpMid,
@@ -368,7 +447,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Future<void> _createOffer() async {
     final connection = _peerConnection;
-    if (connection == null || _offerSent) {
+    final target = _targetUserId;
+    if (connection == null || target == null || _offerSent) {
       return;
     }
 
@@ -392,11 +472,16 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             ),
           )
           .toDart;
-      await _supabaseService.sendOffer(
-        chatId: widget.chatId,
-        offer: {
+      final nickname = await _appService.getNickname();
+      await _signaling!.sendOffer(
+        roomId: widget.chatId,
+        targetUserId: target,
+        sdp: {
           'type': offer.type,
           'sdp': offer.sdp,
+          'purpose': 'call',
+          'nickname': nickname ?? '',
+          'callType': widget.isVideoCall ? 'video' : 'audio',
         },
       );
       _offerSent = true;
@@ -405,37 +490,18 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
   }
 
-  Future<bool> _isFromSelf(Map<String, dynamic> payload) async {
-    final from = payload['from_user_id'] as String?;
-    if (from == null) {
-      return false;
-    }
-    final me = await _supabaseService.getUserId();
-    return me != null && me == from;
-  }
-
-  Future<void> _handleOffer(Map<String, dynamic> payload) async {
+  /// Применяет уже принятый offer (от `IncomingCallSignalingService`).
+  Future<void> _applyRemoteOffer(Map<String, dynamic> offerMap) async {
     final connection = _peerConnection;
-    if (connection == null) {
+    final target = _targetUserId;
+    if (connection == null || target == null) {
       return;
     }
-
-    if (await _isFromSelf(payload)) {
-      debugPrint('[stealth-call] web ignored own offer echo');
-      return;
-    }
+    final sdp = offerMap['sdp'] as String?;
+    final type = offerMap['type'] as String?;
+    if (sdp == null || type == null) return;
 
     try {
-      final offerMap = payload['offer'] ?? payload['sdp'];
-      if (offerMap is! Map<String, dynamic>) {
-        return;
-      }
-      final sdp = offerMap['sdp'] as String?;
-      final type = offerMap['type'] as String?;
-      if (sdp == null || type == null) {
-        return;
-      }
-
       await connection
           .setRemoteDescription(
             web.RTCSessionDescriptionInit(type: type, sdp: sdp),
@@ -443,9 +509,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
           .toDart;
       await _flushPendingCandidates();
       final answer = await connection.createAnswer().toDart;
-      if (answer == null) {
-        return;
-      }
+      if (answer == null) return;
       await connection
           .setLocalDescription(
             web.RTCLocalSessionDescriptionInit(
@@ -454,40 +518,54 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             ),
           )
           .toDart;
-      await _supabaseService.sendAnswer(
-        chatId: widget.chatId,
-        answer: {
+      await _signaling!.sendAnswer(
+        roomId: widget.chatId,
+        targetUserId: target,
+        sdp: {
           'type': answer.type,
           'sdp': answer.sdp,
         },
       );
+      debugPrint('[stealth-call] web answer sent');
     } catch (error) {
-      debugPrint('Offer handling error: $error');
+      debugPrint('Web applyRemoteOffer error: $error');
     }
   }
 
-  Future<void> _handleAnswer(Map<String, dynamic> payload) async {
+  /// Единая точка входа для входящих сигнальных сообщений. Server-side
+  /// фильтр уже отбросил собственные echo по target=self.
+  Future<void> _onSignalingMessage(RtcMessage message) async {
+    if (message.roomId != widget.chatId) return;
+    switch (message.type) {
+      case RtcMessageType.offer:
+        if (widget.isCaller) {
+          debugPrint('[stealth-call] web caller received unexpected offer; ignored');
+          return;
+        }
+        await _applyRemoteOffer(message.payload);
+        break;
+      case RtcMessageType.answer:
+        await _handleAnswer(message);
+        break;
+      case RtcMessageType.candidate:
+        await _handleRemoteCandidate(message);
+        break;
+      case RtcMessageType.hangup:
+        await _handleRemoteHangup(message);
+        break;
+    }
+  }
+
+  Future<void> _handleAnswer(RtcMessage message) async {
     final connection = _peerConnection;
     if (connection == null) {
       return;
     }
-
-    if (await _isFromSelf(payload)) {
-      debugPrint('[stealth-call] web ignored own answer echo');
-      return;
-    }
+    final sdp = message.payload['sdp'] as String?;
+    final type = message.payload['type'] as String?;
+    if (sdp == null || type == null) return;
 
     try {
-      final answerMap = payload['answer'] ?? payload['sdp'];
-      if (answerMap is! Map<String, dynamic>) {
-        return;
-      }
-      final sdp = answerMap['sdp'] as String?;
-      final type = answerMap['type'] as String?;
-      if (sdp == null || type == null) {
-        return;
-      }
-
       await connection
           .setRemoteDescription(
             web.RTCSessionDescriptionInit(type: type, sdp: sdp),
@@ -499,26 +577,18 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
   }
 
-  Future<void> _handleRemoteCandidate(Map<String, dynamic> payload) async {
+  Future<void> _handleRemoteCandidate(RtcMessage message) async {
     final connection = _peerConnection;
     if (connection == null) {
       return;
     }
 
-    if (await _isFromSelf(payload)) {
-      return;
-    }
-
     try {
-      final candidateMap = payload['candidate'];
-      if (candidateMap is! Map<String, dynamic>) {
-        return;
-      }
-
+      final payload = message.payload;
       final candidate = web.RTCIceCandidateInit(
-        candidate: candidateMap['candidate'] as String,
-        sdpMid: candidateMap['sdpMid'] as String?,
-        sdpMLineIndex: candidateMap['sdpMLineIndex'] as int?,
+        candidate: payload['candidate'] as String,
+        sdpMid: payload['sdpMid'] as String?,
+        sdpMLineIndex: payload['sdpMLineIndex'] as int?,
       );
       if (connection.remoteDescription != null) {
         await connection.addIceCandidate(candidate).toDart;
@@ -527,6 +597,19 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       }
     } catch (error) {
       debugPrint('Remote candidate error: $error');
+    }
+  }
+
+  /// Hangup от пира — закрываем экран без повторной отправки sendHangup.
+  Future<void> _handleRemoteHangup(RtcMessage message) async {
+    debugPrint(
+      '[stealth-call] web remote hangup → closing screen '
+      'roomId=${message.roomId} from=${message.creator}',
+    );
+    if (_closing) return;
+    _closing = true;
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -674,7 +757,17 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     }
     _closing = true;
     _disposeMedia();
-    await _supabaseService.sendCallEnd(chatId: widget.chatId);
+    final target = _targetUserId;
+    if (target != null) {
+      try {
+        await _signaling?.sendHangup(
+          roomId: widget.chatId,
+          targetUserId: target,
+        );
+      } catch (error) {
+        debugPrint('[stealth-call] web sendHangup error: $error');
+      }
+    }
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }

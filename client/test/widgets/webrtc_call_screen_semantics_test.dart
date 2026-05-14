@@ -1,23 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen_native_impl.dart';
 
 // Validates: Requirements 5.1, 5.2, 5.3, 5.4
 
 void main() {
   setUpAll(() async {
-    // shared_preferences is required by Supabase.initialize() for auth storage.
     SharedPreferences.setMockInitialValues({});
-
-    // Initialize Supabase with a fake URL so that SupabaseService() can be
-    // constructed without throwing. No real network calls are made during
-    // the widget test — _startCall() fails fast in the test environment.
-    await Supabase.initialize(
-      url: 'https://fake-project.supabase.co',
-      anonKey: 'fake-anon-key',
-    );
   });
 
   testWidgets(

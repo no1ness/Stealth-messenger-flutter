@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+
+# Cancel in-flight runs for the same ref when a new commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_CHANNEL: stable
+
+defaults:
+  run:
+    working-directory: client
+
+jobs:
+  analyze-and-test:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Show toolchain
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Validate env files completeness
+        run: |
+          required_keys="POCKETBASE_URL TURN_URL TURN_USERNAME TURN_PASSWORD TURNS_URL TURNS_USERNAME TURNS_PASSWORD"
+          fail=0
+          for file in .env.example .env.defaults; do
+            missing=""
+            for key in $required_keys; do
+              grep -qE "^${key}=" "$file" || missing="$missing $key"
+            done
+            if [ -n "$missing" ]; then
+              echo "::error file=client/${file}::missing keys:$missing"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test --coverage --reporter expanded
+
+  build-web:
+    name: build web
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: analyze-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      # `.env.defaults` is bundled directly (see pubspec.yaml), so no
+      # secrets are needed for CI builds. Real values are injected via
+      # `--dart-define=POCKETBASE_URL=...` at deploy time.
+
+      - name: flutter build web --release
+        run: flutter build web --release --no-tree-shake-icons
+
+  build-android:
+    name: build android (debug apk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: analyze-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('client/android/gradle/wrapper/gradle-wrapper.properties', 'client/android/**/*.gradle*', 'client/android/**/gradle.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: flutter build apk --debug
+        run: flutter build apk --debug
+
+  # Optional end-to-end signaling smoke test.
+  # Always scheduled but the test itself self-skips when the
+  # `POCKETBASE_TEST_URL` secret is not configured for the repository
+  # (e.g. on forks). The job therefore stays green either way and never
+  # blocks merges. Configure the secret in repo settings to enable.
+  signaling-smoke:
+    name: signaling smoke (optional)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: analyze-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter test signaling smoke
+        env:
+          POCKETBASE_TEST_URL: ${{ secrets.POCKETBASE_TEST_URL }}
+          POCKETBASE_TEST_ADMIN_EMAIL: ${{ secrets.POCKETBASE_TEST_ADMIN_EMAIL }}
+          POCKETBASE_TEST_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_TEST_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$POCKETBASE_TEST_URL" ]; then
+            echo "::notice::POCKETBASE_TEST_URL is not configured for this repo — signaling smoke test skipped"
+            exit 0
+          fi
+          flutter test test/services/signaling/pocketbase_signaling_smoke_test.dart

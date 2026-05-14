@@ -1,19 +1,18 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
-    as glass;
-import 'package:stealth/themes/apple_liquid/widgets/glass_message_input.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/ui/screens/chats/conversation_footer.dart';
+import 'package:stealth/ui/screens/chats/conversation_panel.dart';
+import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
+import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
@@ -33,7 +32,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   final TextEditingController _groupNameController = TextEditingController();
   final TextEditingController _messageSearchController =
       TextEditingController();
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
   final ScrollController _messagesScrollController = ScrollController();
   final Map<String, StreamSubscription> _activeSubscriptions = {};
 
@@ -68,14 +67,15 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   void _listenToP2PMessages() {
     _activeSubscriptions['p2p_global'] =
-        P2PService.instance.onMessage.listen((event) {
+        P2PService.instance.onMessage.listen((event) async {
       final chatId = event['chat_id'] as String;
-      final message = event['message'] as Map<String, dynamic>;
+      final rawMessage = Map<String, dynamic>.from(event['message'] as Map);
+      final message = await _appService.decryptRawMessage(rawMessage);
 
       if (mounted && _selectedChatId == chatId) {
         setState(() {
           final uiMsg = _toUiMessage(message);
-          // Prevent duplicates if Realtime and P2P arrive nearly at the same time
+          // Prevent duplicates if local and P2P delivery arrive nearly at the same time.
           if (!_messages.any((m) => m['id'] == uiMsg['id'])) {
             _messages = [..._messages, uiMsg]..sort(
                 (left, right) => (left['created_at'] as String)
@@ -86,7 +86,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
       }
       // If the chat is in the list, we might want to update last message preview
-      _loadChats(); 
+      unawaited(_loadChats());
     });
   }
 
@@ -94,7 +94,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   void dispose() {
     final selectedChatId = _selectedChatId;
     if (selectedChatId != null) {
-      _supabaseService.setTypingStatus(chatId: selectedChatId, isTyping: false);
+      _appService.setTypingStatus(chatId: selectedChatId, isTyping: false);
     }
     _searchController.dispose();
     _groupNameController.dispose();
@@ -107,7 +107,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Future<void> _bootstrap() async {
-    _myUserId = await _supabaseService.getUserId();
+    _myUserId = await _appService.getUserId();
     await _loadChats();
   }
 
@@ -119,8 +119,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     try {
-      final rows = await _supabaseService.getChats();
-      final me = await _supabaseService.getUserId();
+      final rows = await _appService.getChats();
+      final me = await _appService.getUserId();
       final chats = <Map<String, dynamic>>[];
 
       // Предварительная загрузка никнеймов собеседников одним batch-запросом
@@ -139,7 +139,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         }
       }
       if (usersToFetch.isNotEmpty) {
-        await _supabaseService.getNicknames(usersToFetch);
+        await _appService.getNicknames(usersToFetch);
       }
 
       // Загрузка деталей чатов в параллельном режиме (Future.wait)
@@ -150,7 +150,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
 
         if (members.length == 1) {
-          title = (await _supabaseService.getNicknameForUser(members.first)) ??
+          title = (await _appService.getNicknameForUser(members.first)) ??
               'Chat';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
@@ -158,17 +158,17 @@ class _ChatsScreenState extends State<ChatsScreen>
             orElse: () => members.first,
           );
           title =
-              (await _supabaseService.getNicknameForUser(otherId)) ?? 'Chat';
+              (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
         }
 
         final lastMessage =
-            await _supabaseService.fetchLastMessage(row['id'] as String);
+            await _appService.fetchLastMessage(row['id'] as String);
         final createdAt =
             DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
         final lastSeen =
-            await _supabaseService.getLastSeen(row['id'] as String) ??
+            await _appService.getLastSeen(row['id'] as String) ??
                 DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread = await _supabaseService.countUnreadSince(
+        final unread = await _appService.countUnreadSince(
             row['id'] as String, lastSeen);
 
         return {
@@ -212,347 +212,10 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
   }
 
-  Future<void> _showCreateGroupSheet() async {
-    final contacts =
-        (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
-    final selectedIds = <String>{};
-    _groupNameController.clear();
-    if (!mounted) {
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> createGroup() async {
-              final chatId = await _supabaseService.createGroupChat(
-                name: _groupNameController.text,
-                memberIds: selectedIds.toList(),
-              );
-              if (!context.mounted || chatId == null) {
-                return;
-              }
-              Navigator.of(context).pop();
-              await _loadChats();
-              if (!mounted) {
-                return;
-              }
-              await _selectChat(chatId);
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Create group chat',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _groupNameController,
-                    decoration: const InputDecoration(
-                      hintText: 'Group name',
-                      prefixIcon: Icon(Icons.group),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 300,
-                    child: contacts.isEmpty
-                        ? const Center(child: Text('Add contacts first'))
-                        : ListView.builder(
-                            itemCount: contacts.length,
-                            itemBuilder: (context, index) {
-                              final contact = contacts[index];
-                              final userId = contact['user_id'] as String;
-                              final selected = selectedIds.contains(userId);
-                              return CheckboxListTile(
-                                value: selected,
-                                onChanged: (value) {
-                                  setModalState(() {
-                                    if (value == true) {
-                                      selectedIds.add(userId);
-                                    } else {
-                                      selectedIds.remove(userId);
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                    contact['name'] as String? ?? 'Unknown'),
-                                subtitle: Text(
-                                  userId,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: selectedIds.length >= 2 ? createGroup : null,
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('Create group'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _showManageGroupSheet(Map<String, dynamic> chat) async {
-    final chatId = chat['id'] as String;
-    final contacts =
-        (await _supabaseService.getContacts()).cast<Map<String, dynamic>>();
-    final members = await _supabaseService.getChatMembers(chatId);
-    final myRole = await _supabaseService.getMyRoleInChat(chatId);
-    final isAdmin = myRole == 'admin';
-    final memberIds =
-        members.map<String>((member) => member['user_id'] as String).toSet();
-    final availableContacts = contacts
-        .where((contact) => !memberIds.contains(contact['user_id'] as String))
-        .toList();
-    if (!mounted) {
-      return;
-    }
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> refreshMembers() async {
-              final updatedMembers =
-                  await _supabaseService.getChatMembers(chatId);
-              final updatedIds = updatedMembers
-                  .map<String>((member) => member['user_id'] as String)
-                  .toSet();
-              setModalState(() {
-                members
-                  ..clear()
-                  ..addAll(updatedMembers);
-                availableContacts
-                  ..clear()
-                  ..addAll(
-                    contacts.where(
-                      (contact) => !updatedIds.contains(
-                        contact['user_id'] as String,
-                      ),
-                    ),
-                  );
-              });
-              await _loadChats();
-              if (_selectedChatId == chatId) {
-                await _loadMessages(chatId);
-              }
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Manage group',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      isAdmin
-                          ? 'You are an admin. You can manage members and roles.'
-                          : 'You are a member. You can view participants but not change them.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Members',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  SizedBox(
-                    height: 220,
-                    child: ListView.builder(
-                      itemCount: members.length,
-                      itemBuilder: (context, index) {
-                        final member = members[index];
-                        final userId = member['user_id'] as String;
-                        final role = member['role'] as String? ?? 'member';
-                        final canRemove = isAdmin && userId != _myUserId;
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: Text(_initials(member['name'] as String?)),
-                          ),
-                          title: Text(member['name'] as String? ?? 'Unknown'),
-                          subtitle: Text(
-                            '$userId • $role',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          titleTextStyle:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: role == 'admin'
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                          trailing: canRemove
-                              ? PopupMenuButton<String>(
-                                  onSelected: (action) async {
-                                    try {
-                                      if (action == 'remove') {
-                                        await _supabaseService
-                                            .removeMemberFromGroupChat(
-                                          chatId: chatId,
-                                          memberId: userId,
-                                        );
-                                      } else if (action == 'promote') {
-                                        await _supabaseService
-                                            .updateGroupMemberRole(
-                                          chatId: chatId,
-                                          memberId: userId,
-                                          role: 'admin',
-                                        );
-                                      } else if (action == 'demote') {
-                                        await _supabaseService
-                                            .updateGroupMemberRole(
-                                          chatId: chatId,
-                                          memberId: userId,
-                                          role: 'member',
-                                        );
-                                      }
-                                      await refreshMembers();
-                                    } catch (error) {
-                                      if (!context.mounted) {
-                                        return;
-                                      }
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(content: Text('$error')),
-                                      );
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    if (role != 'admin')
-                                      const PopupMenuItem(
-                                        value: 'promote',
-                                        child: Text('Promote to admin'),
-                                      ),
-                                    if (role == 'admin')
-                                      const PopupMenuItem(
-                                        value: 'demote',
-                                        child: Text('Demote to member'),
-                                      ),
-                                    const PopupMenuItem(
-                                      value: 'remove',
-                                      child: Text('Remove from group'),
-                                    ),
-                                  ],
-                                )
-                              : Icon(
-                                  role == 'admin'
-                                      ? Icons.shield_outlined
-                                      : Icons.person_outline,
-                                ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Add contacts',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  SizedBox(
-                    height: 220,
-                    child: availableContacts.isEmpty
-                        ? const Center(child: Text('No more contacts to add'))
-                        : !isAdmin
-                            ? const Center(
-                                child: Text('Only admins can add members'),
-                              )
-                            : ListView.builder(
-                                itemCount: availableContacts.length,
-                                itemBuilder: (context, index) {
-                                  final contact = availableContacts[index];
-                                  final userId = contact['user_id'] as String;
-                                  return ListTile(
-                                    leading: CircleAvatar(
-                                      child: Text(
-                                        _initials(contact['name'] as String?),
-                                      ),
-                                    ),
-                                    title: Text(contact['name'] as String? ??
-                                        'Unknown'),
-                                    subtitle: Text(
-                                      userId,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    trailing: FilledButton(
-                                      onPressed: () async {
-                                        try {
-                                          await _supabaseService
-                                              .addMembersToGroupChat(
-                                            chatId: chatId,
-                                            memberIds: [userId],
-                                          );
-                                          await refreshMembers();
-                                        } catch (error) {
-                                          if (!context.mounted) {
-                                            return;
-                                          }
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(content: Text('$error')),
-                                          );
-                                        }
-                                      },
-                                      child: const Text('Add'),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
-      await _supabaseService.setTypingStatus(
+      await _appService.setTypingStatus(
         chatId: _selectedChatId!,
         isTyping: false,
       );
@@ -563,8 +226,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       _hasMoreMessages = true;
     });
 
-    // Start P2P connection attempt
-    P2PService.instance.connectToPeer(chatId);
+    // Start P2P connection attempt.
+    unawaited(P2PService.instance.connectToPeer(chatId));
 
     await _loadMessages(chatId);
   }
@@ -577,9 +240,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final rows =
-        await _supabaseService.getMessages(chatId, limit: 40, offset: 0);
-    final otherLastReadAt = await _supabaseService.getOtherLastReadAt(chatId);
-    final pinnedMessage = await _supabaseService.getPinnedMessage(chatId);
+        await _appService.getMessages(chatId, limit: 40, offset: 0);
+    final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
+    final pinnedMessage = await _appService.getPinnedMessage(chatId);
     if (!mounted) {
       return;
     }
@@ -596,8 +259,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       _pinnedMessage = pinnedMessage;
     });
 
-    await _supabaseService.markChatRead(chatId);
-    _subscribeToChatRealtime(chatId);
+    await _appService.markChatRead(chatId);
+    _subscribeToChatP2P(chatId);
     _scheduleScrollToBottom();
   }
 
@@ -611,7 +274,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       _loadingOlderMessages = true;
     });
 
-    final rows = await _supabaseService.getMessages(
+    final rows = await _appService.getMessages(
       chatId,
       limit: 30,
       offset: _messages.length,
@@ -648,12 +311,12 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     if (_isEditingMessage && _editingMessageId != null) {
-      await _supabaseService.editMessage(
+      await _appService.editMessage(
         messageId: _editingMessageId!,
         chatId: chatId,
         content: text,
       );
-      // For edit, Realtime subscription will update the message
+      await _loadMessages(chatId);
     } else {
       // Optimistic UI update: add message immediately to local state
       final tempMessage = {
@@ -666,7 +329,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         'created_at': DateTime.now().toIso8601String(),
         'metadata': {},
       };
-      
+
       if (mounted) {
         setState(() {
           final uiMsg = _toUiMessage(tempMessage);
@@ -680,15 +343,15 @@ class _ChatsScreenState extends State<ChatsScreen>
         });
       }
 
-      await _supabaseService.sendMessage(
+      await _appService.sendMessage(
         chatId: chatId,
         content: text,
         type: 'text',
         replyToId: _replyToMessageId,
       );
-      // Message is now in local DB and will sync via Realtime when Supabase confirms
+      await _loadMessages(chatId);
     }
-    await _supabaseService.setTypingStatus(chatId: chatId, isTyping: false);
+    await _appService.setTypingStatus(chatId: chatId, isTyping: false);
     if (mounted) {
       setState(() {
         _replyToMessageId = null;
@@ -736,17 +399,14 @@ class _ChatsScreenState extends State<ChatsScreen>
                 onTap: () async {
                   Navigator.of(context).pop();
                   if (isPinned) {
-                    await _supabaseService.unpinMessage(
-                      chatId: chatId,
-                      messageId: messageId,
-                    );
+                    await _appService.unpinMessage(chatId: chatId);
                   } else {
-                    await _supabaseService.pinMessage(
+                    await _appService.pinMessage(
                       chatId: chatId,
                       messageId: messageId,
                     );
                   }
-                  // Removed _loadMessages call - Realtime subscription will update UI automatically
+                  await _loadMessages(chatId);
                 },
               ),
               if (isSent)
@@ -769,9 +429,9 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Delete'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _supabaseService.softDeleteMessage(
+                    await _appService.softDeleteMessage(
                         messageId: messageId);
-                    // Removed _loadMessages call - Realtime subscription will update UI automatically
+                    await _loadMessages(chatId);
                   },
                 ),
             ],
@@ -781,74 +441,11 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  void _subscribeToChatRealtime(String chatId) {
+  void _subscribeToChatP2P(String chatId) {
     _activeSubscriptions[chatId]?.cancel();
     _activeSubscriptions['typing:$chatId']?.cancel();
-
-    final subscription = _supabaseService.supabase
-        .from('messages')
-        .stream(primaryKey: const ['id'])
-        .eq('chat_id', chatId)
-        .listen((records) async {
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-
-          // Realtime возвращает сырые (зашифрованные) строки. Дешифруем каждое
-          // сообщение перед тем как мапить в UI — иначе в чате будут показываться
-          // только base64-пузыри для только что пришедших/отправленных сообщений.
-          final decrypted = await Future.wait(
-            records.map(
-              (row) => _supabaseService.decryptRawMessage(
-                Map<String, dynamic>.from(row),
-              ),
-            ),
-          );
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-          setState(() {
-            _messages = decrypted
-                .where((row) => row['deleted_at'] == null)
-                .map(_toUiMessage)
-                .toList()
-              ..sort(
-                (left, right) => (left['created_at'] as String)
-                    .compareTo(right['created_at'] as String),
-              );
-          });
-          _supabaseService.markChatRead(chatId);
-          _refreshReadState();
-          _scheduleScrollToBottom();
-        });
-
-    _activeSubscriptions[chatId] = subscription;
-
-    // Отдельный поток typing сохраняет UI отзывчивым без перезагрузки сообщений.
-    final typingSubscription = _supabaseService.supabase
-        .from('chat_members')
-        .stream(primaryKey: const ['chat_id', 'user_id'])
-        .eq('chat_id', chatId)
-        .listen((records) {
-          if (!mounted || _selectedChatId != chatId) {
-            return;
-          }
-
-          final isOtherTyping = records.any(
-            (row) =>
-                row['user_id'] != _myUserId &&
-                (row['typing'] as bool? ?? false),
-          );
-          setState(() {
-            _isOtherTyping = isOtherTyping;
-          });
-          _refreshReadState();
-        });
-
-    _activeSubscriptions['typing:$chatId'] = typingSubscription;
-
-    // Subscribe to P2P signaling events (Offer/Answer/Candidate)
-    _supabaseService.subscribeP2PSignaling(chatId);
+    // Subscribe to P2P signaling events (offer/answer/candidate) via PocketBase.
+    _appService.subscribeP2PSignaling(chatId);
   }
 
   void _scheduleScrollToBottom() {
@@ -906,33 +503,6 @@ class _ChatsScreenState extends State<ChatsScreen>
       'isRead': isRead,
       'metadata': row['metadata'],
     };
-  }
-
-  Future<void> _refreshReadState() async {
-    final chatId = _selectedChatId;
-    if (chatId == null) {
-      return;
-    }
-    final otherLastReadAt = await _supabaseService.getOtherLastReadAt(chatId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _otherLastReadAt = otherLastReadAt;
-      _messages = _messages
-          .map(
-            (message) => {
-              ...message,
-              'isRead': (message['isSent'] as bool? ?? false) &&
-                  DateTime.tryParse(message['created_at'] as String? ?? '')
-                          ?.isAfter(otherLastReadAt ??
-                              DateTime.fromMillisecondsSinceEpoch(0)) ==
-                      false,
-            },
-          )
-          .toList();
-    });
   }
 
   String _initials(String? value) {
@@ -1010,7 +580,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Cloud',
+                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -1117,7 +687,17 @@ class _ChatsScreenState extends State<ChatsScreen>
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _showCreateGroupSheet,
+                    onPressed: () => showCreateGroupSheet(
+                      context: context,
+                      appService: _appService,
+                      nameController: _groupNameController,
+                      onGroupCreated: (chatId) async {
+                        await _loadChats();
+                        if (mounted) {
+                          await _selectChat(chatId);
+                        }
+                      },
+                    ),
                     icon: const Icon(Icons.group_add),
                     label: const Text('New group'),
                   ),
@@ -1176,7 +756,20 @@ class _ChatsScreenState extends State<ChatsScreen>
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         onTap: () => _selectChat(chat['id'] as String),
-        onLongPress: isPrivate ? null : () => _showManageGroupSheet(chat),
+        onLongPress: isPrivate
+            ? null
+            : () => showManageGroupSheet(
+                  context: context,
+                  chat: chat,
+                  appService: _appService,
+                  myUserId: _myUserId,
+                  onMembersChanged: () async {
+                    await _loadChats();
+                    if (_selectedChatId == chat['id']) {
+                      await _loadMessages(chat['id'] as String);
+                    }
+                  },
+                ),
         leading: CircleAvatar(
           backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
           child: Text(
@@ -1238,352 +831,56 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Widget _buildConversationPanel(List<Map<String, dynamic>> visibleMessages) {
-    if (_loadingMessages) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Column(
-      children: [
-        if (_pinnedMessage != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.systemYellow.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppColors.systemYellow.withValues(alpha: 0.24),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.push_pin, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _pinnedMessage?['content'] as String? ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageSearchController,
-                  onChanged: (_) => setState(() {
-                    _searchInConversation =
-                        _messageSearchController.text.trim().isNotEmpty;
-                  }),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search in conversation',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              if (_searchInConversation) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    _messageSearchController.clear();
-                    setState(() {
-                      _searchInConversation = false;
-                    });
-                  },
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ],
-          ),
-        ),
-        Expanded(
-          child: visibleMessages.isEmpty
-              ? const EmptyState(type: 'chats')
-              : ListView.builder(
-                  controller: _messagesScrollController,
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-                  itemCount: visibleMessages.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      if (_loadingOlderMessages) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (_hasMoreMessages) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Center(
-                            child: OutlinedButton(
-                              onPressed: _loadOlderMessages,
-                              child: const Text('Load older messages'),
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }
-
-                    final message = visibleMessages[index - 1];
-                    final replyToId = message['reply_to_id'] as String?;
-                    final repliedMessage = replyToId == null
-                        ? null
-                        : _messages.cast<Map<String, dynamic>?>().firstWhere(
-                              (candidate) =>
-                                  candidate?['id'].toString() == replyToId,
-                              orElse: () => null,
-                            );
-
-                    return GestureDetector(
-                      onLongPress: () => _showMessageActions(message),
-                      child: glass.GlassChatBubble(
-                        message:
-                            '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
-                        timestamp: message['timestamp'] as String?,
-                        isDelivered: message['isDelivered'] as bool?,
-                        isRead: message['isRead'] as bool?,
-                        attachmentWidget: _buildAttachmentWidget(message),
-                        replyPreview: repliedMessage == null
-                            ? null
-                            : _buildReplyPreview(
-                                repliedMessage['message'] as String? ?? '',
-                              ),
-                        type: (message['isSent'] as bool? ?? false)
-                            ? glass.MessageType.sent
-                            : glass.MessageType.received,
-                      ),
-                    );
-                  },
-                ),
-        ),
-        _buildConversationFooter(),
-      ],
-    );
-  }
-
-  Widget? _buildAttachmentWidget(Map<String, dynamic> message) {
-    final type = message['type'] as String?;
-    final content = message['message'] as String?;
-    if (content == null || content.isEmpty) return null;
-    if (type != 'image' && type != 'file' && type != 'audio') return null;
-
-    final isEncrypted =
-        (message['metadata'] as Map?)?['file_encrypted'] == true;
-
-    if (type == 'image') {
-      if (isEncrypted) {
-        return FutureBuilder<Uint8List?>(
-          future: _supabaseService.downloadAttachment(content, _selectedChatId!,
-              encrypted: true),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                width: 200,
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasData && snapshot.data != null) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  snapshot.data!,
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
-              );
-            }
-            return const Icon(Icons.broken_image, size: 48);
-          },
-        );
-      }
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          content,
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              const Icon(Icons.broken_image, size: 48),
-        ),
-      );
-    }
-
-    if (type == 'audio') {
-      return _buildAudioAttachment(content, isEncrypted);
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.insert_drive_file, color: AppColors.systemBlue),
-        const SizedBox(width: 8),
-        Text(isEncrypted ? 'Encrypted File' : 'File Attachment'),
-      ],
-    );
-  }
-
-  Widget _buildAudioAttachment(String url, bool isEncrypted) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.play_circle_fill,
-              color: AppColors.systemBlue, size: 32),
-          onPressed: () async {
-            final bytes = await _supabaseService.downloadAttachment(
-              url,
-              _selectedChatId!,
-              encrypted: isEncrypted,
-            );
-            if (bytes != null) {
-              final source = BytesSource(bytes);
-              final player = AudioPlayer();
-              await player.play(source);
-            }
-          },
-        ),
-        const SizedBox(width: 4),
-        Text(
-          isEncrypted ? 'Encrypted Voice' : 'Voice Note',
-          style: AppTypography.caption1,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConversationFooter() {
-    // Футер объединяет полосу прогресса с полем ввода, чтобы чат
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_replyToMessageText != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.systemBlue.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${_isEditingMessage ? 'Editing' : 'Replying to'}: $_replyToMessageText',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _replyToMessageId = null;
-                            _replyToMessageText = null;
-                            _editingMessageId = null;
-                            _isEditingMessage = false;
-                          });
-                        },
-                        icon: const Icon(Icons.close, size: 18),
-                      ),
-                    ],
-                  ),
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: _messages.isEmpty
-                          ? 0.12
-                          : _messages.length.clamp(1, 50) / 50,
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(999),
-                      color: AppColors.systemBlue,
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${_messages.length} msgs',
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ],
-              ),
-              if (_isOtherTyping) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Typing...',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.systemGreen,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        GlassMessageInput(
-          onSendMessage: _handleSendMessage,
-          onAttachment: _handleAttachment,
-          onVoiceRecorded: _handleVoiceRecorded,
-          onTyping: (isTyping) async {
-            final chatId = _selectedChatId;
-            if (chatId == null) {
-              return;
-            }
-            await _supabaseService.setTypingStatus(
-              chatId: chatId,
-              isTyping: isTyping,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReplyPreview(String text) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelMedium,
+    return ConversationPanel(
+      loadingMessages: _loadingMessages,
+      loadingOlderMessages: _loadingOlderMessages,
+      hasMoreMessages: _hasMoreMessages,
+      pinnedMessage: _pinnedMessage,
+      messageSearchController: _messageSearchController,
+      searchInConversation: _searchInConversation,
+      onSearchChanged: () => setState(() {
+        _searchInConversation =
+            _messageSearchController.text.trim().isNotEmpty;
+      }),
+      onSearchCleared: () {
+        _messageSearchController.clear();
+        setState(() {
+          _searchInConversation = false;
+        });
+      },
+      scrollController: _messagesScrollController,
+      messages: _messages,
+      visibleMessages: visibleMessages,
+      onLoadOlder: _loadOlderMessages,
+      onMessageLongPress: _showMessageActions,
+      appService: _appService,
+      chatId: _selectedChatId!,
+      footer: ConversationFooter(
+        replyToMessageText: _replyToMessageText,
+        isEditingMessage: _isEditingMessage,
+        messagesCount: _messages.length,
+        isOtherTyping: _isOtherTyping,
+        onCancelReplyOrEdit: () {
+          setState(() {
+            _replyToMessageId = null;
+            _replyToMessageText = null;
+            _editingMessageId = null;
+            _isEditingMessage = false;
+          });
+        },
+        onSendMessage: _handleSendMessage,
+        onAttachment: _handleAttachment,
+        onVoiceRecorded: _handleVoiceRecorded,
+        onTypingChanged: (isTyping) async {
+          final chatId = _selectedChatId;
+          if (chatId == null) {
+            return;
+          }
+          await _appService.setTypingStatus(
+            chatId: chatId,
+            isTyping: isTyping,
+          );
+        },
       ),
     );
   }
@@ -1685,7 +982,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final publicUrl = await _supabaseService.uploadAttachmentBytes(
+    final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,
       fileName: file.name,
       chatId: chatId,
@@ -1702,13 +999,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    await _supabaseService.sendMessage(
+    await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
       type: _resolveAttachmentType(file.name),
       metadataOverride: {'file_encrypted': true},
     );
-    // Removed _loadMessages call - Realtime subscription will update UI automatically
+    await _loadMessages(chatId);
   }
 
   Future<void> _handleVoiceRecorded(String filePath) async {
@@ -1730,7 +1027,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final publicUrl = await _supabaseService.uploadAttachmentBytes(
+    final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,
       fileName: fileName,
       chatId: chatId,
@@ -1746,13 +1043,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    await _supabaseService.sendMessage(
+    await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
       type: 'audio',
       metadataOverride: {'file_encrypted': true},
     );
-    // Removed _loadMessages call - Realtime subscription will update UI automatically
+    await _loadMessages(chatId);
   }
 
   String _resolveAttachmentType(String fileName) {

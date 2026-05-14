@@ -6,7 +6,7 @@
  *   2. Изображение появляется в чате Alice
  *   3. Изображение появляется в чате Bob
  *   4. Проверка <img> элементов и их атрибутов
- *   5. Проверка что изображение загружено из Supabase Storage
+ *   5. Проверка что изображение загружено из local encrypted storage
  *
  * Запуск:
  *   set STEALTH_WEB_URL=http://127.0.0.1:58585
@@ -214,7 +214,7 @@ async function addContact(page, contactId) {
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
-  await page.getByRole("button", { name: /Paste ID/i }).click();
+  await page.getByRole("button", { name: /Paste contact/i }).click();
   await delay(5000);
 
   try {
@@ -327,7 +327,7 @@ async function main() {
     const testImagePath = join(tmpdir(), testImageName);
     const imageData = createTestImage();
     writeFileSync(testImagePath, imageData);
-    
+
     const imageSize = imageData.length;
     info(`Created test image: ${testImageName} (${imageSize} bytes, 1x1 red pixel PNG)`);
     pass("Test Image Created", `${testImageName} — ${imageSize} bytes`);
@@ -360,15 +360,15 @@ async function main() {
     }
 
     if (imageUploaded) {
-      // Ждём загрузки в Supabase Storage (шифрование + upload)
-      info("Waiting for image upload to Supabase Storage (encryption + upload)…");
+      // Ждём загрузки в local encrypted storage (шифрование + upload)
+      info("Waiting for image upload to local encrypted storage (encryption + upload)…");
       await delay(12_000);
 
       await alice.screenshot({ path: "image-test-alice-sent.png" });
 
       // ═══ ПРОВЕРКА <img> ЭЛЕМЕНТОВ У ALICE ═══
       console.log("\n  📊 Checking <img> elements in Alice's chat…");
-      
+
       const aliceImages = await alice.evaluate(() => {
         const imgs = Array.from(document.querySelectorAll("img"));
         return imgs.map((img) => ({
@@ -387,21 +387,21 @@ async function main() {
 
       if (aliceImages.length > 0) {
         pass("Alice Image Elements", `${aliceImages.length} <img> element(s) found`);
-        
-        // Проверяем что хотя бы одно изображение загружено из Supabase Storage
-        const supabaseImages = aliceImages.filter((img) => 
-          img.src.includes("supabase") || 
+
+        // Проверяем что хотя бы одно изображение загружено из local encrypted storage
+        const localImages = aliceImages.filter((img) =>
+          img.src.includes("local-attachment") ||
           img.src.includes("storage") ||
           img.src.startsWith("blob:") ||
           img.src.startsWith("data:")
         );
 
-        if (supabaseImages.length > 0) {
-          pass("Alice Supabase Image", `${supabaseImages.length} image(s) from Supabase Storage or blob`);
-          
-          for (const img of supabaseImages) {
+        if (localImages.length > 0) {
+          pass("Alice Local Image", `${localImages.length} image(s) from local encrypted storage or blob`);
+
+          for (const img of localImages) {
             info(`  Image: ${img.width}x${img.height}, complete=${img.complete}, src=${img.src.slice(0, 60)}...`);
-            
+
             if (img.complete && img.naturalWidth > 0) {
               pass("Alice Image Loaded", `Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
             } else if (img.complete) {
@@ -411,7 +411,7 @@ async function main() {
             }
           }
         } else {
-          info("No images from Supabase Storage found (may be canvas-rendered)");
+          info("No images from local encrypted storage found (may be canvas-rendered)");
         }
       } else {
         info("No <img> elements found in Alice's DOM (canvas-rendered)");
@@ -441,33 +441,33 @@ async function main() {
 
       if (bobImages.length > 0) {
         pass("Bob Image Elements", `${bobImages.length} <img> element(s) found`);
-        
-        const supabaseImages = bobImages.filter((img) => 
-          img.src.includes("supabase") || 
+
+        const localImages = bobImages.filter((img) =>
+          img.src.includes("local-attachment") ||
           img.src.includes("storage") ||
           img.src.startsWith("blob:") ||
           img.src.startsWith("data:")
         );
 
-        if (supabaseImages.length > 0) {
-          pass("Bob Supabase Image", `${supabaseImages.length} image(s) from Supabase Storage or blob`);
-          
-          for (const img of supabaseImages) {
+        if (localImages.length > 0) {
+          pass("Bob Local Image", `${localImages.length} image(s) from local encrypted storage or blob`);
+
+          for (const img of localImages) {
             info(`  Image: ${img.width}x${img.height}, complete=${img.complete}, src=${img.src.slice(0, 60)}...`);
-            
+
             if (img.complete && img.naturalWidth > 0) {
               pass("Bob Image Loaded", `Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
             }
           }
         } else {
-          info("No images from Supabase Storage found in Bob's chat");
+          info("No images from local encrypted storage found in Bob's chat");
         }
       } else {
         info("No <img> elements found in Bob's DOM (canvas-rendered)");
       }
 
       // Проверка шифрования
-      info("Image is E2E encrypted before upload to Supabase Storage");
+      info("Image is E2E encrypted before upload to local encrypted storage");
       pass("Image Encryption", "Image encrypted with AES-256-GCM before upload");
 
       info("Screenshots: image-test-alice-sent.png, image-test-bob-received.png");

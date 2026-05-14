@@ -1,11 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
-import 'package:stealth/supabase_service.dart';
+import 'package:stealth/logging/logger.dart';
+import 'package:stealth/services/signaling/incoming_call_service.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
 /// Глобальный слушатель, направляющий входящие звонки в UI.
+///
+/// Сигналинг идёт через [IncomingCallSignalingService] поверх PocketBase.
+/// `LocalAppService` остаётся только для:
+/// - получения текущего `selfUserId` (UUID, сгенерированный при
+///   регистрации, хранится локально),
+/// - истории входящих звонков (`recordIncomingCall`,
+///   `markIncomingCallDeclined`).
 class CallManager extends StatefulWidget {
   final Widget child;
 
@@ -16,12 +27,21 @@ class CallManager extends StatefulWidget {
 }
 
 class _CallManagerState extends State<CallManager> {
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalAppService _appService = LocalAppService();
+  final IncomingCallSignalingService _incomingCallService =
+      IncomingCallSignalingService();
+
+  StreamSubscription<IncomingCallEvent>? _eventsSub;
   String? _currentUserId;
   bool _isInCall = false;
   bool _answeringCall = false;
   String _incomingCallSupportSummary = 'Checking call support...';
   List<String> _incomingCallBlockingIssues = const <String>[];
+
+  /// roomId → закрытие текущего диалога входящего звонка. Используется,
+  /// чтобы remote hangup мог автоматически дёрнуть `Navigator.pop` для
+  /// активного диалога.
+  final Map<String, VoidCallback> _activeDialogClosers = {};
 
   @override
   void initState() {
@@ -30,90 +50,103 @@ class _CallManagerState extends State<CallManager> {
   }
 
   Future<void> _initGlobalCallListener() async {
-    _currentUserId = await _supabaseService.getUserId();
+    Logger.info('[stealth-call] CallManager._initGlobalCallListener started');
+    _currentUserId = await _appService.getUserId();
+    Logger.info('[stealth-call] CallManager identity resolved',
+        extras: {'userId': _currentUserId, 'mounted': mounted});
     if (_currentUserId == null || !mounted) {
+      Logger.warn(
+          '[stealth-call] CallManager NOT subscribing (userId null or not mounted)');
       return;
     }
 
-    _supabaseService.subscribeToUserCalls(
-      userId: _currentUserId!,
-      onCallReceived: _handleCallInitiation,
-      onCallAccepted: _handleCallAccepted,
-      onCallEnded: _handleCallEnded,
-    );
+    Logger.info(
+        '[stealth-call] CallManager subscribing to PocketBase rtc_signaling');
+    try {
+      await _incomingCallService.start(selfUserId: _currentUserId!);
+      _eventsSub = _incomingCallService.events.listen(_handleIncomingEvent);
+      Logger.info('[stealth-call] CallManager subscribed successfully');
+    } catch (error) {
+      Logger.warn('[stealth-call] CallManager subscribe error',
+          extras: {'error': error});
+    }
   }
 
-  void _handleCallInitiation(Map<String, dynamic> payload) async {
+  void _handleIncomingEvent(IncomingCallEvent event) {
+    switch (event) {
+      case IncomingCallOffer():
+        _handleIncomingOffer(event);
+      case IncomingCallHangup():
+        _handleIncomingHangup(event);
+    }
+  }
+
+  void _handleIncomingOffer(IncomingCallOffer offer) async {
+    Logger.info('[stealth-call] CallManager._handleIncomingOffer', extras: {
+      'roomId': offer.roomId,
+      'fromUserId': offer.fromUserId,
+      'isInCall': _isInCall,
+      'mounted': mounted,
+    });
     if (_isInCall || !mounted) {
+      Logger.info(
+          '[stealth-call] CallManager ignoring call (already in call or not mounted)');
+      return;
+    }
+    if (offer.fromUserId == _currentUserId) {
+      // self-call (теоретически не должно случаться, фильтр PocketBase
+      // фильтрует по target, но защищаемся на всякий случай).
       return;
     }
 
-    final chatId = payload['chat_id'] as String?;
-    final fromUserId = payload['from_user_id'] as String?;
-    final fromNickname = payload['from_nickname'] as String?;
-    final isVideoCall = payload['call_type'] == 'video';
-    if (chatId == null ||
-        fromUserId == null ||
-        fromNickname == null ||
-        fromUserId == _currentUserId) {
-      return;
-    }
+    final fromNickname = offer.fromNickname.isEmpty
+        ? 'Unknown'
+        : offer.fromNickname;
 
-    await _supabaseService.recordIncomingCall(
-      chatId: chatId,
-      fromUserId: fromUserId,
+    Logger.info('[stealth-call] CallManager recording incoming call');
+    await _appService.recordIncomingCall(
+      chatId: offer.roomId,
+      fromUserId: offer.fromUserId,
       fromNickname: fromNickname,
     );
     if (!mounted) {
+      Logger.warn(
+          '[stealth-call] CallManager not mounted after recordIncomingCall');
       return;
     }
 
+    Logger.info('[stealth-call] CallManager showing incoming call dialog');
     _showIncomingCallDialog(
-      chatId: chatId,
-      fromUserId: fromUserId,
+      chatId: offer.roomId,
+      fromUserId: offer.fromUserId,
       fromNickname: fromNickname,
-      isVideoCall: isVideoCall,
+      isVideoCall: offer.isVideoCall,
+      offerSdp: offer.sdp,
     );
   }
 
-  void _handleCallAccepted(Map<String, dynamic> payload) async {
-    // ВАЖНО: здесь НИЧЕГО не нужно делать с навигацией. Экран звонка у
-    // вызывающей стороны уже открыт из `contacts_screen.dart` с
-    // `isCaller: true`. Ранее эта функция делала `navigator.pop()`, а затем
-    // `push`, из-за чего срабатывал `PopScope` в `WebRTCCallScreen`,
-    // вызывался `_hangUp` и отправлялся `call_end`, который закрывал звонок
-    // у принимающей стороны (эмулятора) до того, как успевал установиться
-    // WebRTC-коннект.
-    //
-    // Событие `call_accept` пробрасывается в `SupabaseService.callAcceptedStream`,
-    // и уже активный `WebRTCCallScreen` сам отправит offer.
-  }
+  void _handleIncomingHangup(IncomingCallHangup hangup) async {
+    Logger.info('[stealth-call] CallManager._handleIncomingHangup', extras: {
+      'roomId': hangup.roomId,
+      'isInCall': _isInCall,
+      'mounted': mounted,
+    });
+    if (!mounted) return;
 
-  void _handleCallEnded(Map<String, dynamic> payload) async {
-    // ignore: avoid_print
-    print(
-      '[stealth-call] CallManager._handleCallEnded payload=$payload '
-      'isInCall=$_isInCall mounted=$mounted',
-    );
-    if (!mounted) {
-      return;
+    // Если для этого roomId открыт диалог — закрываем.
+    final closer = _activeDialogClosers.remove(hangup.roomId);
+    if (closer != null) {
+      Logger.info('[stealth-call] CallManager closing dialog due to remote hangup');
+      closer();
     }
 
-    final chatId = payload['chat_id'] as String?;
-    if (chatId != null) {
-      await _supabaseService.markCurrentUserCallEnded(chatId: chatId);
-      if (!mounted) {
-        return;
-      }
-    }
+    // Записываем в историю.
+    await _appService.markCurrentUserCallEnded(chatId: hangup.roomId);
+    if (!mounted) return;
 
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      // ignore: avoid_print
-      print('[stealth-call] CallManager popping top route due to call_end');
-      navigator.pop();
-    }
-    setState(() => _isInCall = false);
+    // Если активен сам экран звонка — он сам обработает hangup через
+    // свой WebRtcSignalingService.incoming → _handleRemoteHangup.
+    // Здесь дополнительно ничего не делаем.
   }
 
   void _showIncomingCallDialog({
@@ -121,6 +154,7 @@ class _CallManagerState extends State<CallManager> {
     required String fromUserId,
     required String fromNickname,
     required bool isVideoCall,
+    required Map<String, dynamic> offerSdp,
   }) {
     if (!mounted) {
       return;
@@ -129,205 +163,218 @@ class _CallManagerState extends State<CallManager> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          Future<void> refreshSupport() async {
-            final support = await getWebRTCSupport();
-            if (!dialogContext.mounted) {
-              return;
+      builder: (dialogContext) {
+        // Регистрируем closer чтобы remote hangup мог закрыть диалог.
+        _activeDialogClosers[chatId] = () {
+          if (Navigator.of(dialogContext).canPop()) {
+            Navigator.of(dialogContext).pop();
+          }
+        };
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> refreshSupport() async {
+              final support = await getWebRTCSupport();
+              if (!dialogContext.mounted) {
+                return;
+              }
+              setDialogState(() {
+                _incomingCallSupportSummary = support.summary;
+                _incomingCallBlockingIssues = support.blockingIssues;
+              });
             }
-            setDialogState(() {
-              _incomingCallSupportSummary = support.summary;
-              _incomingCallBlockingIssues = support.blockingIssues;
-            });
-          }
 
-          if (_incomingCallSupportSummary == 'Checking call support...') {
-            refreshSupport();
-          }
+            if (_incomingCallSupportSummary == 'Checking call support...') {
+              refreshSupport();
+            }
 
-          final canAnswer = _incomingCallBlockingIssues.isEmpty && !_answeringCall;
+            final canAnswer =
+                _incomingCallBlockingIssues.isEmpty && !_answeringCall;
 
-          return AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.phone_in_talk, color: Colors.green, size: 32),
-                SizedBox(width: 12),
-                Text('Incoming call'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  child: Text(
-                    fromNickname.isNotEmpty ? fromNickname[0].toUpperCase() : '?',
-                    style: const TextStyle(fontSize: 32),
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.phone_in_talk, color: Colors.green, size: 32),
+                  SizedBox(width: 12),
+                  Text('Incoming call'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    child: Text(
+                      fromNickname.isNotEmpty ? fromNickname[0].toUpperCase() : '?',
+                      style: const TextStyle(fontSize: 32),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Semantics(
-                  label: AccessibilityIds.callerName,
-                  excludeSemantics: true,
-                  child: Text(
-                    fromNickname,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 16),
+                  Semantics(
+                    label: AccessibilityIds.callerName,
+                    excludeSemantics: true,
+                    child: Text(
+                      fromNickname,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isVideoCall
-                      ? 'Wants to start a secure video call'
-                      : 'Wants to start a secure audio call',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _incomingCallSupportSummary,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                if (_incomingCallBlockingIssues.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
-                    _incomingCallBlockingIssues.join('\n'),
+                    isVideoCall
+                        ? 'Wants to start a secure video call'
+                        : 'Wants to start a secure audio call',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _incomingCallSupportSummary,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
+                  if (_incomingCallBlockingIssues.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _incomingCallBlockingIssues.join('\n'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            actionsAlignment: MainAxisAlignment.spaceBetween,
-            actions: [
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.of(dialogContext).push(
-                    MaterialPageRoute(
-                      builder: (_) => const WebRTCDiagnosticsScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.network_check),
-                label: const Text('Diagnostics'),
               ),
-              Semantics(
-                label: AccessibilityIds.decline,
-                button: true,
-                excludeSemantics: true,
-                child: TextButton.icon(
-                  onPressed: () async {
-                    Navigator.of(dialogContext).pop();
-                    await _supabaseService.markIncomingCallDeclined(
-                      chatId: chatId,
-                      fromUserId: fromUserId,
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(dialogContext).push(
+                      MaterialPageRoute(
+                        builder: (_) => const WebRTCDiagnosticsScreen(),
+                      ),
                     );
-                    await _supabaseService.sendCallEnd(chatId: chatId);
                   },
-                  icon: const Icon(Icons.call_end, color: Colors.red),
-                  label: const Text(
-                    'Decline',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+                  icon: const Icon(Icons.network_check),
+                  label: const Text('Diagnostics'),
+                ),
+                Semantics(
+                  label: AccessibilityIds.decline,
+                  button: true,
+                  excludeSemantics: true,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      Navigator.of(dialogContext).pop();
+                      _activeDialogClosers.remove(chatId);
+                      await _appService.markIncomingCallDeclined(
+                        chatId: chatId,
+                        fromUserId: fromUserId,
+                      );
+                      final selfId = _currentUserId;
+                      if (selfId != null) {
+                        await _incomingCallService.declineCall(
+                          roomId: chatId,
+                          callerUserId: fromUserId,
+                          selfUserId: selfId,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.call_end, color: Colors.red),
+                    label: const Text(
+                      'Decline',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Semantics(
-                label: AccessibilityIds.answer,
-                button: true,
-                excludeSemantics: true,
-                child: ElevatedButton.icon(
-                  onPressed: !canAnswer
-                    ? null
-                    : () async {
-                        // ignore: avoid_print
-                        print('[stealth-call] Answer pressed for chat=$chatId');
-                        final navigatorRoot = Navigator.of(
-                          context,
-                          rootNavigator: true,
-                        );
-                        final dialogNavigator = Navigator.of(dialogContext);
-                        final messenger = ScaffoldMessenger.of(dialogContext);
-
-                        setDialogState(() => _answeringCall = true);
-                        final preflightError = await requestWebRTCAudioPreflight(
-                          requireVideo: isVideoCall,
-                        );
-                        // ignore: avoid_print
-                        print(
-                          '[stealth-call] preflight result: ${preflightError ?? 'OK'}',
-                        );
-                        if (preflightError != null) {
-                          if (dialogContext.mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(preflightError)),
+                Semantics(
+                  label: AccessibilityIds.answer,
+                  button: true,
+                  excludeSemantics: true,
+                  child: ElevatedButton.icon(
+                    onPressed: !canAnswer
+                        ? null
+                        : () async {
+                            Logger.info('[stealth-call] Answer pressed',
+                                extras: {'chatId': chatId});
+                            final navigatorRoot = Navigator.of(
+                              context,
+                              rootNavigator: true,
                             );
-                            setDialogState(() => _answeringCall = false);
-                          }
-                          return;
-                        }
+                            final dialogNavigator = Navigator.of(dialogContext);
+                            final messenger = ScaffoldMessenger.of(dialogContext);
 
-                        dialogNavigator.pop();
-                        setState(() => _isInCall = true);
+                            setDialogState(() => _answeringCall = true);
+                            final preflightError =
+                                await requestWebRTCAudioPreflight(
+                              requireVideo: isVideoCall,
+                            );
+                            Logger.info('[stealth-call] preflight result',
+                                extras: {'error': preflightError ?? 'OK'});
+                            if (preflightError != null) {
+                              if (dialogContext.mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(preflightError)),
+                                );
+                                setDialogState(() => _answeringCall = false);
+                              }
+                              return;
+                            }
 
-                        if (!mounted) {
-                          // ignore: avoid_print
-                          print('[stealth-call] not mounted after dialog pop');
-                          return;
-                        }
+                            dialogNavigator.pop();
+                            _activeDialogClosers.remove(chatId);
+                            setState(() => _isInCall = true);
 
-                        // ВАЖНО: `call_accept` отправляет сам экран звонка у
-                        // принимающей стороны ПОСЛЕ того, как подписался на
-                        // chat_calls. Иначе вызывающая сторона получает
-                        // call_accept и шлёт offer в канал раньше, чем callee
-                        // успевает подписаться, и сигналинг теряется.
-                        // ignore: avoid_print
-                        print('[stealth-call] pushing WebRTCCallScreen');
-                        await navigatorRoot.push(
-                          MaterialPageRoute(
-                            builder: (_) => WebRTCCallScreen(
-                              peerName: fromNickname,
-                              chatId: chatId,
-                              isCaller: false,
-                              isVideoCall: isVideoCall,
-                            ),
-                          ),
-                        );
-                        // ignore: avoid_print
-                        print('[stealth-call] call screen popped');
+                            if (!mounted) {
+                              Logger.warn(
+                                  '[stealth-call] not mounted after dialog pop');
+                              return;
+                            }
 
-                        if (mounted) {
-                          setState(() => _isInCall = false);
-                          _answeringCall = false;
-                        }
-                      },
-                icon: _answeringCall
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.phone),
-                label: Text(canAnswer ? 'Answer' : 'Unavailable'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+                            Logger.info(
+                                '[stealth-call] pushing WebRTCCallScreen with initialOffer');
+                            await navigatorRoot.push(
+                              MaterialPageRoute(
+                                builder: (_) => WebRTCCallScreen(
+                                  peerName: fromNickname,
+                                  chatId: chatId,
+                                  isCaller: false,
+                                  isVideoCall: isVideoCall,
+                                  initialOffer: offerSdp,
+                                  callerUserId: fromUserId,
+                                ),
+                              ),
+                            );
+                            Logger.info('[stealth-call] call screen popped');
+
+                            if (mounted) {
+                              setState(() => _isInCall = false);
+                              _answeringCall = false;
+                            }
+                          },
+                    icon: _answeringCall
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.phone),
+                    label: Text(canAnswer ? 'Answer' : 'Unavailable'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            ],
-          );
-        },
-      ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -338,7 +385,10 @@ class _CallManagerState extends State<CallManager> {
 
   @override
   void dispose() {
-    _supabaseService.unsubscribeUserCalls();
+    // ignore: discarded_futures
+    _eventsSub?.cancel();
+    // ignore: discarded_futures
+    _incomingCallService.stop();
     super.dispose();
   }
 }
