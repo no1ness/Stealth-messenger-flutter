@@ -231,7 +231,7 @@ P8 (Android) — последний, изолированный.
 
 **Phase 6 commit:** `docs(crypto): align RatchetService and docs with actual capability`.
 
-## Phase 7 — Private key export regression guard
+## Phase 7 — Private key export regression guard ✅ done
 
 **Цель:** не дать функции экспорта ключа вернуться в будущих PR.
 
