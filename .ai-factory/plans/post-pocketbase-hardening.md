@@ -169,23 +169,25 @@ P8 (Android) — последний, изолированный.
 
 **Цель:** снизить когнитивную нагрузку и улучшить покрытие тестами. Целевой размер модуля — до ~500 строк.
 
-### Task 5.1 — Разрезать `chats_screen.dart` (1794 → ~3 файла) ✅ partial
+### Task 5.1 — Разрезать `chats_screen.dart` (1794 → ~4 файла) ✅ done
 
-**Реальный исход:** extract двух модальных шитов (group-management, create-group)
-+ удаление мёртвого `_refreshReadState`. `chats_screen.dart` сжат
-1794 → 1452 строк (-19%). Тяжёлые `_buildConversationPanel` и
-`_buildConversationFooter` остались — они сильно завязаны на state и
-требуют разделения через notifier/controller, что в одном коммите
-рискованно без UI-теста. Завершить можно отдельной итерацией.
+**Реальный исход:** двумя итерациями (group-sheets + conversation panel/footer/attachment).
+`chats_screen.dart` сжат 1794 → 1153 строк (-36%). State остался в
+`_ChatsScreenState`, разделение сделано через чистые stateless-widgets с
+callback-проброс (notifier/controller-pattern не вводили — пробросом
+параметров оказалось достаточно). Существующий
+`chats_screen_semantics_test.dart` проходит без изменений; full
+`flutter analyze` чист.
 
 - **Файл-источник:** `client/lib/ui/screens/chats_screen.dart`.
-- **Извлечь:**
-  - `chats_data_controller.dart` (поведение, подписки на updates).
-  - `chats_message_composer.dart` (compose UI и attach picker).
-  - `chats_message_list.dart` (rendering with virtualization).
-- **Сохранить публичный API** `ChatsScreen` и accessibility ids (`accessibility_ids.dart`).
-- **Тесты:** существующий `chats_screen_semantics_test.dart` должен пройти без изменений.
-- **Логи:** при extract использовать `Logger` (Phase 4).
+- **Извлечено:**
+  - `client/lib/ui/screens/chats/create_group_sheet.dart` (модальный шит создания группы).
+  - `client/lib/ui/screens/chats/group_management_sheet.dart` (модальный шит управления участниками).
+  - `client/lib/ui/screens/chats/conversation_panel.dart` (pinned banner + in-chat search + message list).
+  - `client/lib/ui/screens/chats/conversation_footer.dart` (reply/edit banner + progress + typing + `GlassMessageInput`).
+  - `client/lib/ui/screens/chats/conversation_attachment.dart` (image/audio/file билдер с авто-decrypt).
+- **Не делали:** notifier/controller-абстракцию вокруг `_ChatsScreenState`
+  (избыточно для текущего объёма; преждевременная абстракция).
 
 ### Task 5.2 — Разрезать `webrtc_call_screen_web.dart` (1144 → ~3 файла)
 

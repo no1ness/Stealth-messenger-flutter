@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -9,11 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
-    as glass;
-import 'package:stealth/themes/apple_liquid/widgets/glass_message_input.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/ui/screens/chats/conversation_footer.dart';
+import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
@@ -834,352 +831,56 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Widget _buildConversationPanel(List<Map<String, dynamic>> visibleMessages) {
-    if (_loadingMessages) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Column(
-      children: [
-        if (_pinnedMessage != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.systemYellow.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppColors.systemYellow.withValues(alpha: 0.24),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.push_pin, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _pinnedMessage?['content'] as String? ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageSearchController,
-                  onChanged: (_) => setState(() {
-                    _searchInConversation =
-                        _messageSearchController.text.trim().isNotEmpty;
-                  }),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search in conversation',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              if (_searchInConversation) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    _messageSearchController.clear();
-                    setState(() {
-                      _searchInConversation = false;
-                    });
-                  },
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ],
-          ),
-        ),
-        Expanded(
-          child: visibleMessages.isEmpty
-              ? const EmptyState(type: 'chats')
-              : ListView.builder(
-                  controller: _messagesScrollController,
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-                  itemCount: visibleMessages.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      if (_loadingOlderMessages) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (_hasMoreMessages) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Center(
-                            child: OutlinedButton(
-                              onPressed: _loadOlderMessages,
-                              child: const Text('Load older messages'),
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }
-
-                    final message = visibleMessages[index - 1];
-                    final replyToId = message['reply_to_id'] as String?;
-                    final repliedMessage = replyToId == null
-                        ? null
-                        : _messages.cast<Map<String, dynamic>?>().firstWhere(
-                              (candidate) =>
-                                  candidate?['id'].toString() == replyToId,
-                              orElse: () => null,
-                            );
-
-                    return GestureDetector(
-                      onLongPress: () => _showMessageActions(message),
-                      child: glass.GlassChatBubble(
-                        message:
-                            '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
-                        timestamp: message['timestamp'] as String?,
-                        isDelivered: message['isDelivered'] as bool?,
-                        isRead: message['isRead'] as bool?,
-                        attachmentWidget: _buildAttachmentWidget(message),
-                        replyPreview: repliedMessage == null
-                            ? null
-                            : _buildReplyPreview(
-                                repliedMessage['message'] as String? ?? '',
-                              ),
-                        type: (message['isSent'] as bool? ?? false)
-                            ? glass.MessageType.sent
-                            : glass.MessageType.received,
-                      ),
-                    );
-                  },
-                ),
-        ),
-        _buildConversationFooter(),
-      ],
-    );
-  }
-
-  Widget? _buildAttachmentWidget(Map<String, dynamic> message) {
-    final type = message['type'] as String?;
-    final content = message['message'] as String?;
-    if (content == null || content.isEmpty) return null;
-    if (type != 'image' && type != 'file' && type != 'audio') return null;
-
-    final isEncrypted =
-        (message['metadata'] as Map?)?['file_encrypted'] == true;
-
-    if (type == 'image') {
-      if (isEncrypted) {
-        return FutureBuilder<Uint8List?>(
-          future: _appService.downloadAttachment(content, _selectedChatId!,
-              encrypted: true),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                width: 200,
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasData && snapshot.data != null) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  snapshot.data!,
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
-              );
-            }
-            return const Icon(Icons.broken_image, size: 48);
-          },
-        );
-      }
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          content,
-          width: 200,
-          height: 200,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              const Icon(Icons.broken_image, size: 48),
-        ),
-      );
-    }
-
-    if (type == 'audio') {
-      return _buildAudioAttachment(content, isEncrypted);
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.insert_drive_file, color: AppColors.systemBlue),
-        const SizedBox(width: 8),
-        Text(isEncrypted ? 'Encrypted File' : 'File Attachment'),
-      ],
-    );
-  }
-
-  Widget _buildAudioAttachment(String url, bool isEncrypted) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.play_circle_fill,
-              color: AppColors.systemBlue, size: 32),
-          onPressed: () async {
-            final bytes = await _appService.downloadAttachment(
-              url,
-              _selectedChatId!,
-              encrypted: isEncrypted,
-            );
-            if (bytes != null) {
-              final source = BytesSource(bytes);
-              final player = AudioPlayer();
-              await player.play(source);
-            }
-          },
-        ),
-        const SizedBox(width: 4),
-        Text(
-          isEncrypted ? 'Encrypted Voice' : 'Voice Note',
-          style: AppTypography.caption1,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildConversationFooter() {
-    // Футер объединяет полосу прогресса с полем ввода, чтобы чат
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_replyToMessageText != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.systemBlue.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${_isEditingMessage ? 'Editing' : 'Replying to'}: $_replyToMessageText',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _replyToMessageId = null;
-                            _replyToMessageText = null;
-                            _editingMessageId = null;
-                            _isEditingMessage = false;
-                          });
-                        },
-                        icon: const Icon(Icons.close, size: 18),
-                      ),
-                    ],
-                  ),
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: _messages.isEmpty
-                          ? 0.12
-                          : _messages.length.clamp(1, 50) / 50,
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(999),
-                      color: AppColors.systemBlue,
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${_messages.length} msgs',
-                    style: Theme.of(context).textTheme.labelMedium,
-                  ),
-                ],
-              ),
-              if (_isOtherTyping) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Typing...',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.systemGreen,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        GlassMessageInput(
-          onSendMessage: _handleSendMessage,
-          onAttachment: _handleAttachment,
-          onVoiceRecorded: _handleVoiceRecorded,
-          onTyping: (isTyping) async {
-            final chatId = _selectedChatId;
-            if (chatId == null) {
-              return;
-            }
-            await _appService.setTypingStatus(
-              chatId: chatId,
-              isTyping: isTyping,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReplyPreview(String text) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelMedium,
+    return ConversationPanel(
+      loadingMessages: _loadingMessages,
+      loadingOlderMessages: _loadingOlderMessages,
+      hasMoreMessages: _hasMoreMessages,
+      pinnedMessage: _pinnedMessage,
+      messageSearchController: _messageSearchController,
+      searchInConversation: _searchInConversation,
+      onSearchChanged: () => setState(() {
+        _searchInConversation =
+            _messageSearchController.text.trim().isNotEmpty;
+      }),
+      onSearchCleared: () {
+        _messageSearchController.clear();
+        setState(() {
+          _searchInConversation = false;
+        });
+      },
+      scrollController: _messagesScrollController,
+      messages: _messages,
+      visibleMessages: visibleMessages,
+      onLoadOlder: _loadOlderMessages,
+      onMessageLongPress: _showMessageActions,
+      appService: _appService,
+      chatId: _selectedChatId!,
+      footer: ConversationFooter(
+        replyToMessageText: _replyToMessageText,
+        isEditingMessage: _isEditingMessage,
+        messagesCount: _messages.length,
+        isOtherTyping: _isOtherTyping,
+        onCancelReplyOrEdit: () {
+          setState(() {
+            _replyToMessageId = null;
+            _replyToMessageText = null;
+            _editingMessageId = null;
+            _isEditingMessage = false;
+          });
+        },
+        onSendMessage: _handleSendMessage,
+        onAttachment: _handleAttachment,
+        onVoiceRecorded: _handleVoiceRecorded,
+        onTypingChanged: (isTyping) async {
+          final chatId = _selectedChatId;
+          if (chatId == null) {
+            return;
+          }
+          await _appService.setTypingStatus(
+            chatId: chatId,
+            isTyping: isTyping,
+          );
+        },
       ),
     );
   }
