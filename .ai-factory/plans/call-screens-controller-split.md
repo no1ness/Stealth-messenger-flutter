@@ -55,10 +55,11 @@ client/lib/ui/screens/calls/
 
 Целевой размер модуля — до ~500 строк. View-слой не превышает 300 строк (build + helper builders).
 
-## Phase 1 — Native call screen split
+## Phase 1 — Native call screen split ✅ done
 
 **Файл-источник:** `client/lib/ui/screens/webrtc_call_screen_native_impl.dart`
 **Target line count after:** ~250.
+**Shipped:** commit `a1231cf` — `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view`.
 
 ### Task 1.1 — Extract `NativeCallController`
 
@@ -139,7 +140,9 @@ client/lib/ui/screens/calls/
 
 **Phase 1 commit:** `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view`.
 
-## Phase 2 — Web call screen split
+## Phase 2 — Web call screen split ✅ done
+
+**Shipped:** commit `b9df0c1` — `refactor(ui): split webrtc_call_screen_web into controller/media/view`.
 
 Параллельная структура. Отличия от Phase 1:
 
@@ -175,10 +178,10 @@ client/lib/ui/screens/calls/
 
 ## Commit Plan
 
-| #   | После задачи | Commit                                                                          |
-| --- | ------------ | ------------------------------------------------------------------------------- |
-| 1   | 1.1–1.4      | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view` |
-| 2   | 2.1–2.4      | `refactor(ui): split webrtc_call_screen_web into controller/media/view`         |
+| #   | После задачи | Commit                                                                          | Status                  |
+| --- | ------------ | ------------------------------------------------------------------------------- | ----------------------- |
+| 1   | 1.1–1.4      | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view` | ✅ shipped (`a1231cf`) |
+| 2   | 2.1–2.4      | `refactor(ui): split webrtc_call_screen_web into controller/media/view`         | ✅ shipped (`b9df0c1`) |
 
 Каждый коммит атомарен: один файл-источник полностью раскладывается на 3 новых файла + соответствующий тест в одном коммите, чтобы CI не падал на промежуточном состоянии.
 
@@ -215,10 +218,10 @@ client/lib/ui/screens/calls/
 
 ## Pre-merge checklist
 
-- [ ] `feature/pocketbase-signaling` смержен в main (открытый PR пройден).
-- [ ] `git checkout main && git pull && git checkout -b feature/call-screens-controller-split`.
-- [ ] Запустить `/aif-implement` — два phase-коммита по `commit plan`.
-- [ ] CI зелёный на ветке (analyze + test + build web + build android).
+- [x] `feature/pocketbase-signaling` смержен в main (открытый PR пройден).
+- [x] `git checkout main && git pull && git checkout -b feature/call-screens-controller-split`.
+- [x] Запустить `/aif-implement` — два phase-коммита по `commit plan`.
+- [x] Локально зелёный (`flutter analyze` — No issues; `flutter test` — 60 passed). CI на ветке: дождаться запуска после push.
 - [ ] Ручной smoke: 1-on-1 видео-звонок (web ↔ native) с подключённым PocketBase, чтобы ловить ICE/audio регрессии которые semantics-тесты не покрывают.
 
 ## Следующие шаги
