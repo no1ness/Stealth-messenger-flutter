@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 
 void main() {
@@ -238,30 +239,11 @@ void main() {
 
   group('PocketBase id translation', () {
     const localUuid = '550e8400-e29b-41d4-a716-446655440000';
-    const pbId = '550e8400e29b41d4a716446655440000';
+    // SHA-256(localUuid)[:15] — pinned to detect accidental algorithm changes.
+    const pbId = 'a3a9e1ed9732cab';
 
-    test('fromRecord rehydrates pb-id back into canonical UUID form', () {
-      final record = RecordModel(
-        id: 'rec_uuid',
-        created: '2026-05-14 00:00:00.000Z',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'room-1',
-          // Wire-level ids do NOT contain dashes (PocketBase record ids).
-          'creator': pbId,
-          'target': pbId,
-          'type': 'offer',
-          'payload': const <String, dynamic>{},
-        },
-      );
-
-      final msg = RtcMessage.fromRecord(record);
-
-      expect(msg.creator, localUuid);
-      expect(msg.target, localUuid);
-    });
-
-    test('toCreateBody strips dashes when emitting wire payload', () {
+    test('toCreateBody emits the 15-char SHA-256 PB id for canonical UUIDs',
+        () {
       final msg = RtcMessage(
         id: '',
         roomId: 'room-1',
@@ -276,6 +258,51 @@ void main() {
 
       expect(body['creator'], pbId);
       expect(body['target'], pbId);
+      expect((body['creator'] as String).length, kPbIdLength);
+    });
+
+    test('fromRecord with a resolver rehydrates pb-id back to local UUID', () {
+      final record = RecordModel(
+        id: 'rec_uuid',
+        created: '2026-05-14 00:00:00.000Z',
+        collectionName: 'rtc_signaling',
+        data: <String, dynamic>{
+          'roomId': 'room-1',
+          'creator': pbId,
+          'target': pbId,
+          'type': 'offer',
+          'payload': const <String, dynamic>{},
+        },
+      );
+
+      final resolver = PbUserIdResolver([localUuid]);
+      final msg = RtcMessage.fromRecord(record, resolver: resolver);
+
+      expect(msg.creator, localUuid);
+      expect(msg.target, localUuid);
+    });
+
+    test('fromRecord without a resolver passes wire ids through unchanged', () {
+      // No resolver supplied — the hashed pbId is opaque to RtcMessage and
+      // is echoed back verbatim. Callers that need the local UUID must
+      // build a PbUserIdResolver from self + known contacts.
+      final record = RecordModel(
+        id: 'rec_uuid',
+        created: '2026-05-14 00:00:00.000Z',
+        collectionName: 'rtc_signaling',
+        data: <String, dynamic>{
+          'roomId': 'room-1',
+          'creator': pbId,
+          'target': pbId,
+          'type': 'offer',
+          'payload': const <String, dynamic>{},
+        },
+      );
+
+      final msg = RtcMessage.fromRecord(record);
+
+      expect(msg.creator, pbId);
+      expect(msg.target, pbId);
     });
   });
 }

@@ -451,6 +451,17 @@ class WebCallMediaBindings {
   }) {
     final raw = urlsEnv?.trim();
     if (raw == null || raw.isEmpty) return;
+    final user = userEnv?.trim() ?? '';
+    final pass = passEnv?.trim() ?? '';
+    // RTCPeerConnection throws "TURN server with empty username or password"
+    // if we attach a turn:/turns: URL without credentials. Skip the entry
+    // rather than crash call setup — STUN-only fallback still works on LAN.
+    if (user.isEmpty || pass.isEmpty) {
+      debugPrint(
+        '[stealth-call] web $label skipped: missing username/password',
+      );
+      return;
+    }
     final urls = raw
         .split(',')
         .map((u) => u.trim())
@@ -461,8 +472,8 @@ class WebCallMediaBindings {
     servers.add(
       web.RTCIceServer(
         urls: urls,
-        username: userEnv?.trim() ?? '',
-        credential: passEnv?.trim() ?? '',
+        username: user,
+        credential: pass,
       ),
     );
     debugPrint('[stealth-call] web $label configured: $raw');

@@ -31,6 +31,8 @@
 
 PocketBase видит только временные signaling events и их metadata: room, target, creator, type, timestamps, SDP/ICE payload. Он не хранит историю сообщений, контакты, вложения или plaintext.
 
+Поле `creator`/`target` — это 15-символьный SHA-256 префикс локального UUID (см. `client/lib/services/signaling/pb_user_id.dart`). Маппинг **односторонний**: оператор PocketBase не может восстановить UUID юзера из PB-id без полной радужной таблицы по всему пространству UUID. Однако `offer`/`hangup` payload содержит исходный `creatorUuid` (нужен callee для resolve незнакомого caller), поэтому полный UUID **виден** оператору в момент звонка. Это устранимо только переходом на end-to-end шифрование signaling payload — в текущей модели не делается.
+
 WebRTC media шифруется механизмами WebRTC (DTLS-SRTP). PocketBase не переносит media packets.
 
 ## Главные риски

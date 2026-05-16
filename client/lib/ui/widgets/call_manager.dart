@@ -28,8 +28,15 @@ class CallManager extends StatefulWidget {
 
 class _CallManagerState extends State<CallManager> {
   final LocalAppService _appService = LocalAppService();
-  final IncomingCallSignalingService _incomingCallService =
-      IncomingCallSignalingService();
+  late final IncomingCallSignalingService _incomingCallService =
+      IncomingCallSignalingService(
+    knownPeerUuidsProvider: () => _knownContactUuidsCache,
+  );
+
+  /// Cache of contact UUIDs, refreshed before each `_initGlobalCallListener`
+  /// run and after each accepted call. Used by the incoming-call resolver
+  /// to map PocketBase ids back to local UUIDs (`pb_user_id.dart`).
+  List<String> _knownContactUuidsCache = const <String>[];
 
   StreamSubscription<IncomingCallEvent>? _eventsSub;
   String? _currentUserId;
@@ -60,6 +67,8 @@ class _CallManagerState extends State<CallManager> {
       return;
     }
 
+    await _refreshKnownContactsCache();
+
     Logger.info(
         '[stealth-call] CallManager subscribing to PocketBase rtc_signaling');
     try {
@@ -68,6 +77,19 @@ class _CallManagerState extends State<CallManager> {
       Logger.info('[stealth-call] CallManager subscribed successfully');
     } catch (error) {
       Logger.warn('[stealth-call] CallManager subscribe error',
+          extras: {'error': error});
+    }
+  }
+
+  Future<void> _refreshKnownContactsCache() async {
+    try {
+      final contacts = await _appService.getContacts();
+      _knownContactUuidsCache = <String>[
+        for (final contact in contacts)
+          if (contact['user_id'] is String) contact['user_id'] as String,
+      ];
+    } catch (error) {
+      Logger.warn('[stealth-call] CallManager refresh contacts cache error',
           extras: {'error': error});
     }
   }

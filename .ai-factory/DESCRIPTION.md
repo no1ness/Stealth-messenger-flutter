@@ -13,7 +13,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - P2P messaging использует WebRTC DataChannel.
 - WebRTC signaling использует собственный PocketBase (`POCKETBASE_URL`) через SSE.
 - Звонки идут через WebRTC; PocketBase хранит только временные signaling events.
-- PocketBase identity: `users.id == pbIdFromLocalUuid(selfUserId)` (локальный UUID без дефисов) — это контракт между клиентом и API rules коллекции `rtc_signaling`, см. `client/lib/services/signaling/pb_user_id.dart` и `docs/POCKETBASE_SETUP.md`.
+- PocketBase identity: `users.id == pbIdFromLocalUuid(selfUserId)` — 15-символьный SHA-256 префикс локального UUID (PocketBase требует ровно 15 char). Маппинг **односторонний** (UUID → pbId детерминирован, pbId → UUID — lookup по известным контактам через `PbUserIdResolver`; для неизвестных пиров `offer`/`hangup` payload несёт `creatorUuid`). Регистрация и in-flight guard — в `client/lib/services/signaling/pocketbase_auth_service.dart` (singleton, общий между `WebRtcSignalingService` и `IncomingCallSignalingService`). См. также `client/lib/services/signaling/pb_user_id.dart` и `docs/POCKETBASE_SETUP.md`.
 - Структурированное логирование через `client/lib/logging/logger.dart` (`Logger.debug/info/warn/error`) с auto-redaction sensitive ids выше DEBUG уровня. Прямой `print()` в `lib/` запрещён (project rule + regression test `client/test/security/private_key_no_export_test.dart`).
 - Env-конфиг: committed `.env.defaults` (асет), runtime override через `--dart-define=<KEY>=value`. `.env` остаётся в `.gitignore` и больше не входит в asset bundle.
 

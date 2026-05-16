@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
+import 'package:stealth/services/signaling/pocketbase_auth_service.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 
@@ -70,12 +71,27 @@ class IncomingCallHangup extends IncomingCallEvent {
 /// — поэтому именно он отвечает за приём `offer` (= новый звонок) и
 /// `hangup` от ещё не отвеченных звонков.
 class IncomingCallSignalingService {
-  IncomingCallSignalingService({PocketBase? pocketBase})
-      : _pb = pocketBase ?? PocketBaseClient.instance.pb;
+  IncomingCallSignalingService({
+    PocketBase? pocketBase,
+    Iterable<String> Function()? knownPeerUuidsProvider,
+    PocketBaseAuthService? authService,
+  })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
+        _knownPeerUuidsProvider =
+            knownPeerUuidsProvider ?? (() => const <String>[]),
+        _authService = authService ??
+            (pocketBase == null
+                ? PocketBaseAuthService.instance
+                : PocketBaseAuthService(pocketBase: pocketBase));
 
   final PocketBase _pb;
+  final PocketBaseAuthService _authService;
   final StreamController<IncomingCallEvent> _eventsController =
       StreamController<IncomingCallEvent>.broadcast();
+
+  /// Returns local UUIDs the host can decode from incoming PB-id wire form
+  /// (typically self + every contact). Called per-record because contacts
+  /// can change at runtime; the lookup is cheap.
+  final Iterable<String> Function() _knownPeerUuidsProvider;
 
   UnsubscribeFunc? _unsubscribe;
   String? _selfUserId;
@@ -84,6 +100,11 @@ class IncomingCallSignalingService {
 
   Future<void> start({required String selfUserId}) async {
     _selfUserId = selfUserId;
+    // PocketBase realtime evaluates `listRule` per SSE event. Without auth,
+    // `target = @request.auth.id` is always false and the callee never
+    // receives an incoming offer. Ensure auth BEFORE subscribing so the
+    // server attaches the right identity to this SSE client.
+    await _authService.ensureAuth(selfUserId);
     final pbSelfId = pbIdFromLocalUuid(selfUserId);
     final filter = "target='$pbSelfId' && "
         "(type='offer' || type='hangup')";
@@ -139,7 +160,7 @@ class IncomingCallSignalingService {
         'creator': pbCreator,
         'target': pbTarget,
         'type': RtcMessageType.hangup.wireValue,
-        'payload': const <String, dynamic>{},
+        'payload': <String, dynamic>{'creatorUuid': selfUserId},
       });
     } catch (error) {
       Logger.warn('[signaling] decline error', extras: {'error': error});
@@ -152,7 +173,12 @@ class IncomingCallSignalingService {
     if (record == null) return;
     if (_eventsController.isClosed) return;
     try {
-      final message = RtcMessage.fromRecord(record);
+      final knownUuids = <String>{
+        if (_selfUserId != null) _selfUserId!,
+        ..._knownPeerUuidsProvider(),
+      };
+      final resolver = PbUserIdResolver(knownUuids);
+      final message = RtcMessage.fromRecord(record, resolver: resolver);
       switch (message.type) {
         case RtcMessageType.offer:
           if (message.payload['purpose'] == 'datachannel') {
@@ -163,26 +189,37 @@ class IncomingCallSignalingService {
           }
           final isVideoCall = (message.payload['callType'] ?? '') == 'video';
           final fromNickname = (message.payload['nickname'] ?? '') as String;
+          // Prefer the caller UUID carried in the payload over `message.creator`
+          // (which is a 15-char hash and may not resolve back to a UUID for
+          // strangers not yet in the receiver's contacts).
+          final creatorUuid = message.payload['creatorUuid'];
+          final fromUserId = (creatorUuid is String && creatorUuid.isNotEmpty)
+              ? creatorUuid
+              : message.creator;
           Logger.info('[signaling] incoming offer detected', extras: {
             'roomId': message.roomId,
-            'fromUserId': message.creator,
+            'fromUserId': fromUserId,
           });
           _eventsController.add(IncomingCallOffer(
             roomId: message.roomId,
-            fromUserId: message.creator,
+            fromUserId: fromUserId,
             fromNickname: fromNickname,
             isVideoCall: isVideoCall,
             sdp: message.payload,
           ));
           break;
         case RtcMessageType.hangup:
+          final creatorUuid = message.payload['creatorUuid'];
+          final fromUserId = (creatorUuid is String && creatorUuid.isNotEmpty)
+              ? creatorUuid
+              : message.creator;
           Logger.info('[signaling] incoming hangup', extras: {
             'roomId': message.roomId,
-            'fromUserId': message.creator,
+            'fromUserId': fromUserId,
           });
           _eventsController.add(IncomingCallHangup(
             roomId: message.roomId,
-            fromUserId: message.creator,
+            fromUserId: fromUserId,
           ));
           break;
         case RtcMessageType.answer:

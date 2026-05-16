@@ -23,6 +23,7 @@
  * URL можно переопределить: set STEALTH_WEB_URL=http://127.0.0.1:PORT
  */
 import { chromium } from "playwright";
+import { readContactBundle } from "./contact-bundle-helper.mjs";
 
 const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:57575";
 const suffix = Date.now().toString(36);
@@ -304,6 +305,30 @@ async function main() {
   const alice = await ctxA.newPage();
   const bob = await ctxB.newPage();
 
+  // Capture relevant browser logs from both peers for post-mortem.
+  globalThis.aliceLogs = [];
+  globalThis.bobLogs = [];
+  const aliceLogs = globalThis.aliceLogs;
+  const bobLogs = globalThis.bobLogs;
+  function tagLog(arr, prefix) {
+    return (m) => {
+      const t = typeof m.text === "function" ? m.text() : (m.message ?? String(m));
+      if (
+        /\[(signaling|stealth-call|bootstrap|call|incoming)\]|error|Error|fail/i.test(t)
+      ) arr.push(`${prefix} ${t}`);
+    };
+  }
+  alice.on("console", tagLog(aliceLogs, "[A console]"));
+  alice.on("pageerror", (e) => aliceLogs.push(`[A pageerror] ${e.message}`));
+  alice.on("requestfailed", (r) =>
+    aliceLogs.push(`[A reqfail] ${r.url()} ${r.failure()?.errorText}`),
+  );
+  bob.on("console", tagLog(bobLogs, "[B console]"));
+  bob.on("pageerror", (e) => bobLogs.push(`[B pageerror] ${e.message}`));
+  bob.on("requestfailed", (r) =>
+    bobLogs.push(`[B reqfail] ${r.url()} ${r.failure()?.errorText}`),
+  );
+
   const nickA = `Alice_${suffix}`;
   const nickB = `Bob_${suffix}`;
 
@@ -311,9 +336,15 @@ async function main() {
   console.log("Регистрация Bob…");
   await registerUser(bob, nickB);
 
-  // Читаем ID из профиля
+  // Читаем ID и contact bundle из Bob (bundle нужен для search() в Alice — UUID без
+  // bundle не находится, см. local_app_service.dart::searchUsers).
   const bobId = await readUserIdFromProfile(bob);
   console.log("Bob user_id:", bobId);
+  const bobBundle = await readContactBundle(bob);
+  if (!bobBundle) {
+    throw new Error("Could not read Bob's contact bundle from localStorage.");
+  }
+  console.log("Bob bundle length:", bobBundle.length);
 
   // Возвращаемся на экран чатов
   await bob.getByRole("button", { name: "Chats" }).click();
@@ -332,28 +363,25 @@ async function main() {
   // Вставляем Bob UUID через буфер обмена → кнопка "Paste contact" → одиночный search()
   // Это надёжнее чем keyboard.type(), который вызывает onChanged на КАЖДЫЙ символ
   // и создаёт 36 параллельных local searchов с race condition.
-  console.log("Alice: копируем UUID Bob в буфер и нажимаем Paste contact…");
-  await alice.evaluate(async (id) => {
-    // Запись в clipboard
+  console.log("Alice: копируем contact bundle Bob в буфер и нажимаем Paste contact…");
+  await alice.evaluate(async (bundle) => {
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(bundle);
     } catch (_) {
-      // Fallback: используем document.execCommand (deprecated но работает headless)
       const ta = document.createElement("textarea");
-      ta.value = id;
+      ta.value = bundle;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  }, bobId);
+  }, bobBundle);
 
-  // Ждём открытия модала (поле поиска должно быть видимым)
-  const searchField = getContactSearchInput(alice);
-  await searchField.waitFor({ state: "visible", timeout: 15_000 });
-
-  // Нажимаем «Paste contact» — Flutter читает clipboard и вызывает search() один раз
-  await alice.getByRole("button", { name: /Paste contact/i }).click();
+  // Ждём открытия модала (кнопка Paste contact — надёжный маркер открытого диалога,
+  // в отличие от input у которого нет явной aria-label).
+  const pasteBtn = alice.getByRole("button", { name: /Paste contact/i });
+  await pasteBtn.waitFor({ state: "visible", timeout: 15_000 });
+  await pasteBtn.click();
 
   // Ждём завершения local searchа (один запрос вместо 36)
   console.log("Alice: ждём результаты поиска (единственный local search)…");
@@ -460,5 +488,9 @@ async function main() {
 
 main().catch((err) => {
   console.error("\n❌ Тест упал:", err?.message ?? err);
+  if (typeof globalThis.aliceLogs !== "undefined") {
+    console.error("\n— Alice logs —\n" + globalThis.aliceLogs.join("\n"));
+    console.error("\n— Bob logs —\n" + globalThis.bobLogs.join("\n"));
+  }
   process.exit(1);
 });

@@ -93,13 +93,13 @@ the default ACME flow is sufficient.
 Create the collection from the admin UI (Collections → New collection →
 `base`), or import the JSON below via Settings → Import collections.
 
-| Field      | Type         | Required | Notes                                                       |
-| ---------- | ------------ | -------- | ----------------------------------------------------------- |
-| `roomId`   | text         | yes      | indexed; equals chatId for 1-to-1 calls                     |
-| `creator`  | text         | yes      | local user UUID of the sender (not relation: see Section 4) |
-| `target`   | text         | yes      | indexed; local user UUID of the receiver                    |
-| `type`     | select       | yes      | values: `offer`, `answer`, `candidate`, `hangup`            |
-| `payload`  | json         | yes      | raw SDP / candidate object passed verbatim                  |
+| Field      | Type         | Required | Notes                                                                                                                                  |
+| ---------- | ------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `roomId`   | text         | yes      | indexed; equals chatId for 1-to-1 calls                                                                                                |
+| `creator`  | text         | yes      | PocketBase record id of the sender (15-char SHA-256 prefix of the local UUID — see `client/lib/services/signaling/pb_user_id.dart`)    |
+| `target`   | text         | yes      | indexed; PocketBase record id of the receiver (same 15-char derivation as `creator`)                                                   |
+| `type`     | select       | yes      | values: `offer`, `answer`, `candidate`, `hangup`                                                                                       |
+| `payload`  | json         | yes      | raw SDP / candidate object passed verbatim. For `offer` and `hangup` it also carries `creatorUuid` (the sender's local UUID) so the receiver can resolve callers that aren't yet in its contact book — the 15-char hash is one-way |
 
 Recommended indexes (Settings → Indexes):
 
@@ -145,21 +145,43 @@ identity:
 
 These rules assume the `creator` field holds the PocketBase user id (the
 authenticated `users.id`). Stealth's lazy auth flow registers a per-device
-PocketBase account whose id matches the local user UUID written into
-`creator`/`target` (see `client/lib/services/signaling/webrtc_signaling_service.dart`,
-method `_ensureAuth`).
+PocketBase account whose `id` is **exactly 15 characters** — PocketBase
+constrains custom record ids to that length and to the alphabet
+`^[A-Za-z0-9_]{15}$`. The client derives the id deterministically as the
+first 15 hex chars of `SHA-256(localUuid)` (see
+`client/lib/services/signaling/pb_user_id.dart`); registration happens in
+`PocketBaseAuthService.ensureAuth` (shared singleton used by both the
+per-call `WebRtcSignalingService` and the global
+`IncomingCallSignalingService`).
+
+The mapping is one-way: given a PocketBase id you cannot reconstruct the
+local UUID. For peer-resolution on the receiver side, the client builds a
+`PbUserIdResolver` over its own UUID plus every contact UUID; for callers
+not yet in the contact book the `offer`/`hangup` payload carries
+`creatorUuid` explicitly.
 
 If you prefer the `creator`/`target` fields to be `relation` instead of
 `text`, change the type and update the rules to use `creator.id` /
 `target.id`. The Stealth client treats the field as opaque ID either way.
 
+> **Upgrading from an earlier Stealth build.** Releases before
+> 2026-05-16 derived the PocketBase id by stripping dashes from the UUID
+> (32 chars), which PocketBase silently rejected — the server generated a
+> fresh id instead and the `auth.id == request.data.creator` rule never
+> matched, so callees never received SSE events. On the first run after
+> upgrading, the client detects the mismatch in secure storage, wipes its
+> local credentials, and registers a fresh account under the correct
+> 15-char id. The old server-side record is left as an orphan and is
+> reaped by the cleanup hook (Section 5) once the user's TTL window passes.
+
 ## 4. Users collection
 
 PocketBase ships a `users` auth collection by default; nothing extra is
 required. The client uses `email + password` auth with synthetic credentials
-of the form `<localUuid>@stealth.local`. Allow public sign-ups (the default)
-or call `pb.collection('users').create()` from your own admin tooling — the
-client logs in via password once the record exists.
+of the form `<pbId>@stealth.local` (where `pbId` is the 15-char derivation
+described above). Allow public sign-ups (the default) or call
+`pb.collection('users').create()` from your own admin tooling — the client
+logs in via password once the record exists.
 
 ## 5. Scheduled cleanup (TTL)
 

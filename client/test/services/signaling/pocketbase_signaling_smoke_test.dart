@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/incoming_call_service.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
+import 'package:stealth/services/signaling/pocketbase_auth_service.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
 import 'package:stealth/storage_service.dart';
@@ -11,9 +16,10 @@ import 'package:stealth/storage_service.dart';
 /// Smoke test that runs the full signaling flow against a real PocketBase
 /// instance.
 ///
-/// The test relies on `WebRtcSignalingService` to self-register PocketBase
-/// users via `_ensureAuth` — it does NOT pre-provision users itself. This
-/// exercises the identity contract introduced in Phase 1 of the
+/// The test relies on `WebRtcSignalingService` (and `IncomingCallSignalingService`
+/// for the receive-side scenario) to self-register PocketBase users via
+/// `PocketBaseAuthService.ensureAuth` — it does NOT pre-provision users
+/// itself. This exercises the identity contract introduced in Phase 1 of the
 /// post-PocketBase hardening plan:
 ///
 ///   PocketBase `users.id` == `pbIdFromLocalUuid(selfUserId)`
@@ -167,6 +173,151 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  test(
+    'IncomingCallSignalingService receives offer for canonical-UUID self id',
+    () async {
+      // Receive-side scenario for the global incoming-call listener. This
+      // covers the regression that motivated the pb-user-id-collision fix:
+      //
+      //   1. Both peers use canonical UUIDs, so `pbIdFromLocalUuid` takes the
+      //      SHA-256[:15] branch (not the non-UUID passthrough exercised by
+      //      the test above). This validates that PocketBase accepts a custom
+      //      15-char hash id and that strict API rules continue to match.
+      //   2. `IncomingCallSignalingService.start()` must call ensureAuth
+      //      BEFORE subscribe — otherwise the SSE listRule
+      //      (`target = @request.auth.id`) is always false and the callee
+      //      never sees the offer. Catching this is the whole point of the
+      //      new scenario.
+      //   3. The offer payload carries `creatorUuid` (the caller's local
+      //      UUID); the resolver hashes known peers so `IncomingCallOffer
+      //      .fromUserId` surfaces the local UUID, not the 15-char hash.
+      final adminEmail = Platform.environment['POCKETBASE_TEST_ADMIN_EMAIL'];
+      final adminPassword =
+          Platform.environment['POCKETBASE_TEST_ADMIN_PASSWORD'];
+
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+      final callerUuid = _deterministicUuid('caller-$stamp');
+      final calleeUuid = _deterministicUuid('callee-$stamp');
+      final roomId = 'smoke_room_uuid_$stamp';
+
+      final pbCaller = PocketBase(pbUrl);
+      final pbCallee = PocketBase(pbUrl);
+
+      WebRtcSignalingService? caller;
+      IncomingCallSignalingService? callee;
+      StreamSubscription<IncomingCallEvent>? eventsSub;
+
+      try {
+        caller = WebRtcSignalingService(
+          pocketBase: pbCaller,
+          storage: _NoopStorage(),
+          connectivity: _SilentConnectivity(),
+        );
+        callee = IncomingCallSignalingService(
+          pocketBase: pbCallee,
+          knownPeerUuidsProvider: () => [callerUuid],
+          authService: PocketBaseAuthService(
+            pocketBase: pbCallee,
+            storage: _NoopStorage(),
+          ),
+        );
+
+        final events = <IncomingCallEvent>[];
+        eventsSub = callee.events.listen(events.add);
+
+        await callee.start(selfUserId: calleeUuid);
+        await caller.connect(roomId: roomId, selfUserId: callerUuid);
+
+        // Sanity-check the identity contract under the SHA-256 derivation
+        // before sending — if PocketBase substituted a different id, the
+        // strict createRule on the server would reject the offer anyway.
+        final modelCaller = pbCaller.authStore.model;
+        final pbIdCaller = (modelCaller is RecordModel) ? modelCaller.id : null;
+        expect(
+          pbIdCaller,
+          pbIdFromLocalUuid(callerUuid),
+          reason:
+              'PocketBase must store the caller account under the SHA-256[:15] '
+              'id derived from the canonical UUID — otherwise listRule and '
+              'createRule diverge from the wire identity.',
+        );
+
+        // Allow PocketBase realtime to attach the SSE subscription.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+
+        await caller.sendOffer(
+          roomId: roomId,
+          targetUserId: calleeUuid,
+          sdp: <String, dynamic>{
+            'type': 'offer',
+            'sdp': 'v=0\r\nfake-offer-uuid\r\n',
+            'purpose': 'call',
+            'nickname': 'Caller',
+            'callType': 'audio',
+            // Caller propagates its UUID explicitly — the 15-char hash is
+            // one-way, so without this the callee couldn't surface the
+            // caller's local UUID for an unknown peer.
+            'creatorUuid': callerUuid,
+          },
+        );
+
+        await _waitFor(
+          () => events.whereType<IncomingCallOffer>().isNotEmpty,
+          description: 'IncomingCallOffer reaches global listener',
+        );
+
+        final offer = events.whereType<IncomingCallOffer>().first;
+        expect(offer.roomId, roomId);
+        expect(
+          offer.fromUserId,
+          callerUuid,
+          reason: 'fromUserId must surface the resolved local UUID via '
+              'creatorUuid payload (the wire `creator` is a 15-char hash).',
+        );
+        expect(offer.fromNickname, 'Caller');
+        expect(offer.isVideoCall, isFalse);
+      } finally {
+        await eventsSub?.cancel();
+        await callee?.stop();
+        await caller?.disconnect();
+        if (adminEmail != null && adminPassword != null) {
+          await _safeDeleteUser(
+            pbUrl,
+            adminEmail,
+            adminPassword,
+            pbIdFromLocalUuid(callerUuid),
+          );
+          await _safeDeleteUser(
+            pbUrl,
+            adminEmail,
+            adminPassword,
+            pbIdFromLocalUuid(calleeUuid),
+          );
+        }
+      }
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
+}
+
+/// Produces a deterministic canonical UUID-shaped string from [seed].
+///
+/// Test fixture only — gives reproducible identifiers in 8-4-4-4-12 hex
+/// without depending on a UUID package. The string passes the canonical
+/// UUID regex used by `pbIdFromLocalUuid`, so it exercises the SHA-256
+/// derivation branch rather than the non-UUID passthrough.
+String _deterministicUuid(String seed) {
+  final bytes = sha256.convert(utf8.encode('stealth-test-uuid:$seed')).bytes;
+  final hex = bytes
+      .take(16)
+      .map((b) => b.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-'
+      '${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-'
+      '${hex.substring(16, 20)}-'
+      '${hex.substring(20, 32)}';
 }
 
 Future<void> _safeDeleteUser(

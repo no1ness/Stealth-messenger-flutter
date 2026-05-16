@@ -1,45 +1,68 @@
-// Bidirectional mapping between the local user UUID (canonical 36-char form
-// with four dashes) and the PocketBase record id used in `rtc_signaling`.
+// Mapping between the local user UUID (canonical 36-char form with four
+// dashes) and the PocketBase record id used in `rtc_signaling`.
 //
-// PocketBase rejects record ids that contain dashes; custom ids must match
-// `^[a-zA-Z0-9_]{15,}$`. A canonical UUID v4 with dashes does not satisfy
-// the pattern, but the same UUID with dashes removed (32 hex chars) does.
-// Both peers can therefore derive each other's PocketBase id deterministically
-// from the local UUID exchanged via the contact bundle, without any extra
-// directory lookup.
+// PocketBase requires custom record ids of EXACTLY 15 characters. A canonical
+// UUID v4 carries 128 bits of entropy and cannot be encoded losslessly into
+// 15 chars over the allowed alphabet. We therefore derive the PB id as the
+// first 15 hex characters of `SHA-256(localUuid)` (60 bits — collision
+// probability for an individual user with thousands of contacts is < 2^-50).
+//
+// The mapping is one-way (UUID → pbId is deterministic; pbId → UUID is a
+// lookup against known peers). For the reverse direction callers must build
+// a [PbUserIdResolver] over the set of UUIDs they expect to encounter (self
+// + locally-stored contacts) and use [PbUserIdResolver.localUuidFromPbId].
 //
 // The helpers are intentionally idempotent for non-UUID inputs (test fixtures
 // like `smoke_a_<stamp>` and `user-A` pass through unchanged in both
 // directions). This keeps the existing unit-test surface stable.
 
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+
 final RegExp _canonicalUuidRegex = RegExp(
   r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
 );
 
-final RegExp _strippedUuidRegex = RegExp(r'^[0-9a-fA-F]{32}$');
+/// PocketBase requires custom record ids to be exactly 15 chars long.
+const int kPbIdLength = 15;
 
 /// Returns the PocketBase record id corresponding to [localUuid].
 ///
-/// Strips dashes from a canonical UUID. Any non-UUID input is returned
-/// unchanged.
+/// For canonical UUIDs returns the first 15 hex characters of
+/// `SHA-256(localUuid)`. Non-UUID inputs are returned unchanged so that
+/// existing fixtures (`user-A`, `smoke_a_<stamp>`) keep working.
 String pbIdFromLocalUuid(String localUuid) {
-  if (_canonicalUuidRegex.hasMatch(localUuid)) {
-    return localUuid.replaceAll('-', '');
+  if (!_canonicalUuidRegex.hasMatch(localUuid)) {
+    return localUuid;
   }
-  return localUuid;
+  final digest = sha256.convert(utf8.encode(localUuid));
+  return digest.toString().substring(0, kPbIdLength);
 }
 
-/// Returns the canonical UUID corresponding to [pbId].
+/// Reverse lookup from PocketBase id to local UUID.
 ///
-/// Inserts dashes back into the 32-hex form. Any input that is not a
-/// 32-hex string is returned unchanged.
-String localUuidFromPbId(String pbId) {
-  if (_strippedUuidRegex.hasMatch(pbId)) {
-    return '${pbId.substring(0, 8)}-'
-        '${pbId.substring(8, 12)}-'
-        '${pbId.substring(12, 16)}-'
-        '${pbId.substring(16, 20)}-'
-        '${pbId.substring(20, 32)}';
-  }
-  return pbId;
+/// Built from a known set of local UUIDs (self + contacts). Construction
+/// hashes each UUID once; lookups are O(1) thereafter. Unknown ids pass
+/// through unchanged — this preserves the previous "non-UUID idempotent"
+/// behaviour and lets test fixtures bypass the resolver.
+class PbUserIdResolver {
+  PbUserIdResolver(Iterable<String> knownLocalUuids)
+      : _pbToLocal = <String, String>{
+          for (final uuid in knownLocalUuids)
+            if (_canonicalUuidRegex.hasMatch(uuid)) pbIdFromLocalUuid(uuid): uuid,
+        };
+
+  /// Empty resolver — every lookup is a passthrough. Useful in code paths
+  /// that do not yet have a contacts source wired in.
+  static final PbUserIdResolver empty = PbUserIdResolver(const <String>[]);
+
+  final Map<String, String> _pbToLocal;
+
+  /// Returns the local UUID for [pbId] if known, otherwise echoes the
+  /// input unchanged (passthrough for non-UUID test fixtures and for ids
+  /// not in the known set).
+  String localUuidFromPbId(String pbId) => _pbToLocal[pbId] ?? pbId;
+
+  /// True if [pbId] resolves to a known local UUID.
+  bool knows(String pbId) => _pbToLocal.containsKey(pbId);
 }

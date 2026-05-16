@@ -408,16 +408,23 @@ class NativeCallMediaBindings {
   }) {
     final urls = urlsEnv?.trim();
     if (urls == null || urls.isEmpty) return;
-    final user = userEnv?.trim();
-    final pass = passEnv?.trim();
+    final user = userEnv?.trim() ?? '';
+    final pass = passEnv?.trim() ?? '';
+    // A turn:/turns: server without credentials is rejected by the
+    // underlying WebRTC stack on every platform. Skip rather than fail
+    // peer connection construction outright.
+    if (user.isEmpty || pass.isEmpty) {
+      debugPrint('[stealth-call] $label skipped: missing username/password');
+      return;
+    }
     servers.add({
       'urls': urls
           .split(',')
           .map((u) => u.trim())
           .where((u) => u.isNotEmpty)
           .toList(),
-      if (user != null && user.isNotEmpty) 'username': user,
-      if (pass != null && pass.isNotEmpty) 'credential': pass,
+      'username': user,
+      'credential': pass,
     });
     debugPrint('[stealth-call] $label configured: $urls');
   }

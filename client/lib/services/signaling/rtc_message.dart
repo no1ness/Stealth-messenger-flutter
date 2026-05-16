@@ -52,7 +52,10 @@ class RtcMessage {
     required this.created,
   });
 
-  factory RtcMessage.fromRecord(RecordModel record) {
+  factory RtcMessage.fromRecord(
+    RecordModel record, {
+    PbUserIdResolver? resolver,
+  }) {
     final typeRaw = record.getStringValue('type');
     final type = RtcMessageType.fromString(typeRaw);
     final payloadRaw = record.data['payload'];
@@ -60,11 +63,14 @@ class RtcMessage {
         ? Map<String, dynamic>.from(payloadRaw)
         : <String, dynamic>{};
     final roomId = record.getStringValue('roomId');
-    // Wire-level ids are PocketBase record ids (canonical UUID without
-    // dashes). Convert back to the local UUID form so downstream consumers
-    // can match against contacts / chat membership directly.
-    final creator = localUuidFromPbId(record.getStringValue('creator'));
-    final target = localUuidFromPbId(record.getStringValue('target'));
+    // Wire-level ids are PocketBase record ids (15-char SHA-256 prefix of
+    // the local UUID). Caller supplies a resolver that maps known pbIds back
+    // to local UUIDs. Without a resolver the wire ids are passed through —
+    // safe for tests and fixtures, but downstream consumers will not be able
+    // to match the message against local contacts / chats.
+    final r = resolver ?? PbUserIdResolver.empty;
+    final creator = r.localUuidFromPbId(record.getStringValue('creator'));
+    final target = r.localUuidFromPbId(record.getStringValue('target'));
     final created =
         DateTime.tryParse(record.created) ?? DateTime.now().toUtc();
 
