@@ -56,6 +56,20 @@ P8 (Android) — последний, изолированный.
 - **Если PB отвергает custom id:** fallback ветка — хранить PB id отдельно от local UUID, использовать его в `creator/target`, а peer resolver мапит local UUID → PB id через contact bundle. Это альтернативный вариант (см. Task 1.2).
 - **Логи (verbose):** `debugPrint('[signaling] ensureAuth create pbId=$pbId localId=$selfUserId')`.
 
+> **Post-merge revision (`ae47280`, ветка `fix/pb-user-id-collision-fit`):**
+> Контракт identity пересмотрен. Strip-dashes UUID (32 char) на практике
+> молча отбрасывался PocketBase (auto-id вместо custom), что ломало
+> `auth.id == request.data.creator` под strict rules. Принят fallback B из
+> исходного плана: `pbId = sha256(localUuid)[:15]` (15-char prefix), а
+> обратный resolve местные UUID ↔ PB id выполняется через `PbUserIdResolver`
+> (self + контакты) с дополнительным `creatorUuid` в payload `offer/hangup`
+> для незнакомых пиров. Также `_ensureAuth` вынесен в общий
+> `PocketBaseAuthService` (process-wide singleton с in-flight guard), что
+> закрывает второй регрессионный путь — race между
+> `WebRtcSignalingService` и `IncomingCallSignalingService` (последний
+> подписывался на SSE до auth, listRule `target = @request.auth.id` всегда
+> возвращал false). Подробности — `.ai-factory/patches/2026-05-16-03.28.md`.
+
 ### Task 1.2 — Migration path для уже зарегистрированных пользователей
 
 - **Что:** для существующих установок `pb_user_id` в secure storage НЕ равен `selfUserId`. Нужен один из путей:
@@ -105,6 +119,11 @@ P8 (Android) — последний, изолированный.
 - **Не обязательно**, но улучшает onboarding.
 
 **Phase 2 commit:** `ci: add GitHub Actions for analyze/test/build` (+ doc badge).
+
+> **Post-merge note (`06dbd4c`):** android build job временно отключён в
+> `.github/workflows/ci.yml` (commit `ci: temporarily disable android build job`).
+> Это локальная регрессия CI gate-а, не отмена Phase 2 в целом; восстановить
+> при возврате к Android release flow (Phase 8 / отдельный fix).
 
 ## Phase 3 — Bootstrap hardening ✅ done
 
@@ -289,14 +308,15 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 | 4   | 4.1–4.4 | `feat(logging): structured logger with id redaction across signaling and call paths` (`4ea9f89`) | ✅ shipped                              |
 | 5a  | 5.1 ч.1 | `refactor(ui): extract group sheets from chats_screen, drop dead read-state code` (`d048a5f`) | ✅ shipped                              |
 | 5b  | 5.1 ч.2 | `refactor(ui): extract conversation panel/footer/attachment from chats_screen` (`106a0c6`) | ✅ shipped                              |
-| —   | 5.2     | `refactor(ui): split webrtc_call_screen_web into controller/media/view`                  | ⏭ deferred → `call-screens-controller-split.md` |
-| —   | 5.3     | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view`          | ⏭ deferred → `call-screens-controller-split.md` |
+| —   | 5.2     | `refactor(ui): split webrtc_call_screen_web into controller/media/view` (`b9df0c1`)      | ✅ shipped via `call-screens-controller-split.md` (merge `cf66411`) |
+| —   | 5.3     | `refactor(ui): split webrtc_call_screen_native_impl into controller/media/view` (`a1231cf`) | ✅ shipped via `call-screens-controller-split.md` (merge `cf66411`) |
 | 6   | 6.1–6.3 | `docs(crypto): align RatchetService docstring with actual capability` (`3bd92d2`)        | ✅ shipped                              |
 | 7   | 7.1–7.2 | `test(security): regression guard against private key export paths` (`d5f18ff`)          | ✅ shipped                              |
 | 8   | 8.1–8.3 | `chore(android): release signing, public applicationId, lint baseline workflow` (`b33ae77`) | ✅ shipped                              |
 | +   | follow  | `refactor: address /aif-review follow-ups (auth race, bootstrap logger, security cross-link)` (`45474a1`) | ✅ shipped (review feedback)            |
 | +   | follow  | `docs(aif): reflect post-PocketBase hardening modules in DESCRIPTION.md` (`553a914`)     | ✅ shipped                              |
 | +   | follow  | `docs(plan): add call-screens controller-pattern split (follow-up to P5.2/P5.3)` (`4d654fc`) | ✅ shipped (планы P5.2/P5.3 вынесены)   |
+| +   | follow  | `fix(signaling): use 15-char SHA-256 PB id, fix incoming-call auth race` (`ae47280`) | ✅ shipped (P1 contract revised; ветка `fix/pb-user-id-collision-fit`) |
 
 ## Логирование (общая политика)
 
@@ -309,7 +329,7 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 
 - Все новые сервисы — unit tests рядом с источником (`client/test/...` зеркало).
 - Существующие semantics-тесты должны выживать рефакторинг (Phase 5) без модификаций.
-- Smoke test (`pocketbase_signaling_smoke_test.dart`) — расширяется в Phase 1.3.
+- Smoke test (`pocketbase_signaling_smoke_test.dart`) — расширяется в Phase 1.3 (send-side в `5feef2e`). Receive-side сценарий (callee global listener под канонический UUID) добавлен в `ae47280`.
 - В CI (Phase 2) `flutter test` запускается на каждом push.
 
 ## Чего НЕ делаем в этом плане
@@ -321,11 +341,13 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 
 ## Следующие шаги
 
-План закрыт по всем фазам кроме P5.2/P5.3 (вынесены в
-`call-screens-controller-split.md`).
+План закрыт целиком, включая P5.2/P5.3:
 
-Pre-merge для `feature/pocketbase-signaling`:
+- `feature/pocketbase-signaling` смержена в `main` (`0f0de9a Post-PocketBase hardening + signaling migration`).
+- `feature/call-screens-controller-split` смержена в `main` (PR #2, merge `cf66411`).
+- Все follow-up коммиты трекаются в таблице **Commit Plan** выше.
 
-1. `git push origin feature/pocketbase-signaling` (через SSH-remote, см. memory `git_push_setup`).
-2. Открыть PR в `main`, дождаться зелёного CI (analyze + test + build web + build android).
-3. После merge — переход на `feature/call-screens-controller-split` (см. соответствующий план).
+Открытые операционные хвосты (не блокеры этого плана, но трекать стоит):
+
+- Восстановить android build job в `.github/workflows/ci.yml` (отключён в `06dbd4c`) — отдельный fix.
+- Smoke test строго под `@request.data.creator = @request.auth.id` rules — требует CI-секретов `POCKETBASE_TEST_URL`/`_ADMIN_*`; пока тест скипается без них.
