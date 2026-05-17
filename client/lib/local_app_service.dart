@@ -34,6 +34,11 @@ class LocalAppService {
   final Map<String, String?> _nicknameCache = {};
   final Map<String, Map<String, dynamic>> _lastSearchResults = {};
 
+  // Single-flight guard for [rotateIdentityKeypair]. Two concurrent
+  // calls would interleave reads and writes on the identity slots and
+  // could leave the prev slots holding the wrong half of the rotation.
+  Completer<IdentityRotationResult>? _rotationInFlight;
+
   Future<String> _encryptBytesWithSecret(
     Uint8List bytes,
     SecretKey secretKey,
@@ -1091,78 +1096,349 @@ class LocalAppService {
 
   /// Rotates the local X25519 identity keypair.
   ///
-  /// The current keypair is moved into the `*_prev` slots in secure
-  /// storage together with `prev_rotated_at` (wall-clock ISO-8601
-  /// timestamp). A fresh keypair is generated and written to the
-  /// canonical `privateKey`/`publicKey` slots. All cached shared
-  /// secrets are dropped so the next encryption/decryption uses the
-  /// new key.
+  /// Order of operations (designed so a mid-rotation crash leaves
+  /// every message still readable via the prev-key fallback path):
   ///
-  /// Every existing contact's `verified_at` is also cleared because
-  /// the local public key just changed, which means every safety
-  /// number is now different and must be re-verified. The historical
-  /// `verified_safety_number` snapshot is left in place so the UI
-  /// can show "was previously verified" provenance if needed.
+  ///   1. Generate the new keypair in memory.
+  ///   2. Pre-stage the NEW keypair into the `*_prev` slots and stamp
+  ///      `prev_rotated_at`. The canonical slots still hold the OLD
+  ///      keypair, so [decryptMessage] keeps working on un-migrated
+  ///      rows via canonical and on migrated rows via the prev fallback.
+  ///   3. Walk every 1:1 chat's stored ciphertext, decrypt with the
+  ///      OLD shared secret (or, if a previous interrupted rotation
+  ///      left mixed-vintage rows behind, with the prev shared secret),
+  ///      and re-encrypt with the NEW shared secret. Group chats are
+  ///      skipped — their per-chat AES key is independent of identity.
+  ///   4. Swap slots: canonical := NEW, prev := OLD, refresh
+  ///      `prev_rotated_at`. After this the old keypair becomes the
+  ///      24h grace fallback for any rows we could not migrate.
+  ///   5. Clear caches and reset contact verification.
   ///
-  /// Returns a [IdentityRotationResult] with the old and new public
-  /// keys (base64) plus the expiry of the prev-key grace window.
-  Future<IdentityRotationResult> rotateIdentityKeypair() async {
-    final prevPriv = await _storage.read('privateKey');
-    final prevPub = await _storage.read('publicKey');
-    if (prevPriv == null ||
-        prevPriv.isEmpty ||
-        prevPub == null ||
-        prevPub.isEmpty) {
+  /// A `Completer`-based [_rotationInFlight] guard prevents concurrent
+  /// callers from interleaving the storage writes (e.g. user
+  /// double-taps the Rotate button); the second caller awaits the same
+  /// future the first caller is producing.
+  ///
+  /// Returns an [IdentityRotationResult] with both public keys, the
+  /// expiry of the prev-key grace window, and a migration summary.
+  Future<IdentityRotationResult> rotateIdentityKeypair() {
+    final existing = _rotationInFlight;
+    if (existing != null) {
+      debugPrint(
+        '[FIX:local-only] rotateIdentityKeypair: joining in-flight rotation',
+      );
+      return existing.future;
+    }
+    final completer = Completer<IdentityRotationResult>();
+    _rotationInFlight = completer;
+    () async {
+      try {
+        final result = await _runRotation();
+        completer.complete(result);
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      } finally {
+        _rotationInFlight = null;
+      }
+    }();
+    return completer.future;
+  }
+
+  Future<IdentityRotationResult> _runRotation() async {
+    final oldPrivB64 = await _storage.read('privateKey');
+    final oldPubB64 = await _storage.read('publicKey');
+    if (oldPrivB64 == null ||
+        oldPrivB64.isEmpty ||
+        oldPubB64 == null ||
+        oldPubB64.isEmpty) {
       throw StateError(
         'Cannot rotate identity keypair: no existing keypair to rotate. '
         'Register the user first.',
       );
     }
 
+    final oldKeyPair = SimpleKeyPairData(
+      base64Decode(oldPrivB64),
+      publicKey: SimplePublicKey(
+        base64Decode(oldPubB64),
+        type: KeyPairType.x25519,
+      ),
+      type: KeyPairType.x25519,
+    );
+
     final newKeyPair = await _algorithm.newKeyPair();
     final newPublicKey = await newKeyPair.extractPublicKey();
     final newPrivateBytes = await newKeyPair.extractPrivateKeyBytes();
+    final newKeyPairResolved = SimpleKeyPairData(
+      newPrivateBytes,
+      publicKey: SimplePublicKey(
+        newPublicKey.bytes,
+        type: KeyPairType.x25519,
+      ),
+      type: KeyPairType.x25519,
+    );
     final rotatedAt = DateTime.now();
 
-    // Persist the previous keypair before overwriting so that an
-    // interrupted rotation never loses both halves at once.
-    await _storage.write('privateKey_prev', prevPriv);
-    await _storage.write('publicKey_prev', prevPub);
-    await _storage.write(
-      'prev_rotated_at',
-      rotatedAt.toIso8601String(),
-    );
-
-    await _storage.write('privateKey', base64Encode(newPrivateBytes));
-    await _storage.write(
-      'publicKey',
-      base64Encode(newPublicKey.bytes),
-    );
-
-    _sharedSecretCache.clear();
+    // Step 2 — pre-stage NEW into the prev slot so a crash during the
+    // re-encryption pass still leaves every row decryptable: migrated
+    // rows fall back to prev = NEW, un-migrated rows succeed on
+    // canonical = OLD.
+    await _storage.write('privateKey_prev', base64Encode(newPrivateBytes));
+    await _storage.write('publicKey_prev', base64Encode(newPublicKey.bytes));
+    await _storage.write('prev_rotated_at', rotatedAt.toIso8601String());
     _prevSharedSecretCache.clear();
 
-    // Every contact's stored safety-number snapshot is now stale —
-    // clear the verification timestamp on all of them so the UI
-    // shows ⚠ until the user re-verifies.
+    // Step 3 — migrate local history to the NEW shared secret.
+    final stats = await _reEncryptLocalHistory(
+      oldKeyPair: oldKeyPair,
+      newKeyPair: newKeyPairResolved,
+    );
+
+    // Step 4 — commit the swap. Canonical := NEW first so any read
+    // after this point uses the NEW key; then prev := OLD becomes the
+    // 24h grace fallback for any row we could not migrate.
+    await _storage.write('privateKey', base64Encode(newPrivateBytes));
+    await _storage.write('publicKey', base64Encode(newPublicKey.bytes));
+    await _storage.write('privateKey_prev', oldPrivB64);
+    await _storage.write('publicKey_prev', oldPubB64);
+    await _storage.write('prev_rotated_at', rotatedAt.toIso8601String());
+
+    // Step 5 — drop caches; the next encrypt/decrypt re-derives from
+    // the new canonical priv. Clear every contact's `verified_at` so
+    // the UI shows ⚠ until safety numbers are re-confirmed.
+    _sharedSecretCache.clear();
+    _prevSharedSecretCache.clear();
     await _localDb.clearAllContactsVerifiedAt();
 
     final result = IdentityRotationResult(
-      previousPublicKey: prevPub,
+      previousPublicKey: oldPubB64,
       newPublicKey: base64Encode(newPublicKey.bytes),
       previousKeyExpiresAt: rotatedAt.add(kPrevKeyGracePeriod),
+      migratedMessageCount: stats.migrated,
+      skippedMessageCount: stats.skipped,
     );
     debugPrint(
-      '[FIX:local-only] rotated identity keypair; prev kept until '
+      '[FIX:local-only] rotated identity keypair; migrated=${stats.migrated} '
+      'skipped=${stats.skipped} prev kept until '
       '${result.previousKeyExpiresAt.toIso8601String()}',
     );
     return result;
+  }
+
+  /// Walks every 1:1 chat's stored messages and re-encrypts the
+  /// `content` field from the OLD identity-derived shared secret to
+  /// the NEW one. Group chats are skipped — their content is keyed
+  /// on a per-chat AES key that is independent of the identity
+  /// keypair.
+  ///
+  /// On a single row's decryption failure the row is left untouched
+  /// and counted as `skipped`. This is the right behavior in two
+  /// distinct cases: (a) the row was already unreadable before
+  /// rotation (corrupt ciphertext, lost peer pubkey, etc.), and (b)
+  /// the row was already re-encrypted to the new key by an earlier
+  /// interrupted rotation attempt — in that case the new shared
+  /// secret will already work for it once we commit the swap, so
+  /// leaving it untouched is correct.
+  Future<_RotationMigrationStats> _reEncryptLocalHistory({
+    required SimpleKeyPair oldKeyPair,
+    required SimpleKeyPair newKeyPair,
+  }) async {
+    final me = await getUserId();
+    if (me == null || me.isEmpty) {
+      return const _RotationMigrationStats(migrated: 0, skipped: 0);
+    }
+
+    var migrated = 0;
+    var skipped = 0;
+
+    final chats = await _localDb.getChats();
+    for (final chat in chats) {
+      final chatId = chat['id']?.toString();
+      if (chatId == null || chatId.isEmpty) {
+        continue;
+      }
+      final isGroup = await _isGroupChat(chatId);
+      if (isGroup) {
+        continue;
+      }
+      final otherUserId = await _getOtherUserId(chatId);
+      if (otherUserId == null || otherUserId.isEmpty) {
+        continue;
+      }
+
+      SimplePublicKey otherPub;
+      try {
+        otherPub = await _getOtherPublicKey(otherUserId);
+      } catch (error) {
+        debugPrint(
+          '[FIX:local-only] re-encrypt skipping chat $chatId: '
+          'no peer public key ($error)',
+        );
+        continue;
+      }
+
+      final oldSharedSecret = await _algorithm.sharedSecretKey(
+        keyPair: oldKeyPair,
+        remotePublicKey: otherPub,
+      );
+      final newSharedSecret = await _algorithm.sharedSecretKey(
+        keyPair: newKeyPair,
+        remotePublicKey: otherPub,
+      );
+
+      final messages = await _localDb.getMessages(chatId);
+      for (final row in messages) {
+        final metadata =
+            (row['metadata'] as Map?)?.cast<String, dynamic>() ?? const {};
+        final encryption = metadata['encryption'] as String?;
+        // Only identity-derived ciphertext needs migration.
+        if (encryption != 'e2e') {
+          continue;
+        }
+        final payload = row['content']?.toString();
+        if (payload == null || payload.isEmpty) {
+          continue;
+        }
+        if (!RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(payload)) {
+          // Already in plaintext (legacy unencrypted rows); nothing to do.
+          continue;
+        }
+        final ratchetIndex = metadata['sender_ratchet_index'] as int?;
+        final senderIsMe = row['sender_id']?.toString() == me;
+
+        final oldKey = await _deriveMessageKey(
+          sharedSecret: oldSharedSecret,
+          myId: me,
+          otherUserId: otherUserId,
+          ratchetIndex: ratchetIndex,
+          senderIsMe: senderIsMe,
+        );
+        Uint8List plaintextBytes;
+        try {
+          plaintextBytes = await _decryptBytesWithSecret(payload, oldKey);
+        } catch (error) {
+          // Row was already migrated by an interrupted earlier
+          // rotation, or is genuinely corrupt. Either way the row
+          // stays as-is; the new canonical key will pick it up
+          // post-commit if it was migrated, or it remains unreadable
+          // if it was corrupt.
+          skipped += 1;
+          continue;
+        }
+
+        final newKey = await _deriveMessageKey(
+          sharedSecret: newSharedSecret,
+          myId: me,
+          otherUserId: otherUserId,
+          ratchetIndex: ratchetIndex,
+          senderIsMe: senderIsMe,
+        );
+        final newCipher = await _encryptBytesWithSecret(plaintextBytes, newKey);
+
+        final rewritten = Map<String, dynamic>.from(row)
+          ..remove('_local_key')
+          ..['content'] = newCipher;
+        await _localDb.saveMessage(rewritten, synced: true);
+        migrated += 1;
+      }
+    }
+
+    return _RotationMigrationStats(migrated: migrated, skipped: skipped);
+  }
+
+  Future<SecretKey> _deriveMessageKey({
+    required SecretKey sharedSecret,
+    required String myId,
+    required String otherUserId,
+    required int? ratchetIndex,
+    required bool senderIsMe,
+  }) async {
+    if (ratchetIndex == null) {
+      return sharedSecret;
+    }
+    final chains =
+        await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
+    final chainKey =
+        senderIsMe ? chains['mySendChain']! : chains['theirSendChain']!;
+    return _ratchet.getNthMessageKey(chainKey, ratchetIndex);
   }
 
   /// Best-effort cleanup of an expired prev identity keypair. Safe
   /// to call on every bootstrap — no-op when the prev slot is empty
   /// or still inside the grace window.
   Future<void> pruneExpiredPrevIdentityKey() => _prunePrevKeyIfExpired();
+
+  /// Batched safety-number verification for a list of contacts.
+  ///
+  /// Reads the local identity keypair (`privateKey`/`publicKey`) once
+  /// up front and derives the safety number for every supplied contact
+  /// in memory, avoiding the O(N) secure-storage hits the per-contact
+  /// [isContactVerified] + [detectSafetyMismatch] calls incur on the
+  /// hot contacts-screen render path. The returned map is keyed on
+  /// the `user_id` of each contact; entries are absent for contacts
+  /// missing a public key.
+  Future<Map<String, ContactVerificationStatus>>
+      batchVerificationStatuses(
+    List<Map<String, dynamic>> contacts,
+  ) async {
+    final ownPublicKey = await _storage.read('publicKey');
+    if (ownPublicKey == null || ownPublicKey.isEmpty) {
+      return const {};
+    }
+    final result = <String, ContactVerificationStatus>{};
+    for (final contact in contacts) {
+      final userId =
+          (contact['contact_user_id'] ?? contact['user_id'])?.toString();
+      if (userId == null || userId.isEmpty) {
+        continue;
+      }
+      final peerPublicKey = contact['public_key']?.toString();
+      if (peerPublicKey == null || peerPublicKey.isEmpty) {
+        result[userId] = const ContactVerificationStatus(
+          verified: false,
+          hasMismatch: false,
+        );
+        continue;
+      }
+      final currentSafetyNumber = await _computeSafetyNumber(
+        ownPublicKey: ownPublicKey,
+        peerPublicKey: peerPublicKey,
+      );
+      final storedSafetyNumber =
+          contact['verified_safety_number']?.toString();
+      final verifiedAt = contact['verified_at']?.toString();
+      final hasSnapshot = storedSafetyNumber != null &&
+          storedSafetyNumber.isNotEmpty &&
+          verifiedAt != null &&
+          verifiedAt.isNotEmpty;
+      if (!hasSnapshot) {
+        result[userId] = const ContactVerificationStatus(
+          verified: false,
+          hasMismatch: false,
+        );
+        continue;
+      }
+      final matches =
+          currentSafetyNumber != null && currentSafetyNumber == storedSafetyNumber;
+      result[userId] = ContactVerificationStatus(
+        verified: matches,
+        hasMismatch: !matches,
+      );
+    }
+    return result;
+  }
+
+  Future<String?> _computeSafetyNumber({
+    required String ownPublicKey,
+    required String peerPublicKey,
+  }) async {
+    if (ownPublicKey.isEmpty || peerPublicKey.isEmpty) {
+      return null;
+    }
+    final bytes = utf8.encode('$ownPublicKey:$peerPublicKey');
+    final hash = await Sha256().hash(bytes);
+    return base64Encode(hash.bytes).replaceAll('=', '').substring(0, 32);
+  }
 
   Future<void> addContact(String userId) async {
     final cached = _lastSearchResults[userId];
@@ -1302,6 +1578,8 @@ class IdentityRotationResult {
     required this.previousPublicKey,
     required this.newPublicKey,
     required this.previousKeyExpiresAt,
+    this.migratedMessageCount = 0,
+    this.skippedMessageCount = 0,
   });
 
   /// Public key (base64, X25519) that was active before rotation.
@@ -1314,6 +1592,49 @@ class IdentityRotationResult {
   /// from secure storage and can no longer be used as a decryption
   /// fallback. Equal to `now + LocalAppService.kPrevKeyGracePeriod`.
   final DateTime previousKeyExpiresAt;
+
+  /// Number of locally stored 1:1 messages whose `content` was
+  /// successfully re-encrypted from the old shared secret to the new
+  /// one during this rotation. Group messages are intentionally
+  /// excluded — their AES key is independent of the identity keypair.
+  final int migratedMessageCount;
+
+  /// Number of locally stored 1:1 messages that could not be
+  /// migrated (genuinely corrupt ciphertext or already re-encrypted by
+  /// an interrupted earlier rotation). They remain in storage as-is.
+  final int skippedMessageCount;
+}
+
+/// Lightweight tuple returned by [LocalAppService._reEncryptLocalHistory]
+/// so the rotation flow can surface migration stats without exposing
+/// the internal loop body.
+class _RotationMigrationStats {
+  const _RotationMigrationStats({
+    required this.migrated,
+    required this.skipped,
+  });
+
+  final int migrated;
+  final int skipped;
+}
+
+/// Pre-computed verification snapshot for a single contact, returned
+/// by [LocalAppService.batchVerificationStatuses]. The contacts
+/// screen renders the ✓ / ⚠ badge from this struct without having to
+/// re-read secure storage per row.
+class ContactVerificationStatus {
+  const ContactVerificationStatus({
+    required this.verified,
+    required this.hasMismatch,
+  });
+
+  /// User has confirmed the fingerprint matches and the snapshot is
+  /// still current.
+  final bool verified;
+
+  /// User had verified the fingerprint earlier but it has since
+  /// changed (either party's identity key rotated).
+  final bool hasMismatch;
 }
 
 /// Result of [LocalAppService.detectSafetyMismatch].

@@ -428,3 +428,47 @@ Phase 0 (branch)
 4. **TTL=24 ч в PB hook:** соответствует запросу пользователя, отличается от текущей doc-цифры 1 ч — это документация была опережающей. Если 24 ч окажется слишком много для нагрузки PB — снизить в hook'е без миграции клиента.
 5. **`'unsafe-inline'` в `style-src`:** временное компромиссное решение из-за inline-CSS лоадера; Task 7.3 — путь к полностью чистому CSP.
 6. **`themeMode`/`useP2P` в SharedPreferences:** оставлены вне `StorageService` как явная политика "low-sensitivity UI prefs". Если в будущем добавятся пользовательские настройки, требующие приватности, — нужно расширить regression-тест (Task 3.2).
+
+---
+
+## Follow-up: post-shipping audit fixes (2026-05-18)
+
+Глубокий review Phase 4+5 (commit'ы `9b3a60e…d5afb72`) выявил 4
+дефекта; все исправлены отдельным циклом `/aif-fix` (см.
+`.ai-factory/FIX_PLAN.md` — удалён после применения).
+
+- **CRITICAL — rotation теряет историю после 24 ч.**
+  `sendMessage` хранил содержимое зашифрованным на shared secret от
+  identity-key, поэтому после ротации + истечения 24 ч fallback'а
+  весь локальный чат-лог становился нечитаемым. Confirmation-диалог
+  об этом не предупреждал.
+  Fix (Path A): `rotateIdentityKeypair` теперь re-encrypt'ит локальную
+  историю 1:1-чатов под новый shared secret прежде чем swap'нуть
+  канонические слоты. Group-сообщения пропускаются — их ключ
+  независим от identity. Confirmation-диалог обновлён: указывает,
+  что история мигрируется на новый ключ. Snackbar показывает
+  `migrated=N skipped=M`. Подробности — `docs/SECURITY.md → Identity
+  key rotation`.
+- **MEDIUM — `pruneExpiredPrevIdentityKey` не вызывался на bootstrap.**
+  Прерывало документированный 24-часовой grace-контракт: prev
+  материал мог жить в secure storage indefinitely, если пользователь
+  не открывал экран peer-дешифровки.
+  Fix: `main.dart:_checkRegistration` теперь вызывает
+  `pruneExpiredPrevIdentityKey()` после проверки регистрации
+  (best-effort, ошибки логируются как WARN).
+- **LOW — гонка одновременных ротаций.** Двойной тап на кнопку
+  "Rotate identity key" мог чередовать чтения/записи в `*_prev`
+  слотах.
+  Fix: `Completer`-based `_rotationInFlight` guard в
+  `LocalAppService` — второй вызов получает тот же future.
+- **LOW — N+1 storage reads в contacts screen verification scan.**
+  `_loadVerificationStatuses` вызывал `isContactVerified` +
+  `detectSafetyMismatch` per-contact (~6 secure-storage reads × N).
+  Fix: новый bulk API `LocalAppService.batchVerificationStatuses` +
+  публичный класс `ContactVerificationStatus` — own pub/priv
+  читается один раз, остальное in-memory.
+
+Тесты: `client/test/local_app_service_rotation_test.dart` (5 тестов:
+rotation сохраняет историю / in-flight guard / prune in-window /
+prune past 24h / batch verification). Анализатор чистый, full suite —
+90 passed, 1 skipped.

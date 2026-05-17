@@ -161,17 +161,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Rotate identity key?'),
         content: const Text(
-          'A new X25519 identity keypair will be generated. The previous '
-          'keypair will be kept in secure storage for 24 hours so '
-          'in-flight messages encrypted to the old key can still be '
-          'decrypted.\n\n'
+          'A new X25519 identity keypair will be generated. Your '
+          'existing chat history will be re-encrypted to the new key '
+          'as part of this rotation, so it stays readable afterwards.\n\n'
           'After rotation:\n'
           '• Your contact bundle / QR code will change. Re-share it with '
           'your contacts.\n'
           '• Every contact will appear unverified — re-confirm safety '
           'numbers with them.\n'
           '• Anyone holding only the old bundle will not be able to '
-          'reach you any more.',
+          'reach you any more.\n'
+          '• The previous keypair stays in secure storage for 24 hours '
+          'as a fallback for in-flight messages encrypted before the '
+          'rotation.',
         ),
         actions: [
           TextButton(
@@ -194,10 +196,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) {
         return;
       }
+      final summary = result.migratedMessageCount > 0 ||
+              result.skippedMessageCount > 0
+          ? ' Migrated ${result.migratedMessageCount} message'
+              '${result.migratedMessageCount == 1 ? '' : 's'}'
+              '${result.skippedMessageCount > 0 ? ' (${result.skippedMessageCount} skipped)' : ''}.'
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Identity key rotated. Previous key valid until '
+            'Identity key rotated.$summary Previous key valid until '
             '${result.previousKeyExpiresAt.toLocal().toIso8601String().substring(0, 16)}.',
           ),
         ),

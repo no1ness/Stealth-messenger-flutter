@@ -162,13 +162,32 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   Future<void> _checkRegistration() async {
-    final userId = await ref.read(localAppServiceProvider).getUserId();
+    final appService = ref.read(localAppServiceProvider);
+    final userId = await appService.getUserId();
+    final isRegistered = userId != null && userId.isNotEmpty;
+
+    // Honour the 24h prev-identity-key grace contract documented on
+    // [LocalAppService.kPrevKeyGracePeriod]: without this best-effort
+    // sweep, prev material can linger in secure storage indefinitely
+    // when the user never triggers a peer-decryption code path after
+    // rotation. Only relevant when a user is actually registered;
+    // failures are swallowed because startup must never hard-fail on
+    // an opportunistic cleanup.
+    if (isRegistered) {
+      try {
+        await appService.pruneExpiredPrevIdentityKey();
+      } catch (error) {
+        Logger.warn('[bootstrap] prev-key prune failed',
+            extras: {'error': error});
+      }
+    }
+
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _isUserRegistered = userId != null && userId.isNotEmpty;
+      _isUserRegistered = isRegistered;
       _isLoading = false;
       _startupError = null;
     });

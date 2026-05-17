@@ -80,30 +80,58 @@ public-key в bundle.
 ## Identity key rotation
 
 `LocalAppService.rotateIdentityKeypair()` генерирует свежую X25519
-keypair и закладывает 24-часовое окно совместимости с in-flight
-сообщениями.
+keypair, **re-encrypt'ит локальную историю 1:1-чатов** под новый
+shared secret и оставляет 24-часовое окно prev-key как fallback для
+in-flight сообщений.
 
-- **Поток:**
-  1. Текущие `privateKey`/`publicKey` копируются в
-     `privateKey_prev`/`publicKey_prev` плюс `prev_rotated_at`
-     (ISO-8601 timestamp).
-  2. Генерируется новая keypair и записывается в основные слоты.
-  3. Внутренние кеши `_sharedSecretCache` и `_prevSharedSecretCache`
-     очищаются.
-  4. У всех контактов обнуляется `verified_at` — safety number
-     поменялся по построению, требуется re-верификация. Снимок
-     `verified_safety_number` остаётся как "было верифицировано до
-     ротации".
-- **UI:** Profile → Security → "Rotate identity key" вызывает
-  подтверждение, объясняющее последствия (новый QR/contact bundle,
-  все контакты помечаются ⚠, 24 ч grace для in-flight).
+- **Поток (Path A — non-destructive rotation):**
+  1. Считываются текущие `privateKey`/`publicKey` (OLD).
+  2. Генерируется новая keypair в памяти (NEW).
+  3. NEW предварительно записывается в `privateKey_prev`/
+     `publicKey_prev` + `prev_rotated_at`. Канонические слоты пока
+     держат OLD, поэтому при крэше в середине миграции каждая запись
+     остаётся читаемой: ещё не мигрированные ряды дешифруются
+     каноническим OLD, уже мигрированные — через prev=NEW fallback.
+  4. По всем 1:1-чатам: каждая запись с `metadata.encryption=='e2e'`
+     расшифровывается OLD-shared-secret и заново шифруется
+     NEW-shared-secret (`_localDb.saveMessage` перезаписывает строку).
+     Group-чаты пропускаются — их per-chat AES-ключ независим от
+     identity. Расшифровка одной строки может упасть (corrupt
+     ciphertext или ряд, уже мигрированный прошлой прерванной
+     ротацией) — такой ряд считается `skipped` и оставляется как есть.
+  5. Slot swap: канонические слоты получают NEW, prev-слоты получают
+     OLD, `prev_rotated_at` обновляется.
+  6. Очищаются кеши shared-secret'ов; у всех контактов обнуляется
+     `verified_at` — safety number поменялся по построению, требуется
+     re-верификация. Снимок `verified_safety_number` остаётся как
+     "было верифицировано до ротации".
+- **Single-flight:** одновременные вызовы `rotateIdentityKeypair`
+  коалесцируются через `Completer` (`_rotationInFlight`); второй
+  вызов получает тот же future, что и первый, и не запускает
+  параллельную миграцию.
+- **Bootstrap cleanup:** `main.dart:_initializeApp` вызывает
+  `LocalAppService.pruneExpiredPrevIdentityKey()` после проверки
+  регистрации, чтобы prev-материал не задерживался дольше 24 ч даже
+  если пользователь не открывает экраны c peer-дешифровкой.
+- **UI:** Profile → Security → "Rotate identity key" подтверждает
+  последствия (новый QR/contact bundle, все контакты помечаются ⚠,
+  24 ч grace для in-flight, и явно сообщает что история будет
+  re-encrypted). Snackbar после ротации показывает количество
+  мигрированных и пропущенных сообщений.
 - **Decryption fallback:** `decryptMessage` при сбое AES-GCM пробует
   shared secret, derived через prev-keypair (если `prev_rotated_at`
   ещё в окне). Успех логируется
   `[FIX:local-only] decryptMessage fallback to prev identity key
   succeeded`. По истечении 24 ч prev-материал стирается
-  (`_prunePrevKey`) и попытка fallback вернёт `null`.
+  (`_prunePrevKey`) и попытка fallback вернёт `null` — но мигрированные
+  записи остаются читаемыми через канонический NEW.
 - **Настройка окна:** `LocalAppService.kPrevKeyGracePeriod`.
+- **Известный остаточный риск:** крэш в середине шага 4 оставляет
+  смесь OLD/NEW ciphertext'ов; повторный запуск ротации справится
+  пока prev=NEW ещё доступен (в течение 24 ч), но между крэшем и
+  retry часть мигрированных рядов всё ещё видна только через prev
+  fallback — потом пройдут на канонический NEW после следующей
+  ротации или останутся неchитаемыми после истечения grace.
 
 > **Что rotation НЕ восстанавливает:** PocketBase-id (`pb_user_id`)
 > производный от локального UUID, не от identity-key — он не

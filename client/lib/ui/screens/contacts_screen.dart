@@ -41,7 +41,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
   /// Cache of per-contact safety-number verification status, keyed by
   /// `user_id`. Populated alongside [_loadContacts] so the grid item
   /// builder can render the ✓ / ⚠ indicator synchronously.
-  Map<String, _ContactVerification> _verificationByUserId = const {};
+  Map<String, ContactVerificationStatus> _verificationByUserId = const {};
 
   @override
   bool get wantKeepAlive => true;
@@ -86,7 +86,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
   /// abstraction so the (test-only) `dataSource` constructor override
   /// in widget tests does not need to mock these calls — when a fake
   /// data source is in use we just return an empty map.
-  Future<Map<String, _ContactVerification>> _loadVerificationStatuses(
+  ///
+  /// Backed by [LocalAppService.batchVerificationStatuses] so the own
+  /// public key is read from secure storage exactly once per render
+  /// instead of O(N) per-contact lookups.
+  Future<Map<String, ContactVerificationStatus>> _loadVerificationStatuses(
     List<Map<String, dynamic>> contacts,
   ) async {
     // Widget tests pass a synthetic ContactsDataSource through the
@@ -96,30 +100,14 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
     if (widget.dataSource != null) {
       return const {};
     }
-    final appService = ref.read(localAppServiceProvider);
-    final result = <String, _ContactVerification>{};
-    for (final contact in contacts) {
-      final userId = contact['user_id']?.toString();
-      if (userId == null || userId.isEmpty) {
-        continue;
-      }
-      try {
-        final verified = await appService.isContactVerified(userId);
-        final mismatch = await appService.detectSafetyMismatch(userId);
-        result[userId] = _ContactVerification(
-          verified: verified,
-          hasMismatch: mismatch != null,
-        );
-      } catch (_) {
-        // Best-effort load — a single failed lookup must not blank
-        // the entire contacts list.
-        result[userId] = const _ContactVerification(
-          verified: false,
-          hasMismatch: false,
-        );
-      }
+    try {
+      final appService = ref.read(localAppServiceProvider);
+      return appService.batchVerificationStatuses(contacts);
+    } catch (_) {
+      // Best-effort load — a failed batch lookup must not blank the
+      // entire contacts list.
+      return const {};
     }
-    return result;
   }
 
   Future<void> _deleteContact(Map<String, dynamic> contact) async {
@@ -710,28 +698,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
   }
 }
 
-/// Per-contact safety-number verification snapshot, computed in
-/// [_ContactsScreenState._loadVerificationStatuses].
-class _ContactVerification {
-  const _ContactVerification({
-    required this.verified,
-    required this.hasMismatch,
-  });
-
-  /// User has confirmed the fingerprint matches and the snapshot is
-  /// still current. Renders the ✓ badge.
-  final bool verified;
-
-  /// User had verified the fingerprint earlier but it has since
-  /// changed (either party's key rotated). Renders the ⚠ badge.
-  final bool hasMismatch;
-}
-
 /// Tiny icon next to a contact's name in the grid.
 class _VerificationBadge extends StatelessWidget {
   const _VerificationBadge({required this.status});
 
-  final _ContactVerification status;
+  final ContactVerificationStatus status;
 
   @override
   Widget build(BuildContext context) {
