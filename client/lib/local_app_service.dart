@@ -15,6 +15,13 @@ import 'storage_service.dart';
 class LocalAppService {
   LocalAppService();
 
+  /// How long after [rotateIdentityKeypair] the previous identity
+  /// keypair stays in secure storage as a decryption fallback. After
+  /// this window, in-flight messages encrypted to the old key can no
+  /// longer be opened — keep it generously larger than typical
+  /// message-delivery latency (offline peers, push wake-ups, etc.).
+  static const Duration kPrevKeyGracePeriod = Duration(hours: 24);
+
   final StorageService _storage = StorageService();
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final Uuid _uuid = const Uuid();
@@ -22,6 +29,7 @@ class LocalAppService {
   final AesGcm _aes = AesGcm.with256bits();
   final RatchetService _ratchet = RatchetService();
   final Map<String, SecretKey> _sharedSecretCache = {};
+  final Map<String, SecretKey> _prevSharedSecretCache = {};
   final Map<String, SecretKey> _groupSecretCache = {};
   final Map<String, String?> _nicknameCache = {};
   final Map<String, Map<String, dynamic>> _lastSearchResults = {};
@@ -133,6 +141,85 @@ class LocalAppService {
     return sharedSecret;
   }
 
+  /// Loads the previous-generation identity keypair if it still exists
+  /// in secure storage **and** has not aged past [kPrevKeyGracePeriod].
+  /// Returns `null` otherwise — the caller treats `null` as "no
+  /// fallback available".
+  ///
+  /// Expired prev material is best-effort pruned so it cannot be used
+  /// for decryption after the grace window — see [_prunePrevKeyIfExpired].
+  Future<SimpleKeyPair?> _getPrevKeyPair() async {
+    final prevPriv = await _storage.read('privateKey_prev');
+    final prevPub = await _storage.read('publicKey_prev');
+    final rotatedAtIso = await _storage.read('prev_rotated_at');
+    if (prevPriv == null ||
+        prevPriv.isEmpty ||
+        prevPub == null ||
+        prevPub.isEmpty ||
+        rotatedAtIso == null ||
+        rotatedAtIso.isEmpty) {
+      return null;
+    }
+    final rotatedAt = DateTime.tryParse(rotatedAtIso);
+    if (rotatedAt == null ||
+        DateTime.now().difference(rotatedAt) > kPrevKeyGracePeriod) {
+      await _prunePrevKey();
+      return null;
+    }
+    return SimpleKeyPairData(
+      base64Decode(prevPriv),
+      publicKey: SimplePublicKey(
+        base64Decode(prevPub),
+        type: KeyPairType.x25519,
+      ),
+      type: KeyPairType.x25519,
+    );
+  }
+
+  /// Shared secret derived from the **previous** identity keypair.
+  /// Returns `null` when no usable prev keypair is available (none
+  /// stored, or expired).
+  Future<SecretKey?> _getPrevSharedSecret(String otherUserId) async {
+    if (_prevSharedSecretCache.containsKey(otherUserId)) {
+      return _prevSharedSecretCache[otherUserId];
+    }
+    final prevKeyPair = await _getPrevKeyPair();
+    if (prevKeyPair == null) {
+      return null;
+    }
+    final otherPublicKey = await _getOtherPublicKey(otherUserId);
+    final sharedSecret = await _algorithm.sharedSecretKey(
+      keyPair: prevKeyPair,
+      remotePublicKey: otherPublicKey,
+    );
+    _prevSharedSecretCache[otherUserId] = sharedSecret;
+    return sharedSecret;
+  }
+
+  /// Removes the prev keypair from secure storage and resets the
+  /// associated cache.
+  Future<void> _prunePrevKey() async {
+    await _storage.delete('privateKey_prev');
+    await _storage.delete('publicKey_prev');
+    await _storage.delete('prev_rotated_at');
+    _prevSharedSecretCache.clear();
+  }
+
+  /// Triggers prev-key cleanup if its `prev_rotated_at` is older than
+  /// the grace window. Safe to call on every bootstrap.
+  Future<void> _prunePrevKeyIfExpired() async {
+    final rotatedAtIso = await _storage.read('prev_rotated_at');
+    if (rotatedAtIso == null || rotatedAtIso.isEmpty) {
+      return;
+    }
+    final rotatedAt = DateTime.tryParse(rotatedAtIso);
+    if (rotatedAt == null ||
+        DateTime.now().difference(rotatedAt) > kPrevKeyGracePeriod) {
+      await _prunePrevKey();
+      debugPrint('[FIX:local-only] pruned expired prev identity key');
+    }
+  }
+
   Future<List<String>> _getChatMemberIds(String chatId) async {
     final chat = await _localDb.getChatById(chatId);
     final rawMembers = chat?['members'];
@@ -190,29 +277,81 @@ class LocalAppService {
     int? ratchetIndex,
     bool senderIsMe = false,
   }) async {
-    try {
-      if (!RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(payload)) {
-        return payload;
-      }
-
-      SecretKey key;
-      if (ratchetIndex != null) {
-        final myId = (await getUserId())!;
-        final sharedSecret = await _getSharedSecret(otherUserId);
-        final chains =
-            await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-        final chainKey =
-            senderIsMe ? chains['mySendChain']! : chains['theirSendChain']!;
-        key = await _ratchet.getNthMessageKey(chainKey, ratchetIndex);
-      } else {
-        key = await _getSharedSecret(otherUserId);
-      }
-      final decrypted = await _decryptBytesWithSecret(payload, key);
-      return utf8.decode(decrypted);
-    } catch (error) {
-      debugPrint('[FIX:local-only] decryptMessage failed: $error');
+    if (!RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(payload)) {
       return payload;
     }
+
+    try {
+      final key = await _resolveMessageKey(
+        otherUserId,
+        ratchetIndex: ratchetIndex,
+        senderIsMe: senderIsMe,
+        prev: false,
+      );
+      // _resolveMessageKey only returns null on the prev path; the
+      // current path always resolves (or throws) via _getSharedSecret.
+      final decrypted = await _decryptBytesWithSecret(payload, key!);
+      return utf8.decode(decrypted);
+    } catch (error) {
+      // Identity key rotation fallback: in the grace window after
+      // [rotateIdentityKeypair] some messages may still be encrypted
+      // to the previous keypair. Retry decryption with the prev
+      // shared secret; if that succeeds we surface a warning so the
+      // operator can see how often the fallback path fires.
+      try {
+        final prevKey = await _resolveMessageKey(
+          otherUserId,
+          ratchetIndex: ratchetIndex,
+          senderIsMe: senderIsMe,
+          prev: true,
+        );
+        if (prevKey == null) {
+          debugPrint('[FIX:local-only] decryptMessage failed: $error');
+          return payload;
+        }
+        final decrypted = await _decryptBytesWithSecret(payload, prevKey);
+        debugPrint(
+          '[FIX:local-only] decryptMessage fallback to prev identity key '
+          'succeeded for $otherUserId',
+        );
+        return utf8.decode(decrypted);
+      } catch (fallbackError) {
+        debugPrint(
+          '[FIX:local-only] decryptMessage failed (current=$error, '
+          'prev-fallback=$fallbackError)',
+        );
+        return payload;
+      }
+    }
+  }
+
+  /// Resolves the message-level AES-GCM key for [otherUserId].
+  ///
+  /// When [prev] is `false` the key is derived from the current
+  /// identity keypair (the normal path). When `true` the prev
+  /// keypair is used instead — returns `null` if no usable prev
+  /// keypair is available, which the caller treats as "no fallback".
+  Future<SecretKey?> _resolveMessageKey(
+    String otherUserId, {
+    required int? ratchetIndex,
+    required bool senderIsMe,
+    required bool prev,
+  }) async {
+    final sharedSecret = prev
+        ? await _getPrevSharedSecret(otherUserId)
+        : await _getSharedSecret(otherUserId);
+    if (sharedSecret == null) {
+      return null;
+    }
+    if (ratchetIndex == null) {
+      return sharedSecret;
+    }
+    final myId = (await getUserId())!;
+    final chains =
+        await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
+    final chainKey =
+        senderIsMe ? chains['mySendChain']! : chains['theirSendChain']!;
+    return _ratchet.getNthMessageKey(chainKey, ratchetIndex);
   }
 
   Future<Map<String, dynamic>> decryptRawMessage(
@@ -860,6 +999,171 @@ class LocalAppService {
     return base64Encode(hash.bytes).replaceAll('=', '').substring(0, 32);
   }
 
+  /// Returns `true` only when the contact has been user-verified
+  /// **and** the snapshot fingerprint still matches the current
+  /// derived one. A mismatch (returns `false` even when
+  /// `verified_at` is set) means either party's key has rotated
+  /// since verification; the UI must show a warning and prompt
+  /// re-verification — see [detectSafetyMismatch].
+  Future<bool> isContactVerified(String otherUserId) async {
+    final contact = await _localDb.getContact(otherUserId);
+    if (contact == null) {
+      return false;
+    }
+    final verifiedAt = contact['verified_at']?.toString();
+    final storedSafetyNumber = contact['verified_safety_number']?.toString();
+    if (verifiedAt == null ||
+        verifiedAt.isEmpty ||
+        storedSafetyNumber == null ||
+        storedSafetyNumber.isEmpty) {
+      return false;
+    }
+    final currentSafetyNumber = await getSafetyNumber(otherUserId);
+    if (currentSafetyNumber == null) {
+      return false;
+    }
+    return currentSafetyNumber == storedSafetyNumber;
+  }
+
+  /// Records the user's confirmation that the safety number for
+  /// [otherUserId] was compared out-of-band and matches. The current
+  /// fingerprint is snapshotted into the contact record together with
+  /// the wall-clock timestamp.
+  ///
+  /// Throws [StateError] if the contact is unknown or the safety
+  /// number cannot be derived (missing public key on either side).
+  Future<void> verifyContact(String otherUserId) async {
+    final safetyNumber = await getSafetyNumber(otherUserId);
+    if (safetyNumber == null) {
+      throw StateError(
+        'Cannot verify contact $otherUserId: safety number unavailable. '
+        'Likely the contact bundle is missing the peer public key.',
+      );
+    }
+    await _localDb.markContactVerified(
+      otherUserId,
+      safetyNumber: safetyNumber,
+      verifiedAt: DateTime.now(),
+    );
+    debugPrint(
+      '[FIX:local-only] contact verified userId=$otherUserId safety='
+      '${safetyNumber.substring(0, 6)}…',
+    );
+  }
+
+  /// Detects a stale verification: returns a [SafetyNumberMismatch]
+  /// when [verifyContact] was called earlier but the current
+  /// fingerprint no longer matches the stored snapshot.
+  ///
+  /// Returns `null` for the happy path (never verified, currently
+  /// verified, or contact unknown). The UI calls this on each contact
+  /// row to decide between the verified ✓ and the mismatch ⚠ icons.
+  Future<SafetyNumberMismatch?> detectSafetyMismatch(
+    String otherUserId,
+  ) async {
+    final contact = await _localDb.getContact(otherUserId);
+    if (contact == null) {
+      return null;
+    }
+    final storedSafetyNumber =
+        contact['verified_safety_number']?.toString();
+    final verifiedAtIso = contact['verified_at']?.toString();
+    if (storedSafetyNumber == null ||
+        storedSafetyNumber.isEmpty ||
+        verifiedAtIso == null ||
+        verifiedAtIso.isEmpty) {
+      // Either never verified, or the snapshot was cleared (e.g. by
+      // a self-rotation reset). No mismatch to surface either way.
+      return null;
+    }
+    final currentSafetyNumber = await getSafetyNumber(otherUserId);
+    if (currentSafetyNumber == null ||
+        currentSafetyNumber == storedSafetyNumber) {
+      return null;
+    }
+    return SafetyNumberMismatch(
+      contactUserId: otherUserId,
+      previousSafetyNumber: storedSafetyNumber,
+      currentSafetyNumber: currentSafetyNumber,
+      previouslyVerifiedAt: DateTime.tryParse(verifiedAtIso),
+    );
+  }
+
+  /// Rotates the local X25519 identity keypair.
+  ///
+  /// The current keypair is moved into the `*_prev` slots in secure
+  /// storage together with `prev_rotated_at` (wall-clock ISO-8601
+  /// timestamp). A fresh keypair is generated and written to the
+  /// canonical `privateKey`/`publicKey` slots. All cached shared
+  /// secrets are dropped so the next encryption/decryption uses the
+  /// new key.
+  ///
+  /// Every existing contact's `verified_at` is also cleared because
+  /// the local public key just changed, which means every safety
+  /// number is now different and must be re-verified. The historical
+  /// `verified_safety_number` snapshot is left in place so the UI
+  /// can show "was previously verified" provenance if needed.
+  ///
+  /// Returns a [IdentityRotationResult] with the old and new public
+  /// keys (base64) plus the expiry of the prev-key grace window.
+  Future<IdentityRotationResult> rotateIdentityKeypair() async {
+    final prevPriv = await _storage.read('privateKey');
+    final prevPub = await _storage.read('publicKey');
+    if (prevPriv == null ||
+        prevPriv.isEmpty ||
+        prevPub == null ||
+        prevPub.isEmpty) {
+      throw StateError(
+        'Cannot rotate identity keypair: no existing keypair to rotate. '
+        'Register the user first.',
+      );
+    }
+
+    final newKeyPair = await _algorithm.newKeyPair();
+    final newPublicKey = await newKeyPair.extractPublicKey();
+    final newPrivateBytes = await newKeyPair.extractPrivateKeyBytes();
+    final rotatedAt = DateTime.now();
+
+    // Persist the previous keypair before overwriting so that an
+    // interrupted rotation never loses both halves at once.
+    await _storage.write('privateKey_prev', prevPriv);
+    await _storage.write('publicKey_prev', prevPub);
+    await _storage.write(
+      'prev_rotated_at',
+      rotatedAt.toIso8601String(),
+    );
+
+    await _storage.write('privateKey', base64Encode(newPrivateBytes));
+    await _storage.write(
+      'publicKey',
+      base64Encode(newPublicKey.bytes),
+    );
+
+    _sharedSecretCache.clear();
+    _prevSharedSecretCache.clear();
+
+    // Every contact's stored safety-number snapshot is now stale —
+    // clear the verification timestamp on all of them so the UI
+    // shows ⚠ until the user re-verifies.
+    await _localDb.clearAllContactsVerifiedAt();
+
+    final result = IdentityRotationResult(
+      previousPublicKey: prevPub,
+      newPublicKey: base64Encode(newPublicKey.bytes),
+      previousKeyExpiresAt: rotatedAt.add(kPrevKeyGracePeriod),
+    );
+    debugPrint(
+      '[FIX:local-only] rotated identity keypair; prev kept until '
+      '${result.previousKeyExpiresAt.toIso8601String()}',
+    );
+    return result;
+  }
+
+  /// Best-effort cleanup of an expired prev identity keypair. Safe
+  /// to call on every bootstrap — no-op when the prev slot is empty
+  /// or still inside the grace window.
+  Future<void> pruneExpiredPrevIdentityKey() => _prunePrevKeyIfExpired();
+
   Future<void> addContact(String userId) async {
     final cached = _lastSearchResults[userId];
     if (cached == null || (cached['public_key']?.toString().isNotEmpty != true)) {
@@ -990,4 +1294,44 @@ class LocalAppService {
     );
     return calls.take(limit).toList();
   }
+}
+
+/// Result of [LocalAppService.rotateIdentityKeypair].
+class IdentityRotationResult {
+  const IdentityRotationResult({
+    required this.previousPublicKey,
+    required this.newPublicKey,
+    required this.previousKeyExpiresAt,
+  });
+
+  /// Public key (base64, X25519) that was active before rotation.
+  final String previousPublicKey;
+
+  /// Public key (base64, X25519) generated by this rotation.
+  final String newPublicKey;
+
+  /// Wall-clock time at which the previous keypair will be pruned
+  /// from secure storage and can no longer be used as a decryption
+  /// fallback. Equal to `now + LocalAppService.kPrevKeyGracePeriod`.
+  final DateTime previousKeyExpiresAt;
+}
+
+/// Result of [LocalAppService.detectSafetyMismatch].
+///
+/// Carries the values needed to render a "the safety number has
+/// changed since you verified this contact" warning — both
+/// fingerprints plus the wall-clock time of the original
+/// verification.
+class SafetyNumberMismatch {
+  const SafetyNumberMismatch({
+    required this.contactUserId,
+    required this.previousSafetyNumber,
+    required this.currentSafetyNumber,
+    required this.previouslyVerifiedAt,
+  });
+
+  final String contactUserId;
+  final String previousSafetyNumber;
+  final String currentSafetyNumber;
+  final DateTime? previouslyVerifiedAt;
 }

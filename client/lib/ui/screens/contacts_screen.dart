@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stealth/di.dart';
+import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -9,6 +10,7 @@ import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
+import 'package:stealth/ui/screens/chats/safety_number_dialog.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/contacts_data_source.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
@@ -36,6 +38,11 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
   bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];
 
+  /// Cache of per-contact safety-number verification status, keyed by
+  /// `user_id`. Populated alongside [_loadContacts] so the grid item
+  /// builder can render the ✓ / ⚠ indicator synchronously.
+  Map<String, _ContactVerification> _verificationByUserId = const {};
+
   @override
   bool get wantKeepAlive => true;
 
@@ -59,14 +66,60 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
       });
     }
     final rows = await _appService.getContacts();
+    final verification = await _loadVerificationStatuses(
+      rows.cast<Map<String, dynamic>>(),
+    );
     if (!mounted) {
       return;
     }
 
     setState(() {
       _contacts = rows.cast<Map<String, dynamic>>();
+      _verificationByUserId = verification;
       _loading = false;
     });
+  }
+
+  /// Computes the safety-number verification state for every contact
+  /// in [contacts]. Reads through the Riverpod-provided
+  /// [LocalAppService] rather than the [ContactsDataSource]
+  /// abstraction so the (test-only) `dataSource` constructor override
+  /// in widget tests does not need to mock these calls — when a fake
+  /// data source is in use we just return an empty map.
+  Future<Map<String, _ContactVerification>> _loadVerificationStatuses(
+    List<Map<String, dynamic>> contacts,
+  ) async {
+    // Widget tests pass a synthetic ContactsDataSource through the
+    // constructor; routing verification through LocalAppService in
+    // that case would require the tests to mount real storage. Skip
+    // the lookup when the override is active.
+    if (widget.dataSource != null) {
+      return const {};
+    }
+    final appService = ref.read(localAppServiceProvider);
+    final result = <String, _ContactVerification>{};
+    for (final contact in contacts) {
+      final userId = contact['user_id']?.toString();
+      if (userId == null || userId.isEmpty) {
+        continue;
+      }
+      try {
+        final verified = await appService.isContactVerified(userId);
+        final mismatch = await appService.detectSafetyMismatch(userId);
+        result[userId] = _ContactVerification(
+          verified: verified,
+          hasMismatch: mismatch != null,
+        );
+      } catch (_) {
+        // Best-effort load — a single failed lookup must not blank
+        // the entire contacts list.
+        result[userId] = const _ContactVerification(
+          verified: false,
+          hasMismatch: false,
+        );
+      }
+    }
+    return result;
   }
 
   Future<void> _deleteContact(Map<String, dynamic> contact) async {
@@ -153,61 +206,26 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
   Future<void> _verifySafetyNumber(Map<String, dynamic> contact) async {
     final userId = contact['user_id'] as String?;
     final name = contact['name'] as String? ?? 'Contact';
-    if (userId == null) return;
-
-    if (mounted) {
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Generating fingerprint...'),
-            ],
-          ),
-        ),
-      );
+    if (userId == null || userId.isEmpty || !mounted) {
+      return;
     }
 
-    final safetyNumber = await _appService.getSafetyNumber(userId);
+    final confirmed = await SafetyNumberDialog.show(
+      context,
+      contactUserId: userId,
+      contactName: name,
+    );
 
-    if (mounted) {
-      Navigator.of(context).pop(); // Закрываем диалог загрузки
-
-      showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Safety Number - $name'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
-                style: AppTypography.caption1.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                safetyNumber ?? 'Error generating number',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  fontFamily: 'Courier',
-                  color: AppColors.systemBlue,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+    // Reload contacts whenever the dialog actually persisted a
+    // verification — the ✓ indicator should appear without requiring
+    // the user to swipe-to-refresh.
+    if (confirmed == true) {
+      await _loadContacts();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name marked as verified')),
       );
     }
   }
@@ -527,6 +545,8 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
                                   final name = (contact['name'] as String?) ?? 'Unknown';
+                                  final verification = _verificationByUserId[
+                                      (contact['user_id'] as String?) ?? ''];
                                   return Semantics(
                                     label: AccessibilityIds.contact(name),
                                     button: true,
@@ -558,16 +578,35 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  (contact['name'] as String?) ??
-                                                      'Unknown',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style:
-                                                      AppTypography.body.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
+                                                Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        (contact['name'] as String?) ??
+                                                            'Unknown',
+                                                        maxLines: 1,
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                        style: AppTypography
+                                                            .body
+                                                            .copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (verification != null)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                          left: AppSpacing.xs,
+                                                        ),
+                                                        child: _VerificationBadge(
+                                                          status: verification,
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
                                                 const SizedBox(
                                                   height: AppSpacing.xs,
@@ -668,5 +707,54 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen>
         },
       ),
     );
+  }
+}
+
+/// Per-contact safety-number verification snapshot, computed in
+/// [_ContactsScreenState._loadVerificationStatuses].
+class _ContactVerification {
+  const _ContactVerification({
+    required this.verified,
+    required this.hasMismatch,
+  });
+
+  /// User has confirmed the fingerprint matches and the snapshot is
+  /// still current. Renders the ✓ badge.
+  final bool verified;
+
+  /// User had verified the fingerprint earlier but it has since
+  /// changed (either party's key rotated). Renders the ⚠ badge.
+  final bool hasMismatch;
+}
+
+/// Tiny icon next to a contact's name in the grid.
+class _VerificationBadge extends StatelessWidget {
+  const _VerificationBadge({required this.status});
+
+  final _ContactVerification status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status.hasMismatch) {
+      return const Tooltip(
+        message: 'Safety number changed since verification — re-verify',
+        child: Icon(
+          Icons.warning_amber_rounded,
+          size: 16,
+          color: AppColors.systemOrange,
+        ),
+      );
+    }
+    if (status.verified) {
+      return const Tooltip(
+        message: 'Safety number verified',
+        child: Icon(
+          Icons.verified_user,
+          size: 16,
+          color: AppColors.systemGreen,
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

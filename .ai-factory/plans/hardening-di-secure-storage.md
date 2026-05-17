@@ -183,7 +183,7 @@ Phase 0 (branch)
 
 **Цель:** перед первым исходящим/входящим сообщением и звонком к контакту попросить пользователя сверить SHA-256 fingerprint. Сохранять `verified_at` в таблице контактов.
 
-### Task 4.1 — Расширить схему контактов
+### Task 4.1 — Расширить схему контактов ✅ done
 
 - **Файл:** `client/lib/local_database_service.dart`.
 - **Что:**
@@ -192,7 +192,7 @@ Phase 0 (branch)
   - Хранимые поля: `verified_at` (ISO8601 String), `verified_safety_number` (String — снапшот fingerprint в момент верификации, чтобы детектить mismatch после rotation).
 - **Логи (verbose):** `Logger.info('[contacts] marked verified userId=<redacted> safetyNumber=<redacted>')`.
 
-### Task 4.2 — API в `LocalAppService`
+### Task 4.2 — API в `LocalAppService` ✅ done
 
 - **Файл:** `client/lib/local_app_service.dart`.
 - **Что:**
@@ -201,14 +201,14 @@ Phase 0 (branch)
   - `Future<SafetyNumberMismatch?> detectSafetyMismatch(String userId)` — возвращает старый/новый fingerprint, если ключ контакта поменялся после верификации.
 - **Логи:** `Logger.warn('[safety] mismatch userId=<redacted> prev=<short> curr=<short>')`.
 
-### Task 4.3 — UI: диалог verify-fingerprint
+### Task 4.3 — UI: диалог verify-fingerprint ✅ done (gate before send/dial deferred to Phase 2.2)
 
 - **Файл:** новый `client/lib/ui/screens/chats/safety_number_dialog.dart` (`ConsumerWidget`).
 - **Что:** показать оба fingerprint'а (свой + контакта или общий SHA-256), QR-код фингерпринта, кнопки "Confirmed" / "Cancel".
 - **Интеграция:** `chats_screen.dart`/`conversation_panel.dart` перед первой отправкой сообщения проверяет `isContactVerified`; если false — показывает `safety_number_dialog`, отправка возможна только после "Confirmed". То же для звонка: в `call_manager.dart` перед `dialOut`.
 - **Логи (verbose):** `Logger.debug('[ui:safety] gate before sendMessage chatId=<redacted>')`.
 
-### Task 4.4 — UI: индикатор verified в списке контактов
+### Task 4.4 — UI: индикатор verified в списке контактов ✅ done
 
 - **Файл:** `client/lib/ui/screens/contacts_screen.dart`.
 - **Что:** рядом с именем — иконка ✓ если verified, иконка ⚠ + tooltip "Mismatch" если `detectSafetyMismatch` вернул значение.
@@ -219,7 +219,7 @@ Phase 0 (branch)
 
 **Цель:** кнопка "Обновить ключ" в Profile. Новый identity X25519 keypair. Старый сохраняется в `privateKey_prev`/`publicKey_prev` на ограниченное время (24 ч), чтобы расшифровать сообщения, которые peer'ы отправили до того, как получили новый bundle.
 
-### Task 5.1 — API `rotateIdentityKeypair`
+### Task 5.1 — API `rotateIdentityKeypair` ✅ done
 
 - **Файл:** `client/lib/local_app_service.dart`.
 - **Сигнатура:** `Future<RotationResult> rotateIdentityKeypair({Duration gracePeriod = const Duration(hours: 24)})`.
@@ -233,13 +233,13 @@ Phase 0 (branch)
 - **Cleanup expired prev:** в bootstrap'е (или ленивым check'ом в `_getOwnKeyPair`) удалять `privateKey_prev` если `prev_rotated_at + 24h < now`.
 - **Логи (verbose):** `Logger.info('[identity] rotated; prev kept until=<iso>')`.
 
-### Task 5.2 — Decryption fallback на prev-key
+### Task 5.2 — Decryption fallback на prev-key ✅ done
 
 - **Файл:** `client/lib/local_app_service.dart`, в потоке `_getSharedSecret` / decryption.
 - **Что:** при decryption failure (AEAD tag mismatch) и наличии `privateKey_prev` — попробовать derive shared secret через prev-keypair. Это безопасно: prev-key уже истекает по TTL, второй попытки на чужие данные не даём.
 - **Логи:** `Logger.debug('[identity] decrypt fallback to prev-key contactId=<redacted>')`.
 
-### Task 5.3 — UI кнопка в `profile_screen.dart`
+### Task 5.3 — UI кнопка в `profile_screen.dart` ✅ done
 
 - **Файл:** `client/lib/ui/screens/profile_screen.dart`.
 - **Что:**
@@ -248,7 +248,7 @@ Phase 0 (branch)
   - После rotation: показать `RotationResult`, перегенерировать QR (`generateQRCode()` автоматически возьмёт новый `publicKey`).
 - **Логи (verbose):** `Logger.info('[ui:profile] user triggered rotateIdentityKeypair')`.
 
-### Task 5.4 — Сброс `verified_at` у контактов после собственного rotate
+### Task 5.4 — Сброс `verified_at` у контактов после собственного rotate ✅ done (inlined into rotateIdentityKeypair)
 
 - **Файл:** `client/lib/local_database_service.dart` + `local_app_service.dart`.
 - **Что:** после успешного `rotateIdentityKeypair` обнулить `verified_at`/`verified_safety_number` у всех контактов (свой ключ изменился → safety number у всех другой). Альтернатива: оставить и опираться на `detectSafetyMismatch` для warning'а. **Решение:** сбрасывать `verified_at = null`, оставлять `verified_safety_number` как "last verified before rotation" для UI-сообщения.

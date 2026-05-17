@@ -155,6 +155,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _rotateIdentityKey() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rotate identity key?'),
+        content: const Text(
+          'A new X25519 identity keypair will be generated. The previous '
+          'keypair will be kept in secure storage for 24 hours so '
+          'in-flight messages encrypted to the old key can still be '
+          'decrypted.\n\n'
+          'After rotation:\n'
+          '• Your contact bundle / QR code will change. Re-share it with '
+          'your contacts.\n'
+          '• Every contact will appear unverified — re-confirm safety '
+          'numbers with them.\n'
+          '• Anyone holding only the old bundle will not be able to '
+          'reach you any more.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Rotate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      final result = await _appService.rotateIdentityKeypair();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Identity key rotated. Previous key valid until '
+            '${result.previousKeyExpiresAt.toLocal().toIso8601String().substring(0, 16)}.',
+          ),
+        ),
+      );
+      // Reload so the QR code, security card readiness, and contact
+      // bundle reflect the new keypair.
+      await _loadProfile();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not rotate key: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('ProfileScreen: build called, _isLoading=$_isLoading, _userId=$_userId');
@@ -361,6 +421,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               icon: const Icon(Icons.copy),
               label: const Text('Copy contact bundle'),
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: _rotateIdentityKey,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Rotate identity key'),
           ),
         ],
       ),

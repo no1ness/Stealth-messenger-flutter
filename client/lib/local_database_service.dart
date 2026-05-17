@@ -258,6 +258,76 @@ class LocalDatabaseService {
     await txn.completed;
   }
 
+  /// Returns the single contact record keyed by [contactUserId], or
+  /// `null` if no such row exists. Used by safety-number verification
+  /// (see [LocalAppService.isContactVerified]) which needs to read a
+  /// single contact without paging the whole table.
+  Future<Map<String, dynamic>?> getContact(String contactUserId) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadOnly);
+    final store = txn.objectStore(contactsStore);
+    final raw = await store.getObject(contactUserId);
+    await txn.completed;
+    if (raw == null) {
+      return null;
+    }
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
+  /// Persists a safety-number verification result for the given
+  /// contact. The contact record stores two related fields:
+  ///
+  /// - `verified_at` — ISO-8601 timestamp of the user-confirmed
+  ///   verification (null until the user clicks "Confirm" in the
+  ///   safety-number dialog).
+  /// - `verified_safety_number` — snapshot of the SHA-256 fingerprint
+  ///   at the moment of verification. If a future call to
+  ///   [LocalAppService.getSafetyNumber] returns a different value,
+  ///   the contact's public key has rotated and the verification is
+  ///   stale (see [LocalAppService.detectSafetyMismatch]).
+  Future<void> markContactVerified(
+    String contactUserId, {
+    required String safetyNumber,
+    required DateTime verifiedAt,
+  }) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadWrite);
+    final store = txn.objectStore(contactsStore);
+    final raw = await store.getObject(contactUserId);
+    if (raw == null) {
+      await txn.completed;
+      throw StateError(
+        'Cannot mark unknown contact as verified: $contactUserId',
+      );
+    }
+    final updated = Map<String, dynamic>.from(raw as Map);
+    updated['verified_at'] = verifiedAt.toIso8601String();
+    updated['verified_safety_number'] = safetyNumber;
+    await store.put(updated);
+    await txn.completed;
+  }
+
+  /// Clears `verified_at` on every contact (leaves
+  /// `verified_safety_number` as a historical record). Called by
+  /// [LocalAppService.rotateIdentityKeypair] — once the local
+  /// identity key changes, every contact's safety number is by
+  /// definition different and must be re-verified by the user.
+  Future<void> clearAllContactsVerifiedAt() async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(contactsStore, idbModeReadWrite);
+    final store = txn.objectStore(contactsStore);
+    final rows = await store.getAll();
+    for (final raw in rows) {
+      final contact = Map<String, dynamic>.from(raw as Map);
+      if (contact['verified_at'] == null) {
+        continue;
+      }
+      contact['verified_at'] = null;
+      await store.put(contact);
+    }
+    await txn.completed;
+  }
+
   // --- Calls ---
 
   Future<void> saveCall(Map<String, dynamic> call) async {
