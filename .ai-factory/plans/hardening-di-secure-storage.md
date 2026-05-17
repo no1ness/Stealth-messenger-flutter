@@ -158,13 +158,13 @@ Phase 0 (branch)
 
 **Цель:** убедиться, что **ни один sensitive-ключ** не пишется напрямую в `SharedPreferences`, обойдя `StorageService`. Зафиксировать это политикой и regression-тестом.
 
-### Task 3.1 — Документировать список sensitive-ключей
+### Task 3.1 — Документировать список sensitive-ключей ✅ done
 
 - **Файл:** `client/lib/storage_service.dart` (в верхнем doc-комментарии).
 - **Что:** добавить block-комментарий со списком ключей, для которых обязательно использовать `StorageService` (privateKey, publicKey, pb_token, pb_password, pb_user_id, local_db_key, group_key_*, в будущем privateKey_prev/publicKey_prev из Phase 5).
 - **Также:** перечислить разрешённые SharedPreferences ключи (themeMode, useP2P) с пометкой "low-sensitivity UI prefs".
 
-### Task 3.2 — Regression-тест: запрет sensitive ключей в `SharedPreferences`
+### Task 3.2 — Regression-тест: запрет sensitive ключей в `SharedPreferences` ✅ done
 
 - **Файл:** новый `client/test/security/secure_storage_policy_test.dart`.
 - **Что:** статически просканировать `client/lib/**/*.dart` (как делает `private_key_no_export_test.dart`) и поломать билд, если найден `SharedPreferences` вызов с одним из sensitive-ключей.
@@ -260,7 +260,7 @@ Phase 0 (branch)
 
 **Цель:** добавить в репозиторий `pb_hooks/rtc_cleanup.pb.js` с TTL 24 ч (как в запросе). Сейчас хук только описан в docs, физически в репо его нет.
 
-### Task 6.1 — Создать `pb_hooks/rtc_cleanup.pb.js`
+### Task 6.1 — Создать `pb_hooks/rtc_cleanup.pb.js` ✅ done
 
 - **Файл:** новый `pb_hooks/rtc_cleanup.pb.js` (в корне проекта; рядом с `client/`, `docs/`).
 - **Что (JS, PocketBase JS hooks API):**
@@ -278,7 +278,7 @@ Phase 0 (branch)
   ```
 - **Verify:** деплой инструкция в `docs/POCKETBASE_SETUP.md` (Task 9.x): положить файл в `pb_data/../pb_hooks/` рядом с бинарём.
 
-### Task 6.2 — Обновить документацию TTL=24h
+### Task 6.2 — Обновить документацию TTL=24h ✅ done
 
 - **Файл:** `docs/POCKETBASE_SETUP.md` (строки 189-199 сейчас 1h → переписать на 24h, добавить отсылку на `pb_hooks/rtc_cleanup.pb.js` в корне репо).
 
@@ -292,7 +292,7 @@ Phase 0 (branch)
 
 **Цель:** ограничить web-bundle CSP так, чтобы любая XSS-попытка инжекта external скрипта была заблокирована.
 
-### Task 7.1 — Добавить CSP meta в `client/web/index.html`
+### Task 7.1 — Добавить CSP meta в `client/web/index.html` ✅ done
 
 - **Файл:** `client/web/index.html`.
 - **Что:** в `<head>` после `<meta charset>` добавить:
@@ -314,7 +314,7 @@ Phase 0 (branch)
   - `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'` — best-practice harden.
 - **Логи:** в коде нет; в smoke-тесте проверить.
 
-### Task 7.2 — Smoke: загрузка web после CSP
+### Task 7.2 — Smoke: загрузка web после CSP ✅ done (docs/web-csp.md, consolidated with Phase 9 Task 9.2)
 
 - **Файл:** ручная проверка через `flutter run -d chrome --web-renderer html`. Открыть DevTools → Console → убедиться что нет CSP violations. Зафиксировать в `docs/testing.md` (Phase 9) шаги smoke-проверки.
 

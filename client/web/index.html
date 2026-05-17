@@ -4,6 +4,46 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+
+  <!--
+    Content Security Policy
+    -----------------------
+    Defence-in-depth against script injection (XSS) and clickjacking.
+
+    - script-src 'self'          — only first-party JS (no inline, no CDNs).
+                                   Flutter web bootstrap is self-hosted at
+                                   `flutter_bootstrap.js`.
+    - style-src 'self' 'unsafe-inline'
+                                  — inline `<style>` below is the splash
+                                    loader. Removing the 'unsafe-inline'
+                                    fallback requires extracting that block
+                                    into an external `loading.css`
+                                    (tracked as a follow-up, see
+                                    `.ai-factory/plans/hardening-di-secure-storage.md`
+                                    Task 7.3).
+    - img-src 'self' data:        — Flutter inlines small assets as data:
+                                    URIs (icons, etc.).
+    - connect-src 'self' wss: https:
+                                  — PocketBase HTTPS + SSE plus future TURN
+                                    over wss:. Tighten to a specific origin
+                                    once the deployment URL is stable.
+    - object-src 'none'
+      base-uri 'self'
+      frame-ancestors 'none'      — generic XSS / clickjacking hardening.
+
+    Anything outside this list is blocked by the browser, so a stray
+    `<script src="…">` injected via a future bug fails closed.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 script-src 'self';
+                 style-src 'self' 'unsafe-inline';
+                 img-src 'self' data:;
+                 connect-src 'self' wss: https:;
+                 object-src 'none';
+                 base-uri 'self';
+                 frame-ancestors 'none';">
+
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Stealth Messenger - Secure encrypted messaging">
 
