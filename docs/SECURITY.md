@@ -1,52 +1,74 @@
+[← Архитектура](architecture.md) · [Back to README](../README.md) · [Конфигурация →](configuration.md)
+
 # Модель безопасности Stealth Messenger
 
 ## Что защищаем
 
-- Приватные ключи пользователя.
-- Plaintext сообщений.
-- Вложения до шифрования и после расшифровки.
-- Локальную историю контактов, чатов и звонков.
+- Приватные ключи пользователя
+- Plaintext сообщений
+- Вложения до шифрования и после расшифровки
+- Локальную историю контактов, чатов и звонков
 
 ## Криптография
 
-- Identity keypair: X25519.
-- Private chat secret: X25519 shared secret.
-- Message encryption: AES-256-GCM.
-- Ratchet helpers используются для private message keys. **Это НЕ Double
-  Ratchet и НЕ обеспечивает Perfect Forward Secrecy.** Текущая
-  реализация (`client/lib/crypto/ratchet_service.dart`) — stateless
-  symmetric KDF chain поверх X25519 shared secret. План перехода на
-  настоящий Double Ratchet зафиксирован в
-  [`.ai-factory/RESEARCH.md`](../.ai-factory/RESEARCH.md).
-- Local database payloads дополнительно шифруются локальным ключом.
+| Компонент | Алгоритм | Примечание |
+|-----------|----------|------------|
+| Identity keypair | X25519 | Генерируется на устройстве |
+| Private chat secret | X25519 shared secret | Diffie-Hellman key agreement |
+| Message encryption | AES-256-GCM | Authenticated encryption |
+| Ratchet | Symmetric KDF chain | **НЕ** Double Ratchet, **НЕ** обеспечивает PFS |
+| Local DB | Дополнительное шифрование локальным ключом | — |
+
+> **Важно:** текущая реализация ratchet (`client/lib/crypto/ratchet_service.dart`) —
+> stateless symmetric KDF chain поверх X25519 shared secret. План перехода на
+> настоящий Double Ratchet зафиксирован в `.ai-factory/RESEARCH.md`.
 
 ## Хранение ключей
 
-- Android/native: secure storage abstraction поверх device-backed storage.
-- Web: browser storage abstraction; это слабее native и остается зоной риска при XSS.
-- Приватный ключ не экспортируется из UI.
-- Profile показывает contact bundle только с public key.
+| Платформа | Механизм | Уровень защиты |
+|-----------|----------|---------------|
+| Android/native | Secure storage (device-backed) | Высокий |
+| Web | Browser storage abstraction | Низкий — уязвим при XSS |
+
+- Приватный ключ **не экспортируется** из UI
+- Profile показывает contact bundle только с public key
 
 ## Серверная видимость
 
-PocketBase видит только временные signaling events и их metadata: room, target, creator, type, timestamps, SDP/ICE payload. Он не хранит историю сообщений, контакты, вложения или plaintext.
+PocketBase видит только временные signaling events и их metadata:
+`room`, `target`, `creator`, `type`, timestamps, SDP/ICE payload.
 
-Поле `creator`/`target` — это 15-символьный SHA-256 префикс локального UUID (см. `client/lib/services/signaling/pb_user_id.dart`). Маппинг **односторонний**: оператор PocketBase не может восстановить UUID юзера из PB-id без полной радужной таблицы по всему пространству UUID. Однако `offer`/`hangup` payload содержит исходный `creatorUuid` (нужен callee для resolve незнакомого caller), поэтому полный UUID **виден** оператору в момент звонка. Это устранимо только переходом на end-to-end шифрование signaling payload — в текущей модели не делается.
+**Не хранит:** историю сообщений, контакты, вложения, plaintext.
 
-WebRTC media шифруется механизмами WebRTC (DTLS-SRTP). PocketBase не переносит media packets.
+Поля `creator`/`target` — 15-символьный SHA-256 префикс локального UUID
+(см. `client/lib/services/signaling/pb_user_id.dart`).
+Маппинг **односторонний**: оператор PocketBase не может восстановить UUID
+из PB-id без полной радужной таблицы.
+
+Однако `offer`/`hangup` payload содержит `creatorUuid` — полный UUID
+виден оператору в момент звонка. Устранимо только E2E-шифрованием
+signaling payload (в текущей модели не реализовано).
+
+WebRTC media шифруется DTLS-SRTP. PocketBase не переносит media packets.
 
 ## Главные риски
 
-- Web storage уязвим к XSS.
-- Contact bundle нужно сравнивать/проверять через safety number, иначе возможна подмена public key.
-- Metadata звонков в signaling layer видима оператору PocketBase.
-- Нет полноценного multi-device key management.
-- Нет механизма revoke/rotate для identity key.
+- Web storage уязвим к XSS
+- Contact bundle нужно верифицировать через safety number (подмена public key)
+- Metadata звонков видима оператору PocketBase
+- Нет multi-device key management
+- Нет механизма revoke/rotate для identity key
 
 ## Рекомендации
 
-1. Добавить explicit safety-number verification перед первым E2E-чатом.
-2. Усилить Web build CSP и убрать inline script риски.
-3. Добавить key rotation/revocation.
-4. Добавить TTL cleanup для PocketBase signaling collection.
-5. Проверить TURN/TURNS deployment и certificate hygiene.
+1. Добавить safety-number verification перед первым E2E-чатом
+2. Усилить Web CSP, убрать inline script риски
+3. Добавить key rotation / revocation
+4. Добавить TTL cleanup для PocketBase signaling
+5. Проверить TURN/TURNS deployment и certificate hygiene
+
+## See Also
+
+- [Архитектура](architecture.md) — как устроен проект
+- [Конфигурация](configuration.md) — переменные окружения
+- [PocketBase Setup](pocketbase-setup.md) — настройка API rules
