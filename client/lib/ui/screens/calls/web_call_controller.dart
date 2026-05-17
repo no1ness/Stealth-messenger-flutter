@@ -247,9 +247,7 @@ class WebCallController extends ChangeNotifier {
         'purpose': 'call',
         'nickname': nickname ?? '',
         'callType': isVideoCall ? 'video' : 'audio',
-        // Carry caller UUID explicitly — receiver can't reverse-derive it
-        // from `creator` (15-char SHA-256 hash, lossy).
-        'creatorUuid': _selfUserId,
+        // `creatorUuid` is injected automatically by WebRtcSignalingService._send.
       },
     );
   }

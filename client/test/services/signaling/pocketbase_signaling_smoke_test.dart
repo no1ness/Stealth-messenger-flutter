@@ -299,6 +299,122 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  test(
+    'IncomingCallSignalingService surfaces cold-cancel hangup with creatorUuid fallback',
+    () async {
+      // Cold-cancel scenario: caller initiates a call (offer), then hangs up
+      // BEFORE the callee opens the call screen — i.e. only the global
+      // IncomingCallSignalingService is running on the callee side. The
+      // per-call `WebRtcSignalingService` doesn't exist for that room on the
+      // callee yet, so the hangup is delivered exclusively through the
+      // global listener.
+      //
+      // This guards the symmetric `creatorUuid` injection in
+      // `WebRtcSignalingService._send`: without it the hangup payload would
+      // be empty and `IncomingCallHangup.fromUserId` would fall back to the
+      // 15-char hash, breaking any UI that compares against local contact
+      // UUIDs.
+      final adminEmail = Platform.environment['POCKETBASE_TEST_ADMIN_EMAIL'];
+      final adminPassword =
+          Platform.environment['POCKETBASE_TEST_ADMIN_PASSWORD'];
+
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+      final callerUuid = _deterministicUuid('cold-caller-$stamp');
+      final calleeUuid = _deterministicUuid('cold-callee-$stamp');
+      final roomId = 'smoke_room_cold_$stamp';
+
+      final pbCaller = PocketBase(pbUrl);
+      final pbCallee = PocketBase(pbUrl);
+
+      WebRtcSignalingService? caller;
+      IncomingCallSignalingService? callee;
+      StreamSubscription<IncomingCallEvent>? eventsSub;
+
+      try {
+        caller = WebRtcSignalingService(
+          pocketBase: pbCaller,
+          storage: _NoopStorage(),
+          connectivity: _SilentConnectivity(),
+        );
+        callee = IncomingCallSignalingService(
+          pocketBase: pbCallee,
+          knownPeerUuidsProvider: () => [callerUuid],
+          authService: PocketBaseAuthService(
+            pocketBase: pbCallee,
+            storage: _NoopStorage(),
+          ),
+        );
+
+        final events = <IncomingCallEvent>[];
+        eventsSub = callee.events.listen(events.add);
+
+        await callee.start(selfUserId: calleeUuid);
+        await caller.connect(roomId: roomId, selfUserId: callerUuid);
+
+        // Allow PocketBase realtime to attach the SSE subscription.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+
+        await caller.sendOffer(
+          roomId: roomId,
+          targetUserId: calleeUuid,
+          sdp: <String, dynamic>{
+            'type': 'offer',
+            'sdp': 'v=0\r\nfake-cold-offer\r\n',
+            'purpose': 'call',
+            'nickname': 'ColdCaller',
+            'callType': 'audio',
+          },
+        );
+
+        await _waitFor(
+          () => events.whereType<IncomingCallOffer>().isNotEmpty,
+          description: 'IncomingCallOffer reaches global listener',
+        );
+
+        // Caller cancels before callee opens the call screen. Hangup
+        // payload is empty at the call site — `_send` is responsible for
+        // injecting creatorUuid.
+        await caller.sendHangup(roomId: roomId, targetUserId: calleeUuid);
+
+        await _waitFor(
+          () => events.whereType<IncomingCallHangup>().isNotEmpty,
+          description: 'IncomingCallHangup reaches global listener',
+        );
+
+        final hangup = events.whereType<IncomingCallHangup>().first;
+        expect(hangup.roomId, roomId);
+        expect(
+          hangup.fromUserId,
+          callerUuid,
+          reason:
+              'fromUserId must come from payload creatorUuid injected by '
+              'WebRtcSignalingService._send, not the 15-char wire hash. '
+              'A failure here would mean the centralised injection is missing '
+              'and cold-cancel UIs would see an unresolved hash.',
+        );
+      } finally {
+        await eventsSub?.cancel();
+        await callee?.stop();
+        await caller?.disconnect();
+        if (adminEmail != null && adminPassword != null) {
+          await _safeDeleteUser(
+            pbUrl,
+            adminEmail,
+            adminPassword,
+            pbIdFromLocalUuid(callerUuid),
+          );
+          await _safeDeleteUser(
+            pbUrl,
+            adminEmail,
+            adminPassword,
+            pbIdFromLocalUuid(calleeUuid),
+          );
+        }
+      }
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 }
 
 /// Produces a deterministic canonical UUID-shaped string from [seed].

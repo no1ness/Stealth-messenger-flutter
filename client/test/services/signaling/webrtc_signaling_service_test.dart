@@ -71,7 +71,11 @@ void main() {
       expect(body['payload']['candidate'], startsWith('candidate:'));
     });
 
-    test('sendHangup creates record with empty payload', () async {
+    test('sendHangup creates record with creatorUuid-only payload', () async {
+      // Even though callers pass no hangup body, `_send` injects
+      // `creatorUuid: selfUserId` so the global IncomingCallSignalingService
+      // on the receiver side can resolve cold-cancel hangups back to the
+      // sender's local UUID (the wire `creator` is a one-way 15-char hash).
       await h.service.sendHangup(
         roomId: 'room-1',
         targetUserId: 'user-B',
@@ -79,7 +83,42 @@ void main() {
 
       final body = h.fakeRecordService.lastCreateBody!;
       expect(body['type'], 'hangup');
-      expect(body['payload'], isEmpty);
+      expect(body['payload'], {'creatorUuid': 'user-A'});
+    });
+
+    test('_send injects creatorUuid into every outgoing payload', () async {
+      // Regression guard for the centralised injection in `_send`. Each
+      // message type must carry `creatorUuid` so receivers can resolve
+      // unknown peers without depending on contact-book lookups.
+      await h.service.sendOffer(
+        roomId: 'room-1',
+        targetUserId: 'user-B',
+        sdp: const {'type': 'offer', 'sdp': 'v=0\r\n'},
+      );
+      expect(
+        h.fakeRecordService.lastCreateBody!['payload']['creatorUuid'],
+        'user-A',
+      );
+
+      await h.service.sendAnswer(
+        roomId: 'room-1',
+        targetUserId: 'user-B',
+        sdp: const {'type': 'answer', 'sdp': 'v=0\r\n'},
+      );
+      expect(
+        h.fakeRecordService.lastCreateBody!['payload']['creatorUuid'],
+        'user-A',
+      );
+
+      await h.service.sendCandidate(
+        roomId: 'room-1',
+        targetUserId: 'user-B',
+        candidate: const {'candidate': 'candidate:foo'},
+      );
+      expect(
+        h.fakeRecordService.lastCreateBody!['payload']['creatorUuid'],
+        'user-A',
+      );
     });
 
     test('rethrows when create() fails', () async {

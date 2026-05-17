@@ -188,12 +188,24 @@ class WebRtcSignalingService implements SignalingTransport {
     final pbCreator = pbIdFromLocalUuid(selfUserId);
     final pbTarget = pbIdFromLocalUuid(targetUserId);
     _knownUserIds.add(targetUserId);
+    // Inject `creatorUuid` into every outgoing payload. The wire `creator`
+    // is the 15-char one-way hash of the sender's local UUID, so a receiver
+    // who hasn't yet added the sender to its contacts cannot resolve it
+    // back. `creatorUuid` gives the receiver the full UUID to surface in
+    // `IncomingCall*.fromUserId` (callees fall back to it before the hash).
+    // Doing this in `_send` makes it symmetric across offer/answer/
+    // candidate/hangup — in particular fixes cold-cancel (hangup before
+    // the callee opens the per-call subscription).
+    final effectivePayload = <String, dynamic>{
+      ...payload,
+      'creatorUuid': selfUserId,
+    };
     final body = <String, dynamic>{
       'roomId': roomId,
       'creator': pbCreator,
       'target': pbTarget,
       'type': type.wireValue,
-      'payload': payload,
+      'payload': effectivePayload,
     };
     final payloadSize = payload.toString().length;
     Logger.info('[signaling] send', extras: {
