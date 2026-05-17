@@ -172,7 +172,7 @@ Phase 0 (branch)
 - **Логи в тесте:** при провале `expect`-сообщение должно показывать `file:line` нарушения.
 - **Verify:** запустить `flutter test` — тест проходит (текущее состояние чистое).
 
-### Task 3.3 — Не дублировать пакет
+### Task 3.3 — Не дублировать пакет ✅ done (decision: keep `flutter_secure_storage_x ^12.1.5+0`, no upstream switch)
 
 - **Файл:** `client/pubspec.yaml`.
 - **Что:** **НЕ добавлять** чистый `flutter_secure_storage`. Используем существующий `flutter_secure_storage_x: ^12.1.5+0`. Если в запросе подразумевался переход с `_x` обратно на upstream — обсудить отдельно (форк существует из-за конкретных багфиксов). Зафиксировать решение комментарием в `pubspec.yaml`.
@@ -282,7 +282,7 @@ Phase 0 (branch)
 
 - **Файл:** `docs/POCKETBASE_SETUP.md` (строки 189-199 сейчас 1h → переписать на 24h, добавить отсылку на `pb_hooks/rtc_cleanup.pb.js` в корне репо).
 
-### Task 6.3 — Smoke-инструкция
+### Task 6.3 — Smoke-инструкция ✅ done (docs/POCKETBASE_SETUP.md "open admin UI → Logs → filter `[rtcSignalingCleanup]`")
 
 - **Файл:** `docs/POCKETBASE_SETUP.md` — добавить раздел "Проверка cron": создать тестовый record с искусственным `created` в прошлом, дождаться следующего часа, убедиться что он удалён. Логи в admin UI → Logs.
 
@@ -318,7 +318,7 @@ Phase 0 (branch)
 
 - **Файл:** ручная проверка через `flutter run -d chrome --web-renderer html`. Открыть DevTools → Console → убедиться что нет CSP violations. Зафиксировать в `docs/testing.md` (Phase 9) шаги smoke-проверки.
 
-### Task 7.3 — (опционально, без блокировки) убрать `'unsafe-inline'` для styles
+### Task 7.3 — (опционально, без блокировки) убрать `'unsafe-inline'` для styles ⏭️ deferred (explicit optional; tracked in `docs/web-csp.md` Maintenance)
 
 - **Файл:** `client/web/index.html` + новый `client/web/loading.css`.
 - **Что:** вынести inline `<style>` в `loading.css`, добавить `<link rel="stylesheet" href="loading.css">`. После этого CSP можно ужать до `style-src 'self'`.
@@ -361,7 +361,7 @@ Phase 0 (branch)
   - Assertions: текст `userId`, текст `nickname`, наличие QR-кода, кнопка logout вызывает `logout()` на mock.
 - **Mock-стратегия:** без mocktail/mockito — простой `FakeLocalAppService extends LocalAppService` через `Mixin`-override методов; либо паттерн service-locator поверх `Provider.value`.
 
-### Task 8.4 — CI: убедиться что новые тесты запускаются
+### Task 8.4 — CI: убедиться что новые тесты запускаются ✅ done (`.github/workflows/ci.yml:64-65` runs `flutter test --coverage --reporter expanded`, no filter)
 
 - **Файл:** `.github/workflows/ci.yml` — `flutter test` уже там; новые тесты подберутся автоматически. Проверить что smoke job не таймаутится из-за крупного `crypto_helper_test` (10MB encrypt).
 
@@ -380,16 +380,16 @@ Phase 0 (branch)
   - Секция "Identity Key Rotation": кнопка + 24h grace period + последствия (re-verify).
   - Ссылка на новый `docs/web-csp.md`.
 
-### Task 9.2 — `docs/web-csp.md`
+### Task 9.2 — `docs/web-csp.md` ✅ done (file created during Phase 7 commit `6f7a67e`; consolidated with Task 7.2)
 
 - **Файл:** новый `docs/web-csp.md`.
 - **Что:** скопировать финальный CSP из Task 7.1, объяснить каждый директив, описать как делать smoke-проверку (Task 7.2), upgrade path для Task 7.3 (вынести inline-CSS).
 
-### Task 9.3 — `docs/POCKETBASE_SETUP.md`
+### Task 9.3 — `docs/POCKETBASE_SETUP.md` ✅ done (updated in Phase 6 commit `8d2674c`; TTL=24h + version-controlled hook reference + deploy & verify steps)
 
 - **Что:** обновлено в Task 6.2 (TTL=24h + ссылка на репо-файл).
 
-### Task 9.4 — `docs/configuration.md` / `docs/getting-started.md`
+### Task 9.4 — `docs/configuration.md` / `docs/getting-started.md` ⏭️ N/A on this branch (lowercase mirror docs live on `fix/pb-user-id-collision-fit`; pick up after that branch merges to main)
 
 - **Что:** упомянуть Riverpod в архитектуре, добавить onboarding-шаг "первый запуск → exchange contact bundle → verify safety number → отправить сообщение".
 
