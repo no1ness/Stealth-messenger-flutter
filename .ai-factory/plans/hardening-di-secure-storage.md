@@ -371,7 +371,7 @@ Phase 0 (branch)
 
 **Цель:** обновить docs так, чтобы новая политика (DI, Secure Storage, Safety Number, Key Rotation, TTL, CSP) была однозначно описана.
 
-### Task 9.1 — `docs/SECURITY.md`
+### Task 9.1 — `docs/SECURITY.md` ✅ done
 
 - **Файл:** `docs/SECURITY.md` (уже M в текущей ветке — координация с Phase 0 после слива).
 - **Что добавить/обновить:**
@@ -393,7 +393,7 @@ Phase 0 (branch)
 
 - **Что:** упомянуть Riverpod в архитектуре, добавить onboarding-шаг "первый запуск → exchange contact bundle → verify safety number → отправить сообщение".
 
-### Task 9.5 — `.ai-factory/DESCRIPTION.md`
+### Task 9.5 — `.ai-factory/DESCRIPTION.md` ✅ done
 
 - **Что:** добавить пункт о `client/lib/di.dart`, об экранов на `ConsumerWidget`, обновить раздел "Ключевые файлы".
 

@@ -8,18 +8,20 @@ Stealth Messenger - local-first Flutter-мессенджер. Контакты, 
 
 ```mermaid
 flowchart TD
-    UI["Flutter UI"]
+    UI["Flutter UI\n(ConsumerWidget)"]
+    DI["di.dart\nRiverpod ProviderScope"]
     App["LocalAppService"]
     DB["LocalDatabaseService\nEncrypted local DB"]
     Storage["StorageService\nIdentity and keys"]
     P2P["P2PService\nWebRTC DataChannel"]
     Call["WebRTC Calls\nDTLS-SRTP media"]
-    PB["PocketBase\nTransient signaling only"]
+    PB["PocketBase\nTransient signaling only\n(TTL 24h via pb_hooks)"]
 
-    UI --> App
+    UI --> DI
+    DI --> App
+    DI --> P2P
     App --> DB
     App --> Storage
-    App --> P2P
     P2P --> PB
     UI --> Call
     Call --> PB
@@ -27,12 +29,20 @@ flowchart TD
 
 ## Слои
 
-- `LocalAppService` - основной facade для экранов: регистрация, контакты, чаты, сообщения, вложения, история звонков.
-- `LocalDatabaseService` - локальное зашифрованное хранилище.
-- `StorageService` - ключи и локальная идентичность.
-- `P2PService` - WebRTC DataChannel для прямой доставки сообщений.
-- `WebRtcSignalingService` - PocketBase SSE transport для offer/answer/candidate/hangup.
-- `IncomingCallSignalingService` - глобальная подписка на входящие звонки.
+- `client/lib/di.dart` — единая точка регистрации сервисов через Riverpod. `runApp` обёрнут в `ProviderScope`; экраны читают зависимости через `ref.watch` / `ref.read`. Тестам доступно `ProviderScope.overrides[...]` для подмены сервисов без рефлексии.
+- `LocalAppService` — основной facade для экранов: регистрация, контакты, чаты, сообщения, вложения, история звонков, **safety-number verification** (`verifyContact` / `detectSafetyMismatch`), **identity key rotation** (`rotateIdentityKeypair` с 24-часовым grace окном).
+- `LocalDatabaseService` — локальное зашифрованное хранилище. `markContactVerified` / `clearAllContactsVerifiedAt` для safety-number snapshot'ов. `LocalDatabaseService.testOverrides` (`@visibleForTesting`) — seam для unit-тестов: IDB factory / dbPath / dbKey.
+- `StorageService` — все ключи и токены (X25519 keypair, PB credentials, group keys). Политика sensitive-ключей и backend matrix задокументированы в doc-комментарии файла; regression guard — `client/test/security/secure_storage_policy_test.dart`.
+- `P2PService` — WebRTC DataChannel для прямой доставки сообщений.
+- `WebRtcSignalingService` — PocketBase SSE transport для offer/answer/candidate/hangup.
+- `IncomingCallSignalingService` — глобальная подписка на входящие звонки.
+
+## Безопасность UX (cross-cutting)
+
+- **Safety number:** `LocalAppService.getSafetyNumber` строит SHA-256 fingerprint `(ownPublicKey, otherPublicKey)`; UI-диалог `client/lib/ui/screens/chats/safety_number_dialog.dart` показывает его пользователю и при подтверждении пишет `verified_at` + `verified_safety_number` в запись контакта. В списке контактов рядом с именем — ✓ (verified) или ⚠ (mismatch). Подробности — [`docs/SECURITY.md`](SECURITY.md#safety-number-verification).
+- **Identity key rotation:** кнопка "Rotate identity key" в Profile вызывает `rotateIdentityKeypair`. Предыдущая keypair хранится 24 ч в `privateKey_prev`/`publicKey_prev` для дешифровки in-flight сообщений; по истечении grace-периода prev-материал стирается автоматически.
+- **Web CSP:** `client/web/index.html` несёт `Content-Security-Policy` meta. Walk-through директив, smoke-чек и maintenance в [`docs/web-csp.md`](web-csp.md).
+- **PocketBase TTL:** server-side cron-хук [`pb_hooks/rtc_cleanup.pb.js`](../pb_hooks/rtc_cleanup.pb.js) каждый час удаляет `rtc_signaling` записи старше 24 ч.
 
 ## Контакты
 
