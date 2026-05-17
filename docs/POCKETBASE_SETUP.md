@@ -163,28 +163,48 @@ client logs in via password once the record exists.
 
 ## 5. Scheduled cleanup (TTL)
 
-Without cleanup the collection grows by every signaling message. Add a hook
-at `pb_hooks/rtc_cleanup.pb.js` to delete records older than 1 hour:
+`rtc_signaling` is a transient transport — once a peer has consumed an
+offer/answer/candidate, the row has no purpose. Leaving rows around forever
+lets a PocketBase admin reconstruct a long-tail call graph
+(who-called-whom-when-from-which-device) from `creator`/`target` even
+without decrypting SDP. The TTL hook bounds that window.
 
-```js
-// Runs every 10 minutes, keeps only the last hour of signaling traffic.
-cronAdd("rtc_cleanup", "*/10 * * * *", () => {
-  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  $app.dao().db()
-    .newQuery("DELETE FROM rtc_signaling WHERE created < {:cutoff}")
-    .bind({ cutoff })
-    .execute();
-});
+The hook is **version-controlled in this repository** at
+[`pb_hooks/rtc_cleanup.pb.js`](../pb_hooks/rtc_cleanup.pb.js). Deploy it by
+copying the file to your PocketBase install:
+
+```bash
+# from the Stealth repo root
+cp pb_hooks/rtc_cleanup.pb.js /path/to/pocketbase/pb_hooks/
+# or, for docker-compose installs:
+docker compose cp pb_hooks/rtc_cleanup.pb.js pocketbase:/pb/pb_hooks/
 ```
 
-Reload the hooks (`docker compose restart pocketbase`) — you should see the
-job in `_/#/settings/logs`.
+Restart PocketBase so the hook is registered:
+
+```bash
+systemctl restart pocketbase      # systemd install
+docker compose restart pocketbase # docker compose install
+```
+
+The hook runs hourly (`0 * * * *`) and deletes every `rtc_signaling` row
+where `created < now - 24h`. To verify it is loaded, open the admin UI →
+Logs and filter for `[rtcSignalingCleanup]`. You should see a sweep entry
+at the top of each hour:
+
+```
+[rtcSignalingCleanup] swept N stale rows, deleted N, cutoff=...
+```
+
+To change the retention window, edit the `RETENTION_MS` constant in the
+hook and redeploy. Keep it strictly greater than the longest expected
+handshake (a few minutes worst-case under TURN / cold mobile).
 
 If you need stronger guarantees (e.g. delete on disconnect), drive the
 cleanup from the application layer instead: each peer issues
-`pb.collection('rtc_signaling').delete(record.id)` after consuming the record.
-Stealth's current implementation does NOT do this; the SQL TTL above is
-sufficient for typical call traffic.
+`pb.collection('rtc_signaling').delete(record.id)` after consuming the
+record. Stealth's current implementation does NOT do this; the TTL above
+is sufficient for typical call traffic.
 
 ## 6. Verifying the deployment
 
