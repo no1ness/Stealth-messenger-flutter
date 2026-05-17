@@ -1,13 +1,35 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'package:idb_shim/idb_browser.dart';
 import 'package:idb_shim/idb_io.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:idb_shim/idb_browser.dart';
-import 'package:cryptography/cryptography.dart';
-import 'package:stealth/storage_service.dart';
 import 'package:stealth/helpers/crypto_helper.dart';
+import 'package:stealth/storage_service.dart';
+
+/// Test-only override of the platform dependencies that
+/// [LocalDatabaseService] consults during `_ensureInitialized`:
+///
+/// - [factory] swaps the IDB backend (e.g. `idbFactoryMemory` for
+///   unit tests so no filesystem or `path_provider` access is needed).
+/// - [dbPath] overrides the DB file path (irrelevant for in-memory
+///   factories, used by sembast-on-tmp tests).
+/// - [dbKey] supplies a deterministic encryption key so the test does
+///   not have to mock `flutter_secure_storage_x` through a method
+///   channel just to hand back `local_db_key`.
+class LocalDatabaseServiceOverrides {
+  const LocalDatabaseServiceOverrides({
+    this.factory,
+    this.dbPath,
+    this.dbKey,
+  });
+
+  final IdbFactory? factory;
+  final String? dbPath;
+  final SecretKey? dbKey;
+}
 
 class LocalDatabaseService {
   static const String dbName = 'stealth_local_v3.db';
@@ -19,7 +41,17 @@ class LocalDatabaseService {
   static const String contactsStore = 'contacts';
   static const String callsStore = 'calls';
 
-  IdbFactory get _factory => kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
+  /// Test-only seam. Set in `setUp`, clear in `tearDown` (assign back
+  /// to `null`). Production code never touches this field.
+  @visibleForTesting
+  static LocalDatabaseServiceOverrides? testOverrides;
+
+  IdbFactory get _factory {
+    final override = testOverrides?.factory;
+    if (override != null) return override;
+    return kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
+  }
+
   Database? _db;
   SecretKey? _dbKey;
 
@@ -27,9 +59,11 @@ class LocalDatabaseService {
     if (_db != null) return;
 
     final factory = _factory;
-    final path = kIsWeb
-        ? dbName
-        : join((await getApplicationDocumentsDirectory()).path, dbName);
+    final overridePath = testOverrides?.dbPath;
+    final path = overridePath ??
+        (kIsWeb
+            ? dbName
+            : join((await getApplicationDocumentsDirectory()).path, dbName));
 
     _db =
         await factory.open(path, version: dbVersion, onUpgradeNeeded: (event) {
@@ -65,7 +99,13 @@ class LocalDatabaseService {
       }
     });
 
-    // Initialize encryption key
+    // Initialize encryption key. Tests can short-circuit the
+    // StorageService round-trip via `testOverrides.dbKey`.
+    final overrideKey = testOverrides?.dbKey;
+    if (overrideKey != null) {
+      _dbKey = overrideKey;
+      return;
+    }
     final storage = StorageService();
     String? b64Key = await storage.read('local_db_key');
     if (b64Key == null) {
@@ -87,6 +127,18 @@ class LocalDatabaseService {
     await _ensureInitialized();
 
     final messageId = message['id']?.toString();
+    // Encrypt before opening the transaction. AES-GCM in
+    // `package:cryptography` schedules work that can yield to the
+    // microtask queue on some backends; awaiting it inside an IDB
+    // transaction will release the transaction context and the
+    // subsequent `store.put` then throws `TransactionInactiveError`
+    // (reproducible under sembast in tests; intermittent in
+    // production on slower devices). Pre-computing here keeps every
+    // `await` inside the transaction strictly IDB-only.
+    final encrypted =
+        await CryptoHelper.encryptData(jsonEncode(message), _dbKey!);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+
     final txn = _db!.transaction(messagesStore, idbModeReadWrite);
     final store = txn.objectStore(messagesStore);
 
@@ -99,10 +151,8 @@ class LocalDatabaseService {
         final existing = await store.getObject(existingKey);
         if (existing is Map) {
           final val = Map<String, dynamic>.from(existing);
-          final encrypted =
-              await CryptoHelper.encryptData(jsonEncode(message), _dbKey!);
           val['payload'] = encrypted;
-          val['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+          val['timestamp'] = timestamp;
           val['chatId'] = message['chat_id'];
           val['synced'] = synced ? 1 : (val['synced'] as int? ?? 1);
           await store.put(val, existingKey);
@@ -112,13 +162,10 @@ class LocalDatabaseService {
       }
     }
 
-    // 2. Encrypt and save new message
-    final encrypted =
-        await CryptoHelper.encryptData(jsonEncode(message), _dbKey!);
-
+    // 2. Save new message (already encrypted above).
     final localKey = await store.put({
       'payload': encrypted,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'timestamp': timestamp,
       'chatId': message['chat_id'],
       'messageId': messageId,
       'synced': synced ? 1 : 0,

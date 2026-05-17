@@ -330,7 +330,7 @@ Phase 0 (branch)
 
 **Цель:** покрыть unit-тестами `LocalDatabaseService.saveMessage` (полный roundtrip encrypt → save → load → decrypt), `CryptoHelper` (encryptData/decryptData edge cases), widget-тест `ProfileScreen` после Riverpod-миграции.
 
-### Task 8.1 — `client/test/local_database_service_test.dart`
+### Task 8.1 — `client/test/local_database_service_test.dart` ✅ done (also fixed latent TransactionInactiveError in saveMessage)
 
 - **Файлы:** новый тест.
 - **Что:**
@@ -342,7 +342,7 @@ Phase 0 (branch)
     4. Soft-delete: `softDeleteMessage` помечает запись.
 - **Логи в тесте:** `Logger.debug`-вывод можно глушить через test logger override (если у логгера есть `Logger.silent`).
 
-### Task 8.2 — `client/test/helpers/crypto_helper_test.dart`
+### Task 8.2 — `client/test/helpers/crypto_helper_test.dart` ✅ done
 
 - **Файлы:** новый тест.
 - **Что (`client/lib/helpers/crypto_helper.dart`):**
@@ -352,7 +352,7 @@ Phase 0 (branch)
   - `deriveKeyFromSeed(seed)` детерминистична: одинаковый seed → одинаковый ключ.
   - `encryptJson` / `decryptJson` roundtrip.
 
-### Task 8.3 — `client/test/widgets/profile_screen_test.dart`
+### Task 8.3 — `client/test/widgets/profile_screen_test.dart` ✅ done
 
 - **Файл:** новый тест (после Phase 2 migration).
 - **Что:**
