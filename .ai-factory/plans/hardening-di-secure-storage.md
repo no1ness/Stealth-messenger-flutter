@@ -127,7 +127,7 @@ Phase 0 (branch)
 - **Логи (verbose):** `Logger.debug('[ui:profile] rebuild')` на ключевых listener'ах (только для разработки, проверить редактор уровней).
 - **Verify:** экран Profile открывается, отображает userId/nickname/QR, logout работает.
 
-### Task 2.2 — `chats_screen.dart` → `ConsumerStatefulWidget` + StreamProvider
+### Task 2.2 — `chats_screen.dart` → `ConsumerStatefulWidget` + StreamProvider ✅ done (minimal scope; StreamProvider replacement of manual subscription tagged TODO in code)
 
 - **Файл:** `client/lib/ui/screens/chats_screen.dart`.
 - **Что:**

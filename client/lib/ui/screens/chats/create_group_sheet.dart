@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/local_app_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stealth/di.dart';
 
 /// Opens the "Create group chat" bottom sheet.
 ///
@@ -13,10 +14,11 @@ import 'package:stealth/local_app_service.dart';
 /// freshly created room.
 Future<void> showCreateGroupSheet({
   required BuildContext context,
-  required LocalAppService appService,
+  required WidgetRef ref,
   required TextEditingController nameController,
   required Future<void> Function(String chatId) onGroupCreated,
 }) async {
+  final appService = ref.read(localAppServiceProvider);
   final contacts =
       (await appService.getContacts()).cast<Map<String, dynamic>>();
   final selectedIds = <String>{};

@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/p2p_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -14,26 +17,30 @@ import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
-import 'package:stealth/p2p_service.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
-class ChatsScreen extends StatefulWidget {
+class ChatsScreen extends ConsumerStatefulWidget {
   const ChatsScreen({super.key, this.initialChatId});
 
   final String? initialChatId;
 
   @override
-  State<ChatsScreen> createState() => _ChatsScreenState();
+  ConsumerState<ChatsScreen> createState() => _ChatsScreenState();
 }
 
-class _ChatsScreenState extends State<ChatsScreen>
+class _ChatsScreenState extends ConsumerState<ChatsScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _groupNameController = TextEditingController();
   final TextEditingController _messageSearchController =
       TextEditingController();
-  final LocalAppService _appService = LocalAppService();
+  LocalAppService get _appService => ref.read(localAppServiceProvider);
+  P2PService get _p2p => ref.read(p2pServiceProvider);
   final ScrollController _messagesScrollController = ScrollController();
+  // TODO(phase-2.2-full): replace the manual subscription bag with
+  // `ref.listen(incomingP2PMessagesProvider, ...)` once the chat-flow
+  // regressions are easier to test. See plan
+  // `.ai-factory/plans/hardening-di-secure-storage.md` Task 2.2.
   final Map<String, StreamSubscription> _activeSubscriptions = {};
 
   bool _loading = true;
@@ -67,7 +74,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   void _listenToP2PMessages() {
     _activeSubscriptions['p2p_global'] =
-        P2PService.instance.onMessage.listen((event) async {
+        _p2p.onMessage.listen((event) async {
       final chatId = event['chat_id'] as String;
       final rawMessage = Map<String, dynamic>.from(event['message'] as Map);
       final message = await _appService.decryptRawMessage(rawMessage);
@@ -227,7 +234,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     });
 
     // Start P2P connection attempt.
-    unawaited(P2PService.instance.connectToPeer(chatId));
+    unawaited(_p2p.connectToPeer(chatId));
 
     await _loadMessages(chatId);
   }
@@ -572,7 +579,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: P2PService.instance.isP2PReady(_selectedChatId!)
+                            color: _p2p.isP2PReady(_selectedChatId!)
                                 ? AppColors.systemGreen
                                 : AppColors.systemBlue,
                             shape: BoxShape.circle,
@@ -580,7 +587,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
+                          _p2p.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -689,7 +696,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                   child: OutlinedButton.icon(
                     onPressed: () => showCreateGroupSheet(
                       context: context,
-                      appService: _appService,
+                      ref: ref,
                       nameController: _groupNameController,
                       onGroupCreated: (chatId) async {
                         await _loadChats();
@@ -761,7 +768,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             : () => showManageGroupSheet(
                   context: context,
                   chat: chat,
-                  appService: _appService,
+                  ref: ref,
                   myUserId: _myUserId,
                   onMembersChanged: () async {
                     await _loadChats();
@@ -853,7 +860,6 @@ class _ChatsScreenState extends State<ChatsScreen>
       visibleMessages: visibleMessages,
       onLoadOlder: _loadOlderMessages,
       onMessageLongPress: _showMessageActions,
-      appService: _appService,
       chatId: _selectedChatId!,
       footer: ConversationFooter(
         replyToMessageText: _replyToMessageText,

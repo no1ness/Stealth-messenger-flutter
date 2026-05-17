@@ -2,15 +2,17 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:stealth/local_app_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 
 Widget? buildConversationAttachment({
   required Map<String, dynamic> message,
-  required LocalAppService appService,
+  required WidgetRef ref,
   required String chatId,
 }) {
+  final appService = ref.read(localAppServiceProvider);
   final type = message['type'] as String?;
   final content = message['message'] as String?;
   if (content == null || content.isEmpty) return null;
@@ -64,7 +66,6 @@ Widget? buildConversationAttachment({
     return _AudioAttachment(
       url: content,
       isEncrypted: isEncrypted,
-      appService: appService,
       chatId: chatId,
     );
   }
@@ -79,21 +80,19 @@ Widget? buildConversationAttachment({
   );
 }
 
-class _AudioAttachment extends StatelessWidget {
+class _AudioAttachment extends ConsumerWidget {
   const _AudioAttachment({
     required this.url,
     required this.isEncrypted,
-    required this.appService,
     required this.chatId,
   });
 
   final String url;
   final bool isEncrypted;
-  final LocalAppService appService;
   final String chatId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -101,7 +100,9 @@ class _AudioAttachment extends StatelessWidget {
           icon: const Icon(Icons.play_circle_fill,
               color: AppColors.systemBlue, size: 32),
           onPressed: () async {
-            final bytes = await appService.downloadAttachment(
+            final bytes = await ref
+                .read(localAppServiceProvider)
+                .downloadAttachment(
               url,
               chatId,
               encrypted: isEncrypted,

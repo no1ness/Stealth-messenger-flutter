@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/local_app_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
     as glass;
 import 'package:stealth/ui/screens/chats/conversation_attachment.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
-class ConversationPanel extends StatelessWidget {
+class ConversationPanel extends ConsumerWidget {
   const ConversationPanel({
     super.key,
     required this.loadingMessages,
@@ -22,7 +22,6 @@ class ConversationPanel extends StatelessWidget {
     required this.visibleMessages,
     required this.onLoadOlder,
     required this.onMessageLongPress,
-    required this.appService,
     required this.chatId,
     required this.footer,
   });
@@ -40,12 +39,11 @@ class ConversationPanel extends StatelessWidget {
   final List<Map<String, dynamic>> visibleMessages;
   final Future<void> Function() onLoadOlder;
   final void Function(Map<String, dynamic> message) onMessageLongPress;
-  final LocalAppService appService;
   final String chatId;
   final Widget footer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (loadingMessages) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -162,7 +160,7 @@ class ConversationPanel extends StatelessWidget {
                         isRead: message['isRead'] as bool?,
                         attachmentWidget: buildConversationAttachment(
                           message: message,
-                          appService: appService,
+                          ref: ref,
                           chatId: chatId,
                         ),
                         replyPreview: repliedMessage == null

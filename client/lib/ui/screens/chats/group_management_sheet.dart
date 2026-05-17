@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/local_app_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stealth/di.dart';
 
 /// Opens the "Manage group" bottom sheet for a group chat.
 ///
 /// Extracted from `chats_screen.dart` so the screen widget no longer has
-/// to embed ~230 lines of modal UI inline. Callers pass the LocalAppService
-/// they already hold, the current self user id, and a callback fired after
-/// every membership-changing action (so the surrounding chats screen can
-/// reload chats / messages as needed).
+/// to embed ~230 lines of modal UI inline. Callers pass the
+/// `WidgetRef` they already hold, the current self user id, and a
+/// callback fired after every membership-changing action (so the
+/// surrounding chats screen can reload chats / messages as needed).
 Future<void> showManageGroupSheet({
   required BuildContext context,
   required Map<String, dynamic> chat,
-  required LocalAppService appService,
+  required WidgetRef ref,
   required String? myUserId,
   required Future<void> Function() onMembersChanged,
 }) async {
+  final appService = ref.read(localAppServiceProvider);
   final chatId = chat['id'] as String;
   final contacts =
       (await appService.getContacts()).cast<Map<String, dynamic>>();
