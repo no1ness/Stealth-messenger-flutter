@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
-import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -72,17 +72,16 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends ConsumerState<MyApp> {
   bool _isUserRegistered = false;
   bool _isLoading = true;
-  LocalAppService? _appService;
   ThemeMode _themeMode = ThemeMode.system;
   String? _startupError;
 
@@ -135,7 +134,6 @@ class _MyAppState extends State<MyApp> {
       Logger.info('[bootstrap] PocketBase URL configured',
           extras: {'url': pocketbaseUrl});
 
-      _appService = LocalAppService();
       await _checkRegistration();
     } catch (error) {
       // Corrupted secure storage (e.g. Android Keystore key rotated after a
@@ -164,7 +162,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkRegistration() async {
-    final userId = await _appService?.getUserId();
+    final userId = await ref.read(localAppServiceProvider).getUserId();
     if (!mounted) {
       return;
     }

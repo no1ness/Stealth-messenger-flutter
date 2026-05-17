@@ -116,7 +116,7 @@ Phase 0 (branch)
 
 **Цель:** заменить `_appService = LocalAppService()` поля экранов на чтение из `ref.watch(localAppServiceProvider)`. Поток `P2PService.instance.onMessage` мигрировать на `ref.watch(incomingP2PMessagesProvider)`. Удалить дублирующие создания сервисов в дочерних виджетах.
 
-### Task 2.1 — `profile_screen.dart` → `ConsumerStatefulWidget`
+### Task 2.1 — `profile_screen.dart` → `ConsumerStatefulWidget` ✅ done
 
 - **Файл:** `client/lib/ui/screens/profile_screen.dart`.
 - **Что:**
@@ -140,13 +140,13 @@ Phase 0 (branch)
 - **Логи (verbose):** `Logger.debug('[ui:chats] incoming p2p msg chatId=$chatId')` (auto-redaction позаботится о sensitive ids).
 - **Verify:** список чатов + переписка + send + receive работают; P2P-индикатор корректно меняется.
 
-### Task 2.3 — `settings_screen.dart` + `contacts_screen.dart` → `ConsumerStatefulWidget`
+### Task 2.3 — `settings_screen.dart` + `contacts_screen.dart` → `ConsumerStatefulWidget` ✅ done
 
 - **Файлы:** `client/lib/ui/screens/settings_screen.dart`, `client/lib/ui/screens/contacts_screen.dart`.
 - **Что:** аналогично 2.1; `themeMode`/`useP2P` остаются в `SharedPreferences` (см. Phase 3), но провайдер `themeModeProvider` (`StateProvider<ThemeMode>`) централизует доступ.
 - **Verify:** переключение темы работает, toggle P2P сохраняется.
 
-### Task 2.4 — Удалить устаревший `_appService` из `main.dart`
+### Task 2.4 — Удалить устаревший `_appService` из `main.dart` ✅ done
 
 - **Файл:** `client/lib/main.dart`.
 - **Что:** убрать поле `_appService` (строка 136) и любую логику, которая на него опиралась. `MyApp` теперь чистый `ConsumerWidget`, который рутит дерево.

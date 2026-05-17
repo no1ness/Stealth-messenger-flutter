@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:stealth/registration_screen.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/registration_screen.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -13,15 +15,15 @@ import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  final LocalAppService _appService = LocalAppService();
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  LocalAppService get _appService => ref.read(localAppServiceProvider);
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
   bool _contactVerification = true;

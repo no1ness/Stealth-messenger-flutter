@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:stealth/local_app_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -13,22 +14,24 @@ import 'package:stealth/ui/screens/contacts_data_source.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
-class ContactsScreen extends StatefulWidget {
-  ContactsScreen({super.key, ContactsDataSource? dataSource})
-      : _dataSource = dataSource ??
-            LocalContactsDataSource(LocalAppService());
+class ContactsScreen extends ConsumerStatefulWidget {
+  const ContactsScreen({super.key, this.dataSource});
 
-  final ContactsDataSource _dataSource;
+  /// Optional override for tests. When `null` the screen resolves a
+  /// `LocalContactsDataSource` from the Riverpod `localAppServiceProvider`
+  /// at first read inside the state.
+  final ContactsDataSource? dataSource;
 
   @override
-  State<ContactsScreen> createState() => _ContactsScreenState();
+  ConsumerState<ContactsScreen> createState() => _ContactsScreenState();
 }
 
-class _ContactsScreenState extends State<ContactsScreen>
+class _ContactsScreenState extends ConsumerState<ContactsScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _addContactController = TextEditingController();
-  ContactsDataSource get _appService => widget._dataSource;
+  late final ContactsDataSource _appService = widget.dataSource ??
+      LocalContactsDataSource(ref.read(localAppServiceProvider));
   bool _loading = true;
   bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];

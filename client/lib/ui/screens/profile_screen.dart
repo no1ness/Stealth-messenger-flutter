@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:stealth/registration_screen.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/registration_screen.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -14,14 +16,15 @@ import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
-class _ProfileScreenState extends State<ProfileScreen> {
-  final LocalAppService _appService = LocalAppService();
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  LocalAppService get _appService => ref.read(localAppServiceProvider);
   final TextEditingController _nicknameController = TextEditingController();
   String? _userId;
   String? _contactBundle;
