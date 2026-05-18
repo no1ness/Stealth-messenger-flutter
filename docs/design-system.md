@@ -6,6 +6,11 @@
 > Owners: anyone touching `client/lib/themes/apple_liquid/` or
 > `client/lib/ui/screens/`. Changes here must be reflected in widget
 > code; widget code must reference these tokens, not magic numbers.
+>
+> **Visual companion:** [`docs/design-mockups/`](design-mockups/) —
+> self-contained HTML pages showing every signature surface in
+> context. Open `docs/design-mockups/index.html` in a browser; no
+> build step.
 
 ---
 
@@ -243,11 +248,70 @@ snapshot tests.
 
 Auto-disables in `Brightness.light`.
 
-### `ChromaticAberration` (optional, deferred)
+### Key-fingerprint backdrop (`StealthEmptyState`)
 
-Not implemented yet. Reserved for focus states on inputs in a later
-polish pass. Token (`AppEffects.aberrationDxPx`) is in place; widget
-ships when a need surfaces.
+Behind every empty-state icon, a deterministic 14×8 grid of hex
+pairs (`A2:5F:90:...`) renders at ~3.5% opacity in `GeistMono`. Seed
+is the empty-state `title`, so each surface gets a different but
+stable pattern across rebuilds and golden snapshots. Wrapped in
+`IgnorePointer` so it never blocks the action button.
+
+Auto-disables in `Brightness.light` (renders as `SizedBox.shrink()`)
+— against a near-white scaffold the pattern reads as noise rather
+than cryptographic surface, which breaks the "accessibility / high
+contrast" intent of light mode.
+
+### `ChromaticAberration`
+
+`client/lib/themes/apple_liquid/effects/chromatic_aberration.dart`
+
+Subtle "RGB-split" colour-fringe effect. Renders the wrapped subtree
+once as the interactive baseline, then layers two ghost copies
+underneath — a red ghost shifted left and a cyan ghost shifted right
+by `AppEffects.aberrationDxPx × intensity`. The result reads as a
+camera lens losing focus for a beat.
+
+| Surface                                          | Trigger                              | Why                                                            |
+|--------------------------------------------------|--------------------------------------|----------------------------------------------------------------|
+| `GlassTextField` focus gain                      | brief 1 → 0 pulse over `AppMotion.normal` | Lens-auto-focus cue when an input takes attention.            |
+| (Reserved) `IdentityCard` rotate-key armed state | hold-to-confirm visual               | Future polish — wire when rotate-key UX matures.              |
+
+Auto-disables in `Brightness.light`. Pass `intensity: 0` at rest —
+the widget short-circuits to the bare child, so wrapped subtrees pay
+no cost while idle. Wrapped in `RepaintBoundary` so the ghosts don't
+invalidate sibling subtrees mid-pulse.
+
+### `DecryptText`
+
+`client/lib/themes/apple_liquid/motion/decrypt_text.dart`
+
+Animated cipher-decoded reveal of a string. Each character starts as
+a random hex digit (`0-9A-F` default alphabet) and resolves to its
+target value at a staggered point along the timeline — reads as
+cipher-text decoding into the real string.
+
+| Surface                          | Duration              | Why                                                          |
+|----------------------------------|-----------------------|--------------------------------------------------------------|
+| Loading screen `STEALTH` wordmark | `AppMotion.slow` (400 ms) | The single most identifying first-impression moment in the app. |
+| (Reserved) safety-number reveal  | `AppMotion.slow`      | When user opens Safety Number dialog — future polish.        |
+
+Renders in `GeistMono` so character positions stay stable as letters
+resolve (a proportional font would jitter). Respects
+`MediaQuery.disableAnimations` — reduce-motion users see the final
+string immediately, no scramble frames. Logged once on mount with the
+target string so dev builds can verify the animation fires on cold
+launch.
+
+### Loading-screen boot-sequence crossfade
+
+`ui/screens/loading_screen.dart` mounts `CircuitBoardBackground`
+(the "system coming up" texture) on top of
+`StealthAnimatedBackground` (the app's home surface). As the
+bootstrap reaches its last step the circuit-board layer fades to 0
+over `AppMotion.slow` with `AppMotion.emphasized` easing — the
+animated stealth surface emerges from underneath, then a brief beat
+later the navigator pushes `MainTabs`. The handoff reads as the
+system finishing booting, not as a hard screen swap.
 
 ## Performance discipline
 
@@ -335,14 +399,16 @@ fresh installs (no persisted key) land on dark by default. See
 | `GrainOverlay`                 | Renders procedural noise.                                 | Auto-disables.                                           |
 | `GlassChatBubble` (outgoing)   | Scan-line overlay at `intensity: 0.5`.                    | No overlay (inherited from `ScanlineOverlay` gating).    |
 | `StealthDialog` (high import.) | Scan-line over body.                                      | No overlay.                                              |
-| `StealthAnimatedBackground`    | Animated blur spots over stealth gradient.                | (Reserved — should fall back to static gradient.)        |
-| `GlassContainer`                | Standard glass intensity.                                 | (Reserved — lower-intensity preset planned.)             |
+| `StealthAnimatedBackground`    | Animated blur spots over stealth gradient.                | Animation controller stopped; static `stealthGradientLight` gradient under the foreground. |
+| `GlassContainer`                | Standard glass intensity + full `BackdropFilter` blur.   | Lower-intensity preset (black-tinted film, hairline shadow, no coloured glow); blur sigma halved. |
 | `AppColors`                     | Full palette.                                              | Same colour values — high-contrast variants come from native theme contrast, not from re-tokenising. |
 
-Light-mode-specific tuning (`GlassContainer` lower intensity,
-`StealthAnimatedBackground` static fallback) is in the design
-backlog; the auto-gating of effects already covers the signature-
-moment skips.
+Both light-mode tunings (`GlassContainer` lower-intensity preset and
+`StealthAnimatedBackground` static-gradient fallback) ship as part of
+the widget's own theme-awareness — no caller opt-in required. The
+auto-gating of `ScanlineOverlay`, `GrainOverlay`, and future
+`ChromaticAberration` covers the signature-moment skips on top of
+that.
 
 ## Accessibility contract
 

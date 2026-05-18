@@ -54,6 +54,17 @@ class AppColors {
     Color(0xFF151922), // Темно-серый
     Color(0xFF0D1117), // Очень темный
   ];
+
+  // Light-mode background fallback (accessibility / high-contrast variant).
+  // Used by StealthAnimatedBackground when Theme.brightness == light — the
+  // animated blur spots are dropped and we render a calm near-white wash
+  // instead. Same warmth as the light scaffold (#F5F5F7) so cards sit on
+  // a continuous canvas.
+  static const List<Color> stealthGradientLight = [
+    Color(0xFFF7F7FB), // near-white top, faint cool tint
+    Color(0xFFEFEFF3), // mid
+    Color(0xFFE7E7EB), // bottom — gentle vignette
+  ];
   
   // Gradient Colors for Liquid Effect (более темные для stealth)
   static const List<Color> liquidGradient1 = [

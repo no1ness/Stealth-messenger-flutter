@@ -102,6 +102,83 @@ class GlassStyles {
       ),
     ],
   );
+
+  // ---------------------------------------------------------------------
+  // Light-mode variants (lower intensity — design-system.md Dual identity)
+  //
+  // Strong white tints + blue/purple glows look wrong over a near-white
+  // scaffold. In light mode every glass surface drops the coloured glow,
+  // swaps the white film for a faint black-tinted film, and runs a
+  // single hairline shadow. Same shape, much lower visual intensity.
+  // ---------------------------------------------------------------------
+
+  static final BoxDecoration ultraLightGlassLight = BoxDecoration(
+    color: Colors.white.withValues(alpha: 0.95),
+    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+    border: Border.all(
+      color: Colors.black.withValues(alpha: 0.08),
+      width: 1,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.05),
+        blurRadius: 12,
+        spreadRadius: 0,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
+
+  static final BoxDecoration lightGlassLight = BoxDecoration(
+    color: Colors.white.withValues(alpha: 0.88),
+    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+    border: Border.all(
+      color: Colors.black.withValues(alpha: 0.06),
+      width: 0.5,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.04),
+        blurRadius: 10,
+        spreadRadius: 0,
+        offset: const Offset(0, 2),
+      ),
+    ],
+  );
+
+  static final BoxDecoration mediumGlassLight = BoxDecoration(
+    color: Colors.black.withValues(alpha: 0.03),
+    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+    border: Border.all(
+      color: Colors.black.withValues(alpha: 0.05),
+      width: 0.5,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.03),
+        blurRadius: 8,
+        spreadRadius: 0,
+        offset: const Offset(0, 1),
+      ),
+    ],
+  );
+
+  static final BoxDecoration darkGlassLight = BoxDecoration(
+    color: Colors.black.withValues(alpha: 0.02),
+    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+    border: Border.all(
+      color: Colors.black.withValues(alpha: 0.04),
+      width: 0.5,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.02),
+        blurRadius: 6,
+        spreadRadius: 0,
+        offset: const Offset(0, 1),
+      ),
+    ],
+  );
   
   // Card glass with strong shadow
   static BoxDecoration get cardGlass => BoxDecoration(
