@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/call/call_hud_overlay.dart';
 import 'package:stealth/themes/apple_liquid/widgets/status_chip.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
@@ -68,8 +69,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showStealthSnackBar(context, message, kind: SnackKind.danger);
   }
 
   void _popIfPossible() {
