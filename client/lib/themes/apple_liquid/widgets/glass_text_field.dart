@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
@@ -61,6 +62,9 @@ class _GlassTextFieldState extends State<GlassTextField>
       duration: AppMotion.normal,
       value: 0,
     );
+    if (kIsWeb) {
+      debugPrint('[ds:glass-text-field] perf-budget cheap-ghost path active');
+    }
   }
 
   @override
@@ -156,13 +160,49 @@ class _GlassTextFieldState extends State<GlassTextField>
             // skipping the rebuild keeps idle text-field perf identical
             // to pre-effect.
             if (_aberrationCtrl.value <= 0.01) return input;
+            // kIsWeb: cheap border-only ghosts (no BackdropFilter
+            // triplication). Native: full child ghosts for the
+            // richest RGB split.
             return ChromaticAberration(
               intensity: _aberrationCtrl.value,
+              ghostBuilder: kIsWeb
+                  ? (ctx) => _GlassFieldGhost(focused: _isFocused)
+                  : null,
               child: input,
             );
           },
         ),
       ],
+    );
+  }
+}
+
+/// Border-only ghost for [ChromaticAberration] on platforms where
+/// [BackdropFilter] is expensive (Flutter web). Captures the visible
+/// RGB-split focus cue without paying the full glass cost three
+/// times per frame during the 250 ms pulse.
+///
+/// Mirrors the focused/unfocused border style of [GlassTextField] —
+/// same colour, same width, same radius — but skips `ClipRRect`,
+/// `BackdropFilter`, and the `TextFormField` subtree.
+class _GlassFieldGhost extends StatelessWidget {
+  const _GlassFieldGhost({required this.focused});
+
+  final bool focused;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: focused
+              ? AppColors.systemBlue
+              : AppColors.glassMedium.withValues(alpha: 0.3),
+          width: focused ? 2 : 1,
+        ),
+      ),
     );
   }
 }

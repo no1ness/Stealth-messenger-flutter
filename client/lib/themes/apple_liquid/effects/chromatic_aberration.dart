@@ -19,10 +19,14 @@ import '../constants/app_effects.dart';
 /// `ScanlineOverlay` / `GrainOverlay`. Pass `force: true` to bypass
 /// the gate (tests only).
 ///
-/// **Performance.** When [intensity] > 0 the widget renders [child]
-/// three times (baseline + two coloured ghosts). Keep it scoped to
-/// small subtrees (a single input, a small badge) — do NOT wrap a
-/// full screen. Wrapped in `RepaintBoundary` so the ghosts don't
+/// **Performance.** When [intensity] > 0 the widget renders the
+/// ghost subtree twice (red + cyan) plus the baseline [child]. By
+/// default ghosts reuse [child], so an expensive subtree (e.g.
+/// `BackdropFilter`) is paid for three times per frame during the
+/// pulse. Pass [ghostBuilder] to substitute a cheaper representation
+/// for the ghost layers — the canonical escape hatch on Flutter web
+/// where `BackdropFilter` is dramatically more expensive than on
+/// native Skia. Wrapped in `RepaintBoundary` so the ghosts don't
 /// invalidate sibling subtrees.
 class ChromaticAberration extends StatelessWidget {
   const ChromaticAberration({
@@ -30,6 +34,7 @@ class ChromaticAberration extends StatelessWidget {
     required this.child,
     this.intensity = 1.0,
     this.force = false,
+    this.ghostBuilder,
   });
 
   final Widget child;
@@ -42,6 +47,15 @@ class ChromaticAberration extends StatelessWidget {
   /// Test-only escape hatch for the dark-mode-only gate.
   final bool force;
 
+  /// Optional builder for the red + cyan ghost layers. When `null`
+  /// the ghosts reuse [child] (richest visual, full subtree cost).
+  /// When non-null the builder is invoked twice (once per ghost) and
+  /// its output is wrapped in the same `ColorFiltered + Transform +
+  /// Opacity` chain — the interactive baseline on top is always
+  /// [child], so a cheap [ghostBuilder] does not affect input
+  /// handling or accessibility.
+  final WidgetBuilder? ghostBuilder;
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -52,7 +66,11 @@ class ChromaticAberration extends StatelessWidget {
       return child;
     }
     final dx = AppEffects.aberrationDxPx * intensity;
-    debugPrint('[fx:aberration] mount brightness=$brightness dx=$dx');
+    debugPrint(
+      '[fx:aberration] mount brightness=$brightness dx=$dx '
+      'ghostBuilder=${ghostBuilder != null}',
+    );
+    final ghost = ghostBuilder?.call(context) ?? child;
     return RepaintBoundary(
       child: Stack(
         children: [
@@ -68,7 +86,7 @@ class ChromaticAberration extends StatelessWidget {
                       Color(0xFFFF1A1A),
                       BlendMode.srcATop,
                     ),
-                    child: child,
+                    child: ghost,
                   ),
                 ),
               ),
@@ -86,7 +104,7 @@ class ChromaticAberration extends StatelessWidget {
                       Color(0xFF1AFFFF),
                       BlendMode.srcATop,
                     ),
-                    child: child,
+                    child: ghost,
                   ),
                 ),
               ),
