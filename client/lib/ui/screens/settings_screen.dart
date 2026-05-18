@@ -9,7 +9,9 @@ import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_haptics.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
@@ -87,12 +89,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _changeTheme(ThemeMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', mode.index);
+    // Push the new value through the shared ThemeController — that
+    // (a) persists to SharedPreferences and (b) notifies the
+    // ValueListenableBuilder around `MaterialApp`, so the theme
+    // applies immediately without a restart.
+    await ThemeController.setMode(mode);
+    if (mounted) {
+      StealthHaptics.selection(context);
+    }
     if (!mounted) {
       return;
     }
-
     setState(() {
       _themeMode = mode;
     });

@@ -96,8 +96,37 @@ class AppColors {
   // Border Colors
   static const Color separator = Color(0x29545458);
   static const Color separatorOpaque = Color(0xFF38383A);
-  
+
   // Special Effects
   static const Color shadow = Color(0x33000000);
   static const Color shadowStrong = Color(0x66000000);
+
+  // --------------------------------------------------------------
+  // Semantic aliases — design-system v2 (do NOT inline raw colors
+  // in new widgets; always go through a semantic alias when one
+  // exists, so a future palette tweak does not require a per-file
+  // sweep).
+  // --------------------------------------------------------------
+
+  /// White-ish base for text drawn on top of a glass surface.
+  /// Equivalent to [textPrimary] but named for intent.
+  static const Color textOnGlass = textPrimary;
+
+  /// Hair-thin divider color suitable for `ListDivider` rows inside
+  /// a glass-backgrounded list. Translucent — sits softly over any
+  /// gradient.
+  static const Color dividerSubtle = separator;
+
+  /// Muted surface used by skeleton placeholders and empty-state
+  /// backgrounds. Sits below glass but above the absolute dark.
+  static const Color surfaceMuted = backgroundTertiary;
+
+  // Status colors — semantic aliases over the iOS system palette.
+  // Use these instead of `systemGreen/Red/Orange/Blue` so the
+  // intent ("this is a success indicator", not "this is green")
+  // travels with the code.
+  static const Color statusSuccess = systemGreen;
+  static const Color statusWarn = systemOrange;
+  static const Color statusDanger = systemRed;
+  static const Color statusInfo = systemBlue;
 }

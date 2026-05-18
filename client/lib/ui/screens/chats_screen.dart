@@ -7,15 +7,18 @@ import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_skeleton.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/chats/chat_tile.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
-import 'package:stealth/constants/accessibility_ids.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key, this.initialChatId});
@@ -206,9 +209,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       setState(() {
         _loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load chats: $error')),
-      );
+      if (mounted) {
+        showStealthSnackBar(
+          context,
+          'Failed to load chats: $error',
+          kind: SnackKind.danger,
+        );
+      }
     }
   }
 
@@ -505,17 +512,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     };
   }
 
-  String _initials(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return '?';
-    }
-
-    final parts = value.trim().split(RegExp(r'\s+'));
-    final first = parts.first.isNotEmpty ? parts.first[0] : '';
-    final second = parts.length > 1 && parts[1].isNotEmpty ? parts[1][0] : '';
-    return (first + second).toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -613,7 +609,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: _selectedChatId == null
-                      ? const EmptyState(type: 'chats')
+                      ? const StealthEmptyState.chats()
                       : _buildConversationPanel(visibleMessages),
                 ),
                 const VerticalDivider(width: 1),
@@ -708,18 +704,23 @@ class _ChatsScreenState extends State<ChatsScreen>
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const StealthSkeletonList(count: 6)
               : chats.isEmpty
                   ? Semantics(
                       label: 'No chats',
-                      child: EmptyState(type: 'chats'),
+                      child: const StealthEmptyState.chats(),
                     )
                   : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(12, 0, 12,
-                          MediaQuery.of(context).padding.bottom + 80),
+                      padding: EdgeInsets.fromLTRB(
+                        0,
+                        0,
+                        0,
+                        MediaQuery.of(context).padding.bottom +
+                            AppSpacing.bottomBarOverlap,
+                      ),
                       itemCount: chats.length,
                       separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpacing.xs),
                       itemBuilder: (context, index) {
                         final chat = chats[index];
                         final isSelected = chat['id'] == _selectedChatId;
@@ -732,101 +733,25 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Widget _buildChatTile(Map<String, dynamic> chat, bool isSelected) {
-    final unreadCount = chat['unreadCount'] as int? ?? 0;
-    final memberCount = chat['memberCount'] as int? ?? 0;
     final isPrivate = chat['isPrivate'] as bool? ?? true;
-    final name = chat['name'] as String? ?? 'Chat';
-
-    return Semantics(
-      label: AccessibilityIds.chat(name),
-      button: true,
-      child: AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.systemBlue.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isSelected
-              ? AppColors.systemBlue.withValues(alpha: 0.45)
-              : Colors.white.withValues(alpha: 0.05),
-        ),
-      ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        onTap: () => _selectChat(chat['id'] as String),
-        onLongPress: isPrivate
-            ? null
-            : () => showManageGroupSheet(
-                  context: context,
-                  chat: chat,
-                  appService: _appService,
-                  myUserId: _myUserId,
-                  onMembersChanged: () async {
-                    await _loadChats();
-                    if (_selectedChatId == chat['id']) {
-                      await _loadMessages(chat['id'] as String);
-                    }
-                  },
-                ),
-        leading: CircleAvatar(
-          backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
-          child: Text(
-            _initials(chat['name'] as String?),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        title: Text(
-          chat['name'] as String? ?? 'Chat',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          ((chat['lastMessage'] as String?)?.isEmpty ?? true)
-              ? (isPrivate ? 'No messages yet' : '$memberCount members')
-              : chat['lastMessage'] as String,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: SizedBox(
-          width: 58,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                chat['timestamp'] as String? ?? '',
-                style: Theme.of(context).textTheme.labelSmall,
+    return ChatTile(
+      chat: chat,
+      isSelected: isSelected,
+      onTap: () => _selectChat(chat['id'] as String),
+      onLongPress: isPrivate
+          ? null
+          : () => showManageGroupSheet(
+                context: context,
+                chat: chat,
+                appService: _appService,
+                myUserId: _myUserId,
+                onMembersChanged: () async {
+                  await _loadChats();
+                  if (_selectedChatId == chat['id']) {
+                    await _loadMessages(chat['id'] as String);
+                  }
+                },
               ),
-              const SizedBox(height: 6),
-              if (unreadCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.systemOrange,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$unreadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    ),
     );
   }
 
@@ -976,8 +901,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selected file is not readable')),
+      showStealthSnackBar(
+        context,
+        'Selected file is not readable',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -993,8 +920,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload attachment')),
+      showStealthSnackBar(
+        context,
+        'Failed to upload attachment',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -1021,8 +950,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Voice file is not readable')),
+      showStealthSnackBar(
+        context,
+        'Voice file is not readable',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -1037,8 +968,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload voice message')),
+      showStealthSnackBar(
+        context,
+        'Failed to upload voice message',
+        kind: SnackKind.danger,
       );
       return;
     }

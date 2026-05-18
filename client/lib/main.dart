@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
+import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
 /// Environment keys that can be overridden at build time via
@@ -81,7 +81,6 @@ class _MyAppState extends State<MyApp> {
   bool _isUserRegistered = false;
   bool _isLoading = true;
   LocalAppService? _appService;
-  ThemeMode _themeMode = ThemeMode.system;
   String? _startupError;
 
   @override
@@ -92,15 +91,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? ThemeMode.system.index;
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _themeMode = ThemeMode.values[themeIndex];
-    });
+    // The controller writes ThemeController.mode itself; the
+    // `ValueListenableBuilder` in `build()` picks the new value up.
+    // No local setState needed.
+    await ThemeController.loadInitial();
   }
 
   Future<void> _initializeApp({bool afterReset = false}) async {
@@ -214,24 +208,31 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Stealth',
-      debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
-      theme: LiquidTheme.theme,
-      darkTheme: LiquidTheme.darkTheme,
-      home: _isLoading
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            )
-          : _startupError != null
-              ? StartupErrorScreen(
-                  message: _startupError!,
-                  onRetry: _initializeApp,
+    // Listen to the global theme controller so the Settings toggle
+    // takes effect immediately, without restarting the app.
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.mode,
+      builder: (context, controllerMode, _) {
+        return MaterialApp(
+          title: 'Stealth',
+          debugShowCheckedModeBanner: false,
+          themeMode: controllerMode,
+          theme: LiquidTheme.theme,
+          darkTheme: LiquidTheme.darkTheme,
+          home: _isLoading
+              ? const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
                 )
-              : _isUserRegistered
-                  ? const MainTabs()
-                  : const RegistrationScreen(),
+              : _startupError != null
+                  ? StartupErrorScreen(
+                      message: _startupError!,
+                      onRetry: _initializeApp,
+                    )
+                  : _isUserRegistered
+                      ? const MainTabs()
+                      : const RegistrationScreen(),
+        );
+      },
     );
   }
 }

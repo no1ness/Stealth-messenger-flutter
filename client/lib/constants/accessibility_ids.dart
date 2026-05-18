@@ -41,4 +41,42 @@ class AccessibilityIds {
   // Dynamic helpers
   static String contact(String name) => 'Contact $name';
   static String chat(String name) => 'Chat $name';
+
+  // --------------------------------------------------------------
+  // Design-system v2 additions — extracted widgets and new surfaces
+  // introduced by the UI refactor (see
+  // .ai-factory/plans/feature-ui-design-refactor.md). Any change to
+  // a value below MUST be mirrored in the Appium suite.
+  // --------------------------------------------------------------
+
+  // ChatTile (extracted from chats_screen)
+  static const String chatTileAvatar = 'Chat avatar';
+  static const String chatTileLastMessage = 'Chat last message';
+  static const String chatTileUnreadBadge = 'Chat unread count';
+
+  // ContactTile (extracted from contacts_screen)
+  static const String contactTileTrailing = 'Contact actions';
+  static const String contactTileVerificationBadge = 'Verification status';
+
+  // Section structure
+  static const String sectionHeader = 'Section header';
+  static const String listDivider = 'List divider';
+
+  // Feedback helpers (StealthSnackBar / StealthDialog)
+  static const String snackBarMessage = 'Notification message';
+  static const String snackBarDismiss = 'Dismiss notification';
+  static const String dialogPrimaryAction = 'Confirm';
+  static const String dialogSecondaryAction = 'Cancel';
+  static const String dialogDestructiveAction = 'Confirm destructive';
+
+  // Settings theme toggle
+  static const String themeToggleSegmented = 'Theme mode';
+  static const String themeToggleLight = 'Light theme';
+  static const String themeToggleDark = 'Dark theme';
+  static const String themeToggleSystem = 'System theme';
+
+  // Call HUD (Phase 7)
+  static const String callEncryptedBadge = 'E2E encrypted indicator';
+  static const String callDurationTimer = 'Call duration';
+  static const String callConnectionStatus = 'Connection status';
 }

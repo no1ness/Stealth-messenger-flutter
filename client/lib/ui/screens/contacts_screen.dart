@@ -5,8 +5,11 @@ import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
+import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/contacts_data_source.dart';
@@ -79,8 +82,10 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name removed')),
+    showStealthSnackBar(
+      context,
+      '$name removed',
+      kind: SnackKind.success,
     );
   }
 
@@ -236,8 +241,10 @@ class _ContactsScreenState extends State<ContactsScreen>
                 if (!context.mounted) {
                   return;
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Clipboard is empty')),
+                showStealthSnackBar(
+                  context,
+                  'Clipboard is empty',
+                  kind: SnackKind.warn,
                 );
                 return;
               }
@@ -363,8 +370,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     final support = await getWebRTCSupport();
     if (!support.isSupported) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(support.blockingIssues.join(' '))),
+        showStealthSnackBar(
+          context,
+          support.blockingIssues.join(' '),
+          kind: SnackKind.danger,
         );
       }
       if (mounted) {
@@ -378,8 +387,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     );
     if (preflightError != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(preflightError)),
+        showStealthSnackBar(
+          context,
+          preflightError,
+          kind: SnackKind.danger,
         );
         setState(() => _startingCall = false);
       }
@@ -486,26 +497,11 @@ class _ContactsScreenState extends State<ContactsScreen>
                   child: RefreshIndicator(
                     onRefresh: _loadContacts,
                     child: _loading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: StealthLoadingIndicator())
                         : filtered.isEmpty
-                            ? ListView(
-                                children: [
-                                  SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height * 0.4,
-                                  ),
-                                  Center(
-                                    child: Semantics(
-                                      label: 'No contacts',
-                                      child: Text(
-                                        'No contacts found',
-                                        style: AppTypography.body.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            ? Semantics(
+                                label: 'No contacts',
+                                child: const StealthEmptyState.contacts(),
                               )
                             : GridView.builder(
                                 gridDelegate:

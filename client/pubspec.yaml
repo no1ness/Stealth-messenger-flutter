@@ -61,6 +61,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   fake_async: ^1.3.1
+  # Visual regression / golden tests for design-system widgets.
+  # See docs/design-system.md > Visual reel and the helpers under
+  # client/test/helpers/{golden_config,animation_freeze}.dart.
+  golden_toolkit: ^0.15.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -116,22 +120,29 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
+  # Custom font families — see docs/design-system.md > Fonts for the
+  # licensing chain, asset budget, and family-selection rationale.
+  # All Geist / Geist Mono files ship under SIL Open Font License 1.1
+  # (sourced from https://github.com/vercel/geist-font).
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/geist/Geist-Regular.otf
+          weight: 400
+        - asset: assets/fonts/geist/Geist-Medium.otf
+          weight: 500
+        - asset: assets/fonts/geist/Geist-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/geist/Geist-Bold.otf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/geist-mono/GeistMono-Regular.otf
+          weight: 400
+        - asset: assets/fonts/geist-mono/GeistMono-Medium.otf
+          weight: 500
+        - asset: assets/fonts/geist-mono/GeistMono-SemiBold.otf
+          weight: 600
+
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

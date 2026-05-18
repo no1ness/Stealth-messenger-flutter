@@ -11,6 +11,8 @@ import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
@@ -116,8 +118,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contact bundle copied')),
+    showStealthSnackBar(
+      context,
+      'Contact bundle copied',
+      kind: SnackKind.success,
     );
   }
 
@@ -147,8 +151,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _nickname = value;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Nickname updated')),
+    showStealthSnackBar(
+      context,
+      'Nickname updated',
+      kind: SnackKind.success,
     );
   }
 
@@ -157,11 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     debugPrint('ProfileScreen: build called, _isLoading=$_isLoading, _userId=$_userId');
 
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.systemBlue,
-        ),
-      );
+      return const Center(child: StealthLoadingIndicator());
     }
 
     if (_userId == null || _userId!.isEmpty) {
