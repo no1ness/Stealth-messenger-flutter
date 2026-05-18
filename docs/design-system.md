@@ -273,13 +273,26 @@ camera lens losing focus for a beat.
 
 | Surface                                          | Trigger                              | Why                                                            |
 |--------------------------------------------------|--------------------------------------|----------------------------------------------------------------|
-| `GlassTextField` focus gain                      | brief 1 → 0 pulse over `AppMotion.normal` | Lens-auto-focus cue when an input takes attention.            |
+| `GlassTextField` focus gain                      | brief 1 → 0 pulse over `AppMotion.normal` | Lens-auto-focus cue when an input takes attention. On web, ghost layers render border-only (`_GlassFieldGhost`) instead of the full glass child — preserves the RGB-split focus cue while avoiding 3× `BackdropFilter` cost during the 250 ms pulse. |
 | (Reserved) `IdentityCard` rotate-key armed state | hold-to-confirm visual               | Future polish — wire when rotate-key UX matures.              |
 
 Auto-disables in `Brightness.light`. Pass `intensity: 0` at rest —
 the widget short-circuits to the bare child, so wrapped subtrees pay
 no cost while idle. Wrapped in `RepaintBoundary` so the ghosts don't
 invalidate sibling subtrees mid-pulse.
+
+**`ghostBuilder` escape hatch.** When the wrapped subtree contains
+an expensive layer (`BackdropFilter`, `ImageFilter`, a large
+`RepaintBoundary`), the default behaviour pays that cost three
+times per frame during the pulse — fine on native Skia, but
+visible jank on Flutter web's CanvasKit where `BackdropFilter` is
+significantly more expensive. Pass `ghostBuilder:` to substitute a
+cheaper representation for the red + cyan ghost layers while
+keeping the real interactive child on top. The canonical example
+is `GlassTextField`'s `kIsWeb` branch, which swaps in
+`_GlassFieldGhost` — a plain border-only `Container` with the same
+colour / width / radius as the focused/unfocused field, but no
+`ClipRRect`, no `BackdropFilter`, no input subtree.
 
 ### `DecryptText`
 
@@ -345,6 +358,12 @@ needed; harmless when wrong.
 - **Any new widget that owns an `AnimationController`** belongs
   inside a `RepaintBoundary`. If you're not sure whether to add
   one, add it.
+- **`ChromaticAberration.ghostBuilder`** is the canonical escape
+  hatch when ghost layers would otherwise replicate an expensive
+  subtree (`BackdropFilter`, `ImageFilter`, a large
+  `RepaintBoundary`). Use it whenever the ghost cost dominates the
+  pulse cost — `GlassTextField` does this on `kIsWeb` with a
+  border-only ghost.
 
 ### How to verify
 
