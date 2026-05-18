@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stealth · Token catalog</title>
+<link rel="stylesheet" href="_tokens.css" />
+<style>
+  body {
+    padding: 48px clamp(24px, 5vw, 80px) 96px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='1'/></svg>");
+    background-size: 200px;
+    z-index: 0;
+  }
+
+  .back {
+    position: fixed;
+    top: 24px; left: 24px;
+    z-index: 10;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid var(--separator);
+    border-radius: 999px;
+    background: rgba(0,0,0,0.30);
+    backdrop-filter: blur(10px);
+  }
+  .back:hover { color: var(--system-blue); border-color: var(--system-blue); }
+
+  header {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto 64px;
+    padding-top: 32px;
+  }
+  header h1 {
+    font: 600 48px/1.1 var(--font-sans);
+    letter-spacing: -0.5px;
+    margin: 0 0 12px;
+  }
+  header .crumb {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+  }
+  header p {
+    color: var(--text-secondary);
+    font-size: 16px;
+    max-width: 640px;
+    margin: 0;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+  }
+  section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px 32px;
+  }
+  section h2 {
+    margin: 0 0 6px;
+    font: 600 24px/1.2 var(--font-sans);
+    letter-spacing: -0.3px;
+  }
+  section .section-meta {
+    margin-bottom: 24px;
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  /* ---- Color swatch grid ---- */
+  .swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .swatch {
+    display: flex;
+    flex-direction: column;
+  }
+  .swatch .chip {
+    height: 84px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--separator);
+    background: var(--swatch-color, transparent);
+    position: relative;
+    overflow: hidden;
+  }
+  .swatch .chip::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+  }
+  .swatch .meta {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .swatch .name {
+    font: 500 13px/1.2 var(--font-sans);
+    color: var(--text-primary);
+  }
+  .swatch .hex {
+    font: 400 11px/1 var(--font-mono);
+    color: var(--text-tertiary);
+    letter-spacing: 1px;
+  }
+
+  /* ---- Type ladder ---- */
+  .type-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 120px;
+    align-items: baseline;
+    gap: 24px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--separator);
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .key {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .type-row .spec {
+    font: 400 11px/1 var(--font-mono);
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    text-align: right;
+  }
+
+  /* ---- Spacing ruler ---- */
+  .ruler {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ruler-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    align-items: center;
+    gap: 24px;
+  }
+  .ruler-row .key {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ruler-row .key .val {
+    color: var(--system-blue);
+    font-weight: 500;
+  }
+  .ruler-row .bar {
+    height: 22px;
+    background: var(--system-blue);
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+  }
+
+  /* ---- Motion timings ---- */
+  .motion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .motion-card {
+    padding: 16px;
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-md);
+    background: rgba(0,0,0,0.20);
+  }
+  .motion-card .name {
+    font: 600 13px/1 var(--font-sans);
+    margin-bottom: 4px;
+  }
+  .motion-card .val {
+    font: 500 22px/1 var(--font-mono);
+    color: var(--system-blue);
+    letter-spacing: 1px;
+  }
+  .motion-card .when {
+    margin-top: 8px;
+    font: 400 11px/1.4 var(--font-sans);
+    color: var(--text-secondary);
+  }
+  .motion-card .demo {
+    margin-top: 10px;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .motion-card .demo::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--system-blue);
+    animation: motion-loop 1.2s var(--curve) infinite;
+  }
+  @keyframes motion-loop {
+    0% { transform: translateX(-100%); }
+    50%, 100% { transform: translateX(0); }
+  }
+  .motion-card.fast .demo::after { animation-duration: 0.15s; --curve: cubic-bezier(0.40, 0.00, 0.20, 1.00); }
+  .motion-card.normal .demo::after { animation-duration: 0.25s; --curve: cubic-bezier(0.20, 0.00, 0.00, 1.00); }
+  .motion-card.slow .demo::after { animation-duration: 0.40s; --curve: cubic-bezier(0.40, 0.00, 0.20, 1.00); }
+  .motion-card.page .demo::after { animation-duration: 0.32s; --curve: cubic-bezier(0.20, 0.00, 0.00, 1.00); }
+
+  /* ---- Elevation cards ---- */
+  .elev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 20px;
+    padding-top: 12px;
+  }
+  .elev-card {
+    height: 130px;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--separator);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .elev-card .lvl {
+    font: 600 24px/1 var(--font-mono);
+    color: var(--system-blue);
+  }
+  .elev-card .lbl {
+    font: 400 11px/1 var(--font-mono);
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+  }
+  .elev-card.l0 { box-shadow: none; }
+  .elev-card.l1 { box-shadow: var(--elev-1); }
+  .elev-card.l2 { box-shadow: var(--elev-2); }
+  .elev-card.l3 { box-shadow: var(--elev-3); }
+  .elev-card.l4 { box-shadow: var(--elev-4); border-color: rgba(0,122,255,0.30); }
+
+  /* ---- Effects table ---- */
+  .fx-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .fx-table th, .fx-table td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--separator);
+    font-size: 13px;
+  }
+  .fx-table th {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .fx-table td:first-child {
+    font-family: var(--font-mono);
+    color: var(--system-blue);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">← Index</a>
+
+<header>
+  <div class="crumb">Surface · tokens.html</div>
+  <h1>Token catalog</h1>
+  <p>
+    The complete, visible inventory of design-system tokens. Every
+    value here mirrors a constant in
+    <code>client/lib/themes/apple_liquid/constants/</code> — the
+    Flutter side is authoritative.
+  </p>
+</header>
+
+<main>
+
+  <!-- COLOUR -->
+  <section>
+    <h2>Colour</h2>
+    <div class="section-meta">app_colors.dart</div>
+
+    <h3 style="margin:8px 0 12px;font:600 13px/1 var(--font-mono);letter-spacing:2px;color:var(--text-tertiary);text-transform:uppercase">Surface</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="--swatch-color:#0A0E1A"></div><div class="meta"><div class="name">bg-primary</div><div class="hex">#0A0E1A</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#151922"></div><div class="meta"><div class="name">bg-secondary</div><div class="hex">#151922</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#1F2937"></div><div class="meta"><div class="name">bg-tertiary</div><div class="hex">#1F2937</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#0D1117"></div><div class="meta"><div class="name">bg-deep</div><div class="hex">#0D1117</div></div></div>
+    </div>
+
+    <h3 style="margin:32px 0 12px;font:600 13px/1 var(--font-mono);letter-spacing:2px;color:var(--text-tertiary);text-transform:uppercase">System</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="--swatch-color:#007AFF"></div><div class="meta"><div class="name">systemBlue · primary accent</div><div class="hex">#007AFF</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#34C759"></div><div class="meta"><div class="name">systemGreen · statusSuccess</div><div class="hex">#34C759</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#FF9500"></div><div class="meta"><div class="name">systemOrange · statusWarn</div><div class="hex">#FF9500</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#FF3B30"></div><div class="meta"><div class="name">systemRed · statusDanger</div><div class="hex">#FF3B30</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#FFCC00"></div><div class="meta"><div class="name">systemYellow</div><div class="hex">#FFCC00</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#5AC8FA"></div><div class="meta"><div class="name">systemTeal</div><div class="hex">#5AC8FA</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#AF52DE"></div><div class="meta"><div class="name">systemPurple</div><div class="hex">#AF52DE</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:#5856D6"></div><div class="meta"><div class="name">systemIndigo</div><div class="hex">#5856D6</div></div></div>
+    </div>
+
+    <h3 style="margin:32px 0 12px;font:600 13px/1 var(--font-mono);letter-spacing:2px;color:var(--text-tertiary);text-transform:uppercase">Text on dark</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="--swatch-color:#FFFFFF"></div><div class="meta"><div class="name">textPrimary · textOnGlass</div><div class="hex">rgba(255 100%)</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:rgba(255,255,255,0.60)"></div><div class="meta"><div class="name">textSecondary</div><div class="hex">rgba(255 60%)</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:rgba(255,255,255,0.30)"></div><div class="meta"><div class="name">textTertiary</div><div class="hex">rgba(255 30%)</div></div></div>
+      <div class="swatch"><div class="chip" style="--swatch-color:rgba(255,255,255,0.10)"></div><div class="meta"><div class="name">separator · dividerSubtle</div><div class="hex">rgba(255 10%)</div></div></div>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section>
+    <h2>Typography</h2>
+    <div class="section-meta">app_typography.dart · Geist + Geist Mono · OFL 1.1</div>
+
+    <div class="type-row">
+      <div class="key">large-title</div>
+      <div class="t-large-title">Stealth refined crypto-noir</div>
+      <div class="spec">Geist 600 / 32 / 1.2</div>
+    </div>
+    <div class="type-row">
+      <div class="key">title-1</div>
+      <div class="t-title-1">A secure messenger that looks the part.</div>
+      <div class="spec">Geist 600 / 26 / 1.3</div>
+    </div>
+    <div class="type-row">
+      <div class="key">title-2</div>
+      <div class="t-title-2">Privacy &amp; security</div>
+      <div class="spec">Geist 600 / 22 / 1.3</div>
+    </div>
+    <div class="type-row">
+      <div class="key">title-3</div>
+      <div class="t-title-3">Section header</div>
+      <div class="spec">Geist 600 / 18 / 1.3</div>
+    </div>
+    <div class="type-row">
+      <div class="key">headline</div>
+      <div class="t-headline">Outgoing message bubble</div>
+      <div class="spec">Geist 600 / 16 / 1.4</div>
+    </div>
+    <div class="type-row">
+      <div class="key">body</div>
+      <div class="t-body">Default body copy. Stays readable at 1× and 2× density with the AppFontStacks fallback ladder.</div>
+      <div class="spec">Geist 400 / 14 / 1.45</div>
+    </div>
+    <div class="type-row">
+      <div class="key">callout</div>
+      <div class="t-callout">Slightly smaller variant for tertiary copy.</div>
+      <div class="spec">Geist 400 / 13 / 1.4</div>
+    </div>
+    <div class="type-row">
+      <div class="key">caption-1</div>
+      <div class="t-caption-1">Helper text. Hint copy.</div>
+      <div class="spec">Geist 400 / 11 / 1.36</div>
+    </div>
+    <div class="type-row">
+      <div class="key">mono</div>
+      <div class="t-mono">user_id · 7C:E4:31:88:0F:6A:DD:2B</div>
+      <div class="spec">Geist Mono 400 / 14 / 1.4</div>
+    </div>
+    <div class="type-row">
+      <div class="key">mono-numeric</div>
+      <div class="t-mono-numeric">02:47</div>
+      <div class="spec">Geist Mono 500 / 28 / 1.1</div>
+    </div>
+    <div class="type-row">
+      <div class="key">mono-display</div>
+      <div class="t-mono-display">STEALTH</div>
+      <div class="spec">Geist Mono 600 / 42 / letter 4</div>
+    </div>
+  </section>
+
+  <!-- SPACING -->
+  <section>
+    <h2>Spacing</h2>
+    <div class="section-meta">app_spacing.dart</div>
+
+    <div class="ruler">
+      <div class="ruler-row"><div class="key">xs <span class="val">4</span></div><div class="bar" style="width:4px"></div></div>
+      <div class="ruler-row"><div class="key">sm <span class="val">8</span></div><div class="bar" style="width:8px"></div></div>
+      <div class="ruler-row"><div class="key">md <span class="val">16</span></div><div class="bar" style="width:16px"></div></div>
+      <div class="ruler-row"><div class="key">lg <span class="val">24</span></div><div class="bar" style="width:24px"></div></div>
+      <div class="ruler-row"><div class="key">xl <span class="val">32</span></div><div class="bar" style="width:32px"></div></div>
+      <div class="ruler-row"><div class="key">xxl <span class="val">48</span></div><div class="bar" style="width:48px"></div></div>
+      <div class="ruler-row"><div class="key">xxxl <span class="val">64</span></div><div class="bar" style="width:64px"></div></div>
+    </div>
+
+    <h3 style="margin:32px 0 12px;font:600 13px/1 var(--font-mono);letter-spacing:2px;color:var(--text-tertiary);text-transform:uppercase">Semantic aliases</h3>
+    <table class="fx-table">
+      <thead><tr><th>Alias</th><th>Value</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td>screenEdge</td><td>16</td><td>Horizontal inset for any top-level screen.</td></tr>
+        <tr><td>cardPadding</td><td>16</td><td>Inside any GlassContainer / card.</td></tr>
+        <tr><td>tileGap</td><td>8</td><td>Between rows with their own padding.</td></tr>
+        <tr><td>bottomBarOverlap</td><td>80</td><td>Padding above GlassBottomNavBar.</td></tr>
+        <tr><td>buttonHeight</td><td>44</td><td>iOS-standard touch target.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- MOTION -->
+  <section>
+    <h2>Motion</h2>
+    <div class="section-meta">app_motion.dart</div>
+
+    <div class="motion-grid">
+      <div class="motion-card fast">
+        <div class="name">fast</div>
+        <div class="val">150 ms</div>
+        <div class="when">Button press, send-confirmed pulse, snackbar enter.</div>
+        <div class="demo"></div>
+      </div>
+      <div class="motion-card normal">
+        <div class="name">normal</div>
+        <div class="val">250 ms</div>
+        <div class="when">Dialog scrim fade, list stagger, theme toggle.</div>
+        <div class="demo"></div>
+      </div>
+      <div class="motion-card slow">
+        <div class="name">slow</div>
+        <div class="val">400 ms</div>
+        <div class="when">Modal slide-up, background crossfade, decrypt-text.</div>
+        <div class="demo"></div>
+      </div>
+      <div class="motion-card page">
+        <div class="name">pageRoute</div>
+        <div class="val">320 ms</div>
+        <div class="when">Page-route enter / exit.</div>
+        <div class="demo"></div>
+      </div>
+    </div>
+
+    <h3 style="margin:32px 0 12px;font:600 13px/1 var(--font-mono);letter-spacing:2px;color:var(--text-tertiary);text-transform:uppercase">Easing</h3>
+    <table class="fx-table">
+      <thead><tr><th>Curve</th><th>Value</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td>emphasized</td><td>Cubic(0.20, 0.00, 0.00, 1.00)</td><td>Signature reveals (page routes, choreographed lists).</td></tr>
+        <tr><td>standard</td><td>easeInOut</td><td>Everyday transitions.</td></tr>
+        <tr><td>decelerated</td><td>fastOutSlowIn</td><td>Dismissals — "fade away".</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ELEVATION -->
+  <section>
+    <h2>Elevation</h2>
+    <div class="section-meta">app_elevation.dart</div>
+
+    <div class="elev-grid">
+      <div class="elev-card l0"><div class="lvl">0</div><div class="lbl">flat</div></div>
+      <div class="elev-card l1"><div class="lvl">1</div><div class="lbl">list row</div></div>
+      <div class="elev-card l2"><div class="lvl">2</div><div class="lbl">glass card</div></div>
+      <div class="elev-card l3"><div class="lvl">3</div><div class="lbl">dialog</div></div>
+      <div class="elev-card l4"><div class="lvl">4</div><div class="lbl">hero · blue glow</div></div>
+    </div>
+  </section>
+
+  <!-- EFFECTS -->
+  <section>
+    <h2>Effects parameters</h2>
+    <div class="section-meta">app_effects.dart</div>
+
+    <table class="fx-table">
+      <thead><tr><th>Token</th><th>Default</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td>grainOpacity</td><td>0.04</td><td>Default opacity for GrainOverlay.</td></tr>
+        <tr><td>grainCellPx</td><td>1.5</td><td>Noise cell size.</td></tr>
+        <tr><td>scanlineOpacity</td><td>0.06</td><td>Per-stripe alpha for ScanlineOverlay.</td></tr>
+        <tr><td>scanlineSpacingPx</td><td>4</td><td>Vertical pitch between scan-line stripes.</td></tr>
+        <tr><td>scanlineThicknessPx</td><td>1</td><td>Stripe thickness — one phosphor row.</td></tr>
+        <tr><td>aberrationDxPx</td><td>1.5</td><td>R/B channel offset for ChromaticAberration.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- HAPTICS -->
+  <section>
+    <h2>Haptics</h2>
+    <div class="section-meta">app_haptics.dart</div>
+
+    <table class="fx-table">
+      <thead><tr><th>Intensity</th><th>Pattern</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td>light</td><td>HapticFeedback.lightImpact</td><td>Send message, list selection, toggle flip.</td></tr>
+        <tr><td>medium</td><td>HapticFeedback.mediumImpact</td><td>Call dial, dialog open, voice-record start.</td></tr>
+        <tr><td>heavy</td><td>HapticFeedback.heavyImpact</td><td>Hangup, destructive confirmation.</td></tr>
+        <tr><td>success</td><td>medium → 60 ms → light</td><td>Save / delivered / key rotation complete.</td></tr>
+        <tr><td>warn</td><td>heavy → 80 ms → light</td><td>Recoverable issue — retry queued, transient denial.</td></tr>
+        <tr><td>error</td><td>heavy × 2 with 80 ms gap</td><td>Unrecoverable — auth fail, decrypt fail, call drop.</td></tr>
+        <tr><td>selection</td><td>HapticFeedback.selectionClick</td><td>Segmented control changes, tab swipes.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+</body>
+</html>

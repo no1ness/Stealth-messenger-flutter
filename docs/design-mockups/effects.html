@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stealth · Signature Effects</title>
+<link rel="stylesheet" href="_tokens.css" />
+<style>
+  body {
+    padding: 48px clamp(24px, 5vw, 80px) 96px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='1'/></svg>");
+    background-size: 200px;
+    z-index: 0;
+  }
+
+  .back {
+    position: fixed;
+    top: 24px; left: 24px;
+    z-index: 10;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid var(--separator);
+    border-radius: 999px;
+    background: rgba(0,0,0,0.30);
+    backdrop-filter: blur(10px);
+  }
+  .back:hover { color: var(--system-blue); border-color: var(--system-blue); }
+
+  header {
+    position: relative;
+    z-index: 1;
+    max-width: 920px;
+    margin: 0 auto 64px;
+    padding-top: 32px;
+  }
+  header h1 {
+    font: 600 48px/1.1 var(--font-sans);
+    letter-spacing: -0.5px;
+    margin: 0 0 12px;
+  }
+  header .crumb {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+  }
+  header p {
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 640px;
+    margin: 0;
+  }
+
+  .grid {
+    position: relative;
+    z-index: 1;
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 32px;
+  }
+
+  .panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-head {
+    padding: 18px 22px 8px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--separator);
+  }
+  .panel-head h2 {
+    margin: 0;
+    font: 600 18px/1.3 var(--font-sans);
+  }
+  .panel-head .filename {
+    font: 500 10px/1 var(--font-mono);
+    letter-spacing: 1px;
+    color: var(--system-blue);
+  }
+  .panel-stage {
+    flex: 1;
+    min-height: 220px;
+    background: var(--gradient-stealth);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .panel-body {
+    padding: 18px 22px 22px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .panel-body code {
+    font: 500 11px/1 var(--font-mono);
+    color: var(--system-blue);
+    background: rgba(0,122,255,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* Sample card used inside each effect demo */
+  .sample-card {
+    width: 200px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--separator);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sample-card .sample-line {
+    height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+  }
+  .sample-card .sample-line.short { width: 60%; }
+  .sample-card .sample-line.accent {
+    background: var(--system-blue);
+    width: 30%;
+  }
+
+  /* --- 1. Scan-line stage --- */
+  .stage-scanline::after {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, var(--scanline-opacity)) 0,
+      rgba(255, 255, 255, var(--scanline-opacity)) 1px,
+      transparent 1px,
+      transparent var(--scanline-spacing)
+    );
+  }
+
+  /* --- 2. Grain stage --- */
+  .stage-grain {
+    background:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.5'/></svg>"),
+      var(--gradient-stealth);
+    background-size: 200px, cover;
+  }
+
+  /* --- 3. Key-fingerprint stage --- */
+  .stage-fingerprint {
+    background: radial-gradient(ellipse at center, var(--bg-secondary), var(--bg-primary));
+    padding: 18px;
+  }
+  .stage-fingerprint .hex {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: rgba(255,255,255,0.05);
+    font: 400 11px/1.4 var(--font-mono);
+    letter-spacing: 1.5px;
+    text-align: center;
+    padding: 20px 12px;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .stage-fingerprint .icon {
+    position: relative;
+    z-index: 2;
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    border: 2px solid var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    color: var(--text-secondary);
+    background: rgba(0,0,0,0.25);
+  }
+  .stage-fingerprint .icon-block {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .stage-fingerprint .label {
+    font: 600 13px/1.3 var(--font-sans);
+    color: var(--text-primary);
+  }
+  .stage-fingerprint .sublabel {
+    font: 400 11px/1.4 var(--font-sans);
+    color: var(--text-secondary);
+    max-width: 220px;
+  }
+
+  /* --- 4. Chromatic aberration stage --- */
+  .stage-aberration .ca-word {
+    font: 600 56px/1 var(--font-mono);
+    letter-spacing: 6px;
+    color: var(--text-primary);
+    position: relative;
+    display: inline-block;
+  }
+  .stage-aberration .ca-word::before,
+  .stage-aberration .ca-word::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+  .stage-aberration .ca-word::before {
+    color: rgba(255, 26, 26, 0.85);
+    transform: translateX(calc(-1 * var(--aberration-dx) * 2));
+  }
+  .stage-aberration .ca-word::after {
+    color: rgba(26, 255, 255, 0.85);
+    transform: translateX(calc(var(--aberration-dx) * 2));
+  }
+  /* Focus-pulse simulation */
+  .stage-aberration {
+    animation: ca-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes ca-pulse {
+    0%, 100% { --aberration-dx: 1.5px; }
+    50%      { --aberration-dx: 2.5px; }
+  }
+
+  /* --- 5. DecryptText stage (CSS only, infinite cycle for preview) --- */
+  .stage-decrypt .decrypt-word {
+    font: 600 56px/1 var(--font-mono);
+    letter-spacing: 6px;
+    color: var(--text-primary);
+  }
+  /* Use steps() to cycle through a few "scrambled" snapshots */
+  .stage-decrypt .decrypt-word::after {
+    content: '7E0FA9DC';
+    animation: dec-cycle 1.6s steps(8, end) infinite;
+  }
+  @keyframes dec-cycle {
+    0%   { content: '7E0FA9DC'; }
+    12%  { content: 'S30FA9DC'; }
+    25%  { content: 'STE0A9DC'; }
+    37%  { content: 'STEA09DC'; }
+    50%  { content: 'STEALDC'; }
+    62%  { content: 'STEAL7DC'; }
+    75%  { content: 'STEALTHC'; }
+    87%  { content: 'STEALTH'; }
+    100% { content: 'STEALTH'; }
+  }
+  .stage-decrypt .decrypt-word {
+    position: relative;
+  }
+  /* Hide the static text — show only the ::after */
+  .stage-decrypt .decrypt-word {
+    color: transparent;
+  }
+  .stage-decrypt .decrypt-word::after {
+    color: var(--text-primary);
+    position: static;
+    display: inline-block;
+  }
+
+  /* --- 6. Loading screen crossfade stage --- */
+  .stage-loading {
+    background:
+      linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)),
+      repeating-linear-gradient(45deg,
+        rgba(0,122,255,0.04) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(-45deg,
+        rgba(0,122,255,0.04) 0 1px, transparent 1px 24px);
+    background-blend-mode: normal;
+    position: relative;
+  }
+  .stage-loading::before {
+    /* circuit-board hint */
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,
+        rgba(0,122,255,0.06) 0 1px, transparent 1px 32px),
+      repeating-linear-gradient(90deg,
+        rgba(0,122,255,0.06) 0 1px, transparent 1px 32px);
+    pointer-events: none;
+  }
+  .stage-loading .loading-card {
+    position: relative;
+    z-index: 2;
+    width: 220px;
+    padding: 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--separator);
+    background: rgba(0,0,0,0.40);
+    backdrop-filter: blur(12px);
+    text-align: center;
+  }
+  .stage-loading .lock-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(0,122,255,0.20);
+    color: var(--system-blue);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 18px;
+  }
+  .stage-loading .stealth-mark {
+    font: 600 18px/1 var(--font-mono);
+    letter-spacing: 4px;
+    color: var(--text-primary);
+  }
+  .stage-loading .progress {
+    margin: 12px 0 6px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.10);
+    overflow: hidden;
+  }
+  .stage-loading .progress::after {
+    content: '';
+    display: block;
+    width: 65%;
+    height: 100%;
+    background: var(--system-blue);
+  }
+  .stage-loading .step-counter {
+    font: 500 10px/1 var(--font-mono);
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">← Index</a>
+
+<header>
+  <div class="crumb">Surface · effects.html</div>
+  <h1>Signature elements</h1>
+  <p>
+    The "what makes Stealth unmistakably Stealth" pieces. Each
+    auto-disables in <code>Brightness.light</code> — light mode is
+    the accessibility / high-contrast face of the app and
+    deliberately skips signature ornaments. Each panel previews the
+    effect at full intensity over the same sample subtree.
+  </p>
+</header>
+
+<div class="grid">
+
+  <!-- 1. Scanline -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>ScanlineOverlay</h2>
+      <span class="filename">effects/scanline_overlay.dart</span>
+    </div>
+    <div class="panel-stage stage-scanline">
+      <div class="sample-card">
+        <div class="sample-line"></div>
+        <div class="sample-line short"></div>
+        <div class="sample-line accent"></div>
+      </div>
+    </div>
+    <div class="panel-body">
+      Thin horizontal stripes at <code>scanlineSpacingPx: 4</code>,
+      <code>scanlineOpacity: 0.06</code>. Wired on outgoing chat
+      bubbles (intensity 0.5), <code>DialogImportance.high</code>
+      bodies, and the in-call <strong>E2E ENCRYPTED</strong> badge.
+    </div>
+  </div>
+
+  <!-- 2. Grain -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>GrainOverlay</h2>
+      <span class="filename">effects/grain_overlay.dart</span>
+    </div>
+    <div class="panel-stage stage-grain">
+      <div class="sample-card">
+        <div class="sample-line"></div>
+        <div class="sample-line short"></div>
+        <div class="sample-line accent"></div>
+      </div>
+    </div>
+    <div class="panel-body">
+      Procedural noise at <code>grainOpacity: 0.04</code>. Felt as
+      "the screen has dust on it" — not noticed. Used on registration
+      background and behind <code>StealthEmptyState</code> surfaces.
+    </div>
+  </div>
+
+  <!-- 3. Key fingerprint backdrop -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Key-fingerprint backdrop</h2>
+      <span class="filename">ui/widgets/empty_state.dart</span>
+    </div>
+    <div class="panel-stage stage-fingerprint">
+      <div class="hex">A2:5F:90:1B:7C:E4:31:88
+0F:6A:DD:2B:91:CC:08:74
+6E:33:AB:91:F0:1C:55:E7
+09:42:8B:D6:71:2A:9F:18
+55:13:7C:90:E4:0D:81:6A
+B1:7E:CC:48:33:5F:90:21
+12:8C:E0:44:91:DD:7B:65
+A2:0F:31:88:5F:CC:91:E4
+7C:E4:31:88:0F:6A:DD:2B
+DD:2B:91:CC:08:74:6E:33
+6E:33:AB:91:F0:1C:55:E7
+09:42:8B:D6:71:2A:9F:18
+55:13:7C:90:E4:0D:81:6A
+B1:7E:CC:48:33:5F:90:21</div>
+      <div class="icon-block">
+        <div class="icon">⌬</div>
+        <div class="label">No conversations yet.</div>
+        <div class="sublabel">Send a contact bundle to start a thread.</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      Deterministic 14×8 grid of hex pairs at ~3.5% opacity behind
+      the empty-state icon. Seed = the <code>title</code> string,
+      so each surface gets a stable but distinct pattern across
+      rebuilds and golden snapshots.
+    </div>
+  </div>
+
+  <!-- 4. Chromatic aberration -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>ChromaticAberration</h2>
+      <span class="filename">effects/chromatic_aberration.dart</span>
+    </div>
+    <div class="panel-stage stage-aberration">
+      <div class="ca-word" data-text="FOCUS">FOCUS</div>
+    </div>
+    <div class="panel-body">
+      RGB-split lens-focus cue. Renders the subtree once as the
+      interactive baseline plus two ghosts (red shifted left, cyan
+      shifted right) by <code>aberrationDxPx: 1.5</code>. Wired into
+      <code>GlassTextField</code> as a 1 → 0 pulse on focus gain.
+    </div>
+  </div>
+
+  <!-- 5. DecryptText -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>DecryptText</h2>
+      <span class="filename">motion/decrypt_text.dart</span>
+    </div>
+    <div class="panel-stage stage-decrypt">
+      <div class="decrypt-word"></div>
+    </div>
+    <div class="panel-body">
+      Character-cipher reveal. Each char starts as a random hex
+      digit and resolves to its target value at a staggered point
+      along <code>AppMotion.slow</code> (400 ms). Wired on the
+      loading-screen <strong>STEALTH</strong> wordmark — the first
+      thing every user sees on cold launch.
+    </div>
+  </div>
+
+  <!-- 6. Loading-screen crossfade -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Boot-sequence crossfade</h2>
+      <span class="filename">ui/screens/loading_screen.dart</span>
+    </div>
+    <div class="panel-stage stage-loading">
+      <div class="loading-card">
+        <div class="lock-icon">⌬</div>
+        <div class="stealth-mark">STEALTH</div>
+        <div class="step-counter">02 / 03</div>
+        <div class="progress"></div>
+        <div class="step-counter" style="color:var(--text-tertiary);margin-top:8px">Loading chats</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      Two-layer Stack: <code>CircuitBoardBackground</code> on top
+      fades to 0 over <code>AppMotion.slow</code> as bootstrap
+      reaches the last step, revealing <code>StealthAnimatedBackground</code>
+      underneath. The handoff reads as a system finishing booting.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
