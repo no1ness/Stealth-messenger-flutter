@@ -4,8 +4,10 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_dialog.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/navigation/glass_page_route.dart';
 import 'package:stealth/themes/apple_liquid/widgets/contacts/contact_tile.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
@@ -158,17 +160,17 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (userId == null) return;
 
     if (mounted) {
-      showDialog<void>(
+      showStealthDialog<void>(
         context: context,
+        title: 'Generating fingerprint',
         barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Generating fingerprint...'),
-            ],
-          ),
+        body: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            StealthLoadingIndicator(size: 20, strokeWidth: 2),
+            SizedBox(width: AppSpacing.md),
+            Text('Generating fingerprint...'),
+          ],
         ),
       );
     }
@@ -178,38 +180,34 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (mounted) {
       Navigator.of(context).pop(); // Закрываем диалог загрузки
 
-      showDialog<void>(
+      showStealthDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Safety Number - $name'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
-                style: AppTypography.caption1.copyWith(color: AppColors.textSecondary),
+        title: 'Safety Number — $name',
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
+              style: AppTypography.caption1
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              safetyNumber ?? 'Error generating number',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                fontFamily: 'GeistMono',
+                color: AppColors.systemBlue,
               ),
-              const SizedBox(height: AppSpacing.xl),
-              Text(
-                safetyNumber ?? 'Error generating number',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  fontFamily: 'Courier',
-                  color: AppColors.systemBlue,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
+        actions: const [
+          StealthDialogAction<void>.primary(label: 'OK', result: null),
+        ],
       );
     }
   }
@@ -417,7 +415,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     // который шлёт WebRTCCallScreen после открытия, и есть «звонок».
     // Это устраняет лишний канал связи и упрощает race-conditions.
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      GlassPageRoute.modal(
         builder: (_) => WebRTCCallScreen(
           peerName: (contact['name'] as String?) ?? 'Contact',
           chatId: chatId,

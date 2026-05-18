@@ -10,7 +10,9 @@ import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_haptics.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -147,11 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: GlassAppBar(title: 'Settings'),
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.systemBlue,
-              ),
-            )
+          ? const Center(child: StealthLoadingIndicator())
           : Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: LayoutBuilder(
@@ -194,8 +192,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Privacy & security', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
+          const SectionHeader(
+            title: 'Privacy & security',
+            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          ),
           SwitchListTile.adaptive(
             value: true,
             onChanged: null,
@@ -235,8 +235,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Connection & Storage', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
+          const SectionHeader(
+            title: 'Connection & Storage',
+            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          ),
           SwitchListTile.adaptive(
             value: _useP2P,
             onChanged: (value) async {
@@ -267,8 +269,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Notifications', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
+          const SectionHeader(
+            title: 'Notifications',
+            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          ),
           SwitchListTile.adaptive(
             value: _newMessageNotifications,
             onChanged: (value) =>
@@ -314,8 +318,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Appearance', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
+          const SectionHeader(
+            title: 'Appearance',
+            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          ),
           SegmentedButton<ThemeMode>(
             segments: const [
               ButtonSegment(value: ThemeMode.light, label: Text('Light')),
@@ -342,8 +348,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Diagnostics', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
+          const SectionHeader(
+            title: 'Diagnostics',
+            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          ),
           SizedBox(
             height: 120,
             child: Row(

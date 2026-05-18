@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 
 Widget? buildConversationAttachment({
   required Map<String, dynamic> message,
@@ -29,7 +30,7 @@ Widget? buildConversationAttachment({
             return const SizedBox(
               width: 200,
               height: 200,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: StealthLoadingIndicator()),
             );
           }
           if (snapshot.hasData && snapshot.data != null) {

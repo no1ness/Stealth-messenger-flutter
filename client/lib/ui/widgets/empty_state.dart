@@ -5,6 +5,73 @@ import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/effects/grain_overlay.dart';
 
+/// Renders a deterministic, ultra-faint hex fingerprint pattern behind
+/// the empty-state icon — the kind of grid you'd see formatting a
+/// 256-bit safety number in `00:11:22:33` groups. Atmospheric only;
+/// `IgnorePointer` so it doesn't intercept the action button.
+///
+/// Theme-aware: dark mode only. In light mode the pattern would read
+/// as visual noise against the near-white scaffold and break the
+/// "accessibility / high contrast" intent — so we return `SizedBox`.
+class _KeyFingerprintBackdrop extends StatelessWidget {
+  const _KeyFingerprintBackdrop({required this.seed});
+
+  /// Seed string — typically the empty-state `title`. Same seed →
+  /// same fingerprint across rebuilds (stable for golden snapshots).
+  final String seed;
+
+  static const int _rows = 14;
+  static const int _pairsPerRow = 8;
+
+  /// Linear congruential generator with a stable seed derived from
+  /// the input string. We deliberately avoid `dart:math.Random` so the
+  /// output is fully deterministic across platforms.
+  int _hash(String s) {
+    var h = 0x811C9DC5;
+    for (final code in s.codeUnits) {
+      h = ((h ^ code) * 0x01000193) & 0xFFFFFFFF;
+    }
+    return h;
+  }
+
+  String _buildPattern() {
+    final buf = StringBuffer();
+    var state = _hash(seed);
+    for (var r = 0; r < _rows; r++) {
+      for (var p = 0; p < _pairsPerRow; p++) {
+        state = (state * 1103515245 + 12345) & 0xFFFFFFFF;
+        final pair = (state >> 16) & 0xFF;
+        if (p > 0) buf.write(':');
+        buf.write(pair.toRadixString(16).padLeft(2, '0').toUpperCase());
+      }
+      if (r < _rows - 1) buf.write('\n');
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    if (isLight) return const SizedBox.shrink();
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0.035,
+        child: Center(
+          child: Text(
+            _buildPattern(),
+            textAlign: TextAlign.center,
+            style: AppTypography.captionMono.copyWith(
+              color: AppColors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Empty-state widget for the Stealth design system.
 ///
 /// Reads from [AppColors] (NOT `Theme.of(context).colorScheme`) so
@@ -53,42 +120,48 @@ class StealthEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     debugPrint('[ds:empty-state] title=$title');
     return GrainOverlay(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 64,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                title,
-                style: AppTypography.headline.copyWith(
-                  color: AppColors.textOnGlass,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (message != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  message!,
-                  style: AppTypography.body.copyWith(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _KeyFingerprintBackdrop(seed: title),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 64,
                     color: AppColors.textSecondary,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              if (action != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                action!,
-              ],
-            ],
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    title,
+                    style: AppTypography.headline.copyWith(
+                      color: AppColors.textOnGlass,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (message != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      message!,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (action != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    action!,
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
