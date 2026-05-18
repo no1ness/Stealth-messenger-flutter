@@ -37,37 +37,49 @@ class GlassContainer extends StatelessWidget {
     this.blur = 15.0, // Увеличен blur с 10 до 15
   });
 
-  BoxDecoration _getDecoration() {
+  /// Per design-system.md (Dual identity): in light mode every glass
+  /// surface drops the white tint + coloured glow and uses a faint
+  /// black-tinted film with a single hairline shadow. Same geometry,
+  /// noticeably lower intensity — appropriate over a near-white scaffold.
+  BoxDecoration _getDecoration(Brightness brightness) {
     if (gradient != null) {
       return GlassStyles.glassWithGradient(gradient!);
     }
-    
+
+    final isLight = brightness == Brightness.light;
     switch (intensity) {
       case GlassIntensity.ultraLight:
-        return GlassStyles.ultraLightGlass;
+        return isLight
+            ? GlassStyles.ultraLightGlassLight
+            : GlassStyles.ultraLightGlass;
       case GlassIntensity.light:
-        return GlassStyles.lightGlass;
+        return isLight ? GlassStyles.lightGlassLight : GlassStyles.lightGlass;
       case GlassIntensity.medium:
-        return GlassStyles.mediumGlass;
+        return isLight
+            ? GlassStyles.mediumGlassLight
+            : GlassStyles.mediumGlass;
       case GlassIntensity.dark:
-        return GlassStyles.darkGlass;
+        return isLight ? GlassStyles.darkGlassLight : GlassStyles.darkGlass;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final effectiveBlur =
+        brightness == Brightness.light ? (blur * 0.5) : blur;
     final container = ClipRRect(
       borderRadius: BorderRadius.circular(
         borderRadius ?? AppSpacing.radiusLg,
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        filter: ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
         child: Container(
           width: width,
           height: height,
           padding: padding ?? const EdgeInsets.all(AppSpacing.md),
           margin: margin,
-          decoration: _getDecoration(),
+          decoration: _getDecoration(brightness),
           child: child,
         ),
       ),

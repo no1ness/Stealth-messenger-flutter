@@ -6,6 +6,7 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
@@ -221,7 +222,7 @@ class _MyAppState extends State<MyApp> {
           darkTheme: LiquidTheme.darkTheme,
           home: _isLoading
               ? const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(child: StealthLoadingIndicator()),
                 )
               : _startupError != null
                   ? StartupErrorScreen(

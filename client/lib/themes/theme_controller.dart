@@ -31,10 +31,20 @@ class ThemeController {
     final prefs = await SharedPreferences.getInstance();
     final hasPersisted = prefs.containsKey('themeMode');
     if (hasPersisted) {
-      final index = prefs.getInt('themeMode') ?? ThemeMode.dark.index;
+      // Defensive: a corrupted or forward-compatible preferences int
+      // could be out of range for ThemeMode.values. Fall back to
+      // dark rather than throwing RangeError during boot.
+      final raw = prefs.getInt('themeMode');
+      final index = (raw != null &&
+              raw >= 0 &&
+              raw < ThemeMode.values.length)
+          ? raw
+          : ThemeMode.dark.index;
       final resolved = ThemeMode.values[index];
       mode.value = resolved;
-      Logger.info('[theme] resolved=$resolved persistedPref=true');
+      Logger.info(
+        '[theme] resolved=$resolved persistedPref=true rawIndex=$raw',
+      );
       return resolved;
     }
     mode.value = ThemeMode.dark;
