@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/contacts/contact_tile.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
@@ -516,140 +516,91 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       : 2.8,
                                 ),
                                 itemCount: filtered.length,
-                                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 80),
+                                padding: EdgeInsets.only(
+                                  bottom: MediaQuery.of(context).padding.bottom +
+                                      AppSpacing.bottomBarOverlap,
+                                ),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
-                                  final name = (contact['name'] as String?) ?? 'Unknown';
-                                  return Semantics(
-                                    label: AccessibilityIds.contact(name),
-                                    button: true,
-                                    child: InkWell(
-                                    borderRadius: BorderRadius.circular(18),
-                                    onLongPress: () => _showContactActions(contact),
-                                    child: GlassContainer(
-                                      child: Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 24,
-                                            backgroundColor:
-                                                AppColors.systemBlue,
-                                            child: Text(
-                                              _initials(
-                                                contact['name'] as String?,
-                                              ),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
+                                  return ContactTile(
+                                    contact: contact,
+                                    onTap: _startingCall
+                                        ? () {}
+                                        : () => _openChat(contact),
+                                    onLongPress: () =>
+                                        _showContactActions(contact),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Open chat',
+                                          onPressed: _startingCall
+                                              ? null
+                                              : () => _openChat(contact),
+                                          icon: const Icon(
+                                            Icons.chat_bubble_outline,
+                                            color: AppColors.systemBlue,
                                           ),
-                                          const SizedBox(width: AppSpacing.md),
-                                          Expanded(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  (contact['name'] as String?) ??
-                                                      'Unknown',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style:
-                                                      AppTypography.body.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: AppSpacing.xs,
-                                                ),
-                                                Text(
-                                                  (contact['user_id']
-                                                          as String?) ??
-                                                      '',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: AppTypography.caption1
-                                                      .copyWith(
-                                                    color:
-                                                        AppColors.textSecondary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Open chat',
+                                        ),
+                                        Semantics(
+                                          label: AccessibilityIds.startCall,
+                                          button: true,
+                                          excludeSemantics: true,
+                                          child: IconButton(
+                                            tooltip: 'Start call',
                                             onPressed: _startingCall
                                                 ? null
-                                                : () => _openChat(contact),
+                                                : () => _startCall(
+                                                      contact,
+                                                      isVideoCall: false,
+                                                    ),
+                                            icon: _startingCall
+                                                ? const SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child:
+                                                        StealthLoadingIndicator(
+                                                      size: 18,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.call_outlined,
+                                                    color: AppColors
+                                                        .statusSuccess,
+                                                  ),
+                                          ),
+                                        ),
+                                        Semantics(
+                                          label:
+                                              AccessibilityIds.startVideoCall,
+                                          button: true,
+                                          excludeSemantics: true,
+                                          child: IconButton(
+                                            tooltip: 'Start video call',
+                                            onPressed: _startingCall
+                                                ? null
+                                                : () => _startCall(
+                                                      contact,
+                                                      isVideoCall: true,
+                                                    ),
                                             icon: const Icon(
-                                              Icons.chat_bubble_outline,
+                                              Icons.videocam_outlined,
                                               color: AppColors.systemBlue,
                                             ),
                                           ),
-                                          Semantics(
-                                            label: AccessibilityIds.startCall,
-                                            button: true,
-                                            excludeSemantics: true,
-                                            child: IconButton(
-                                              tooltip: 'Start call',
-                                              onPressed: _startingCall
-                                                  ? null
-                                                  : () => _startCall(
-                                                        contact,
-                                                        isVideoCall: false,
-                                                      ),
-                                              icon: _startingCall
-                                                  ? const SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.call_outlined,
-                                                      color:
-                                                          AppColors.systemGreen,
-                                                    ),
-                                            ),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'More options',
+                                          onPressed: () =>
+                                              _showContactActions(contact),
+                                          icon: const Icon(
+                                            Icons.more_horiz,
+                                            color: AppColors.textSecondary,
                                           ),
-                                          Semantics(
-                                            label: AccessibilityIds.startVideoCall,
-                                            button: true,
-                                            excludeSemantics: true,
-                                            child: IconButton(
-                                              tooltip: 'Start video call',
-                                              onPressed: _startingCall
-                                                  ? null
-                                                  : () => _startCall(
-                                                        contact,
-                                                        isVideoCall: true,
-                                                      ),
-                                              icon: const Icon(
-                                                Icons.videocam_outlined,
-                                                color: AppColors.systemBlue,
-                                              ),
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'More options',
-                                            onPressed: () =>
-                                                _showContactActions(contact),
-                                            icon: const Icon(
-                                              Icons.more_horiz,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
                                   );
                                 },
                               ),
