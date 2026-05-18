@@ -26,6 +26,8 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `idb_shim`, `sqflite`, `path_provider` для локальной БД
 - `flutter_secure_storage_x` и web storage abstraction для ключей
 - `shared_preferences` и `flutter_dotenv` для локальных настроек
+- **Design system:** Geist + Geist Mono (SIL OFL 1.1, bundled под `client/assets/fonts/`) + `apple_liquid` design layer под `client/lib/themes/apple_liquid/`. Источник правды — `docs/design-system.md` (плюс HTML-mockups в `docs/design-mockups/`).
+- **Testing:** `flutter_test` (axiom); `golden_toolkit` dev-dep для golden infra (Phase 9.0, инфра ready, visual-reel deferred).
 
 ## Ключевые файлы
 
@@ -40,6 +42,9 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `client/lib/crypto/ratchet_service.dart` — symmetric KDF chain (НЕ Double Ratchet, без PFS; future-work в `.ai-factory/RESEARCH.md`)
 - `client/lib/ui/screens/` — основные экраны (chats, calls, profile, settings, contacts)
 - `client/lib/ui/screens/chats/` — выделенные модули chats (group sheets)
+- `client/lib/themes/apple_liquid/` — design-system layer: `constants/` (AppColors, AppSpacing, AppTypography, AppMotion, AppElevation, AppEffects, AppHaptics, GlassStyles), `widgets/` (GlassContainer, ChatTile, ContactTile, SectionHeader, StatusChip, ...), `feedback/` (showStealthSnackBar, showStealthDialog, StealthHaptics, StealthLoadingIndicator, StealthSkeletonTile), `effects/` (ScanlineOverlay, GrainOverlay, ChromaticAberration — signature visual moments, auto-disable в light brightness), `navigation/GlassPageRoute`, `motion/` (StaggeredListView, DecryptText)
+- `docs/design-system.md` — source of truth для tokens, signature elements, dual-identity, performance discipline, accessibility contract
+- `docs/design-mockups/` — visual HTML companion к design-system.md (8 standalone files, no build step)
 - `.github/workflows/ci.yml` — quality gate (analyze + test + build web + build apk + optional signaling smoke)
 
 ## Правило проекта

@@ -2,7 +2,9 @@
 
 **Branch:** `feature/ui-design-refactor` (от `main`, без worktree)
 **Created:** 2026-05-18
-**Refined:** 2026-05-18 — applied `frontend-design@claude-plugins-official` (pass 1) + practical execution audit (pass 2: accessibility/perf/licensing/infra)
+**Refined:** 2026-05-18 — pass 1 `frontend-design@claude-plugins-official`; pass 2 practical execution audit (a11y/perf/licensing/infra); pass 3 post-implementation drift audit (Phase 2.5 anti-pattern cleanup, 7.3 concrete sites + incoming-call dialog migration, 9.1a six remaining widget tests); pass 4 signature polish (Phase 10: `ChromaticAberration` + `DecryptText` close the last `(Reserved)` entries in `docs/design-system.md`); pass 5 docs companion (`docs/design-mockups/` HTML mockup gallery); pass 6 `/aif-review` fixes — `DecryptText` resolution-math bug (collapsed to `progress >= 1.0` for every char, snapping to target only at animation end) + `ThemeController` corrupted-prefs `RangeError` guard; +1 regression-gate test for the staggered reveal.
+
+**Implementation status:** all phases shipped + review-fixed. Verified 2026-05-18: `flutter analyze` clean (0 issues), `flutter test` 101/101 green (+9 over pass-3 baseline: 8 from the two new signature effects + 1 regression gate from pass 6). Documentation drift surfaced by `/aif-verify` resolved inline: `DESCRIPTION.md` now lists `apple_liquid` design layer, Geist + Geist Mono fonts, `golden_toolkit` dev-dep, and `docs/design-mockups/`. Deferred (intentional, not gaps): 9.5 visual-reel goldens (infra ready, env-fragile), font subsetting (pre-web-release follow-up), `GlassTextField` focus-pulse perf-budget polish (3× BackdropFilter cost for 250 ms — acceptable on modern devices, flagged for web). No commits per "без коммитов до завершения полного плана" directive — uncommitted working tree carries the full set, ready for `/aif-commit`.
 **Slug:** `ui-design-refactor`
 
 ## Settings
@@ -267,6 +269,41 @@
 - Send tap → `StealthHaptics.light`; record start → `medium`; stop → `light`.
 - Логирование: `Logger.debug('[chat-input] recording start/stop')`.
 
+## Phase 2.5 — Anti-pattern drift cleanup in helper widgets / secondary surfaces
+
+**Why this phase exists (post-implementation gap):** original migration scope listed 5 top-level screens. After audit, `grep` finds 8 `Theme.of(context).colorScheme` reads, 4 bare `AlertDialog`, 7 bare `CircularProgressIndicator`, and 8 bare `ScaffoldMessenger.of(...).showSnackBar` in helper widgets / screens that were out of scope. `docs/design-system.md → Anti-patterns` explicitly forbids these — keeping them in the tree means the codebase that documents the anti-patterns also violates them. This phase resolves the drift.
+
+### 2.5.1 `colorScheme` reads → `AppColors`
+
+- Files: `client/lib/ui/widgets/message_input.dart` (lines 56, 119), `client/lib/ui/widgets/voice_message_player.dart` (lines 148, 149, 163, 164, 189, 190, 238).
+- Swap each `Theme.of(context).colorScheme.{primary,secondary,surface}` → corresponding `AppColors.*` (`systemBlue`, `backgroundSecondary`, `textSecondary`, depending on call site).
+- **Audit first:** these widgets predate the design-system migration; verify each call site is still alive (no dead branches) before patching.
+- Логирование: N/A (refactor).
+
+### 2.5.2 bare `AlertDialog` → `showStealthDialog`
+
+- Files: `client/lib/ui/screens/contacts_screen.dart:164` (info-only AlertDialog) + `:183`, `client/lib/ui/widgets/chat_bubble.dart:49`.
+- `call_manager.dart:193` covered by 7.3 (incoming-call dialog).
+- Каждый → `showStealthDialog(...)` с `StealthDialogAction.{primary,secondary,destructive}` соответствующего kind.
+- Логирование: покрывается `[ds:dialog]`.
+
+### 2.5.3 bare `CircularProgressIndicator` → `StealthLoadingIndicator`
+
+- Files: `client/lib/main.dart:224` (bootstrap loading), `client/lib/themes/apple_liquid/apple_liquid_app.dart:46` (app shell loading), `client/lib/ui/screens/contacts_screen.dart:167` (внутри одного из 2.5.2 dialog'ов — после rewrite может уже отсутствовать), `client/lib/ui/screens/chats/conversation_attachment.dart:32`, `client/lib/ui/screens/chats/conversation_panel.dart` (lines 50, 128), `client/lib/ui/widgets/call_manager.dart:359` (call-screen mounting indicator — крошечный, передать `size: 16, strokeWidth: 2`).
+- Логирование: N/A.
+
+### 2.5.4 bare `ScaffoldMessenger.of(...).showSnackBar` → `showStealthSnackBar`
+
+- Files: `client/lib/ui/screens/webrtc_call_screen_web.dart:71`, `webrtc_call_screen_native_impl.dart:78`, `webrtc_diagnostics_screen_web.dart:213`, `client/lib/ui/screens/chats/group_management_sheet.dart` (lines 151, 227), `client/lib/ui/widgets/call_manager.dart:305` (incoming-call preflight error path), `client/lib/ui/widgets/chat_bubble.dart` (lines 65, 73).
+- Use `SnackKind.danger` for error paths (`preflightError`, copy-failure, etc.), `SnackKind.info` for neutral status, `SnackKind.success` for confirmations.
+- Логирование: покрывается `[ds:snack]`.
+
+### 2.5.5 Verify regression suite is still green
+
+- `flutter analyze` clean, `flutter test` green.
+- Particular attention: `test/widgets/call_manager_semantics_test.dart` and `test/widgets/chats_screen_semantics_test.dart` — touched widgets render under them.
+- Логирование: N/A.
+
 ## Phase 3 — Contacts screen redesign
 
 ### 3.1 Extract `ContactTile` widget
@@ -435,7 +472,10 @@
 
 - Сменить `MaterialPageRoute` → `GlassPageRoute.modal()` (slide-up, `AppMotion.pageRoute`).
 - Pop transition — slide-down + fade.
-- Edit points: каждый `Navigator.push(MaterialPageRoute(... WebRTCCallScreen ...))`.
+- **Concrete edit points** (по `grep WebRTCCallScreen( lib`):
+  - `lib/ui/widgets/call_manager.dart:337` — incoming-answer push.
+  - `lib/ui/screens/contacts_screen.dart:420` — outgoing-dial push.
+- **Incoming-call dialog migration (новое — было implicit в 3.3):** `call_manager.dart:193` всё ещё использует bare `AlertDialog(...)`. Мигрировать на `showStealthDialog(...)`. **Critical:** существующие `Semantics(label: AccessibilityIds.answer/decline, button: true, excludeSemantics: true)` обёртки MUST port verbatim — `test/widgets/call_manager_semantics_test.dart` это regression-gate. Если labels съедут, тест провалится.
 - Логирование: покрывается `[ds:route]`.
 
 ## Phase 8 — WebRTC diagnostics screens
@@ -501,15 +541,17 @@
 
 ### 9.1 Widget-тесты для дизайн-системы (Phase 1)
 
-- Файлы: `client/test/themes/apple_liquid/widgets/`.
-- Тесты:
-  - `section_header_test.dart` — title + trailing, правильный typography, `Semantics(header: true)` присутствует.
-  - `stealth_snack_bar_test.dart` — показывается, kind влияет на accent, dismiss работает, auto-haptic через mock `StealthHaptics`. Тест с `MediaQuery(disableAnimations: true)` — slide отключается.
-  - `stealth_dialog_test.dart` — actions tappable, destructive 2-tap gate (first arms via snackbar, second confirms), `DialogImportance.high` mount'ит `ScanlineOverlay`.
-  - `stealth_empty_state_test.dart` — render icon+title+action; callback вызывается.
-  - `stealth_haptics_test.dart` — `StealthHaptics.success` → 2 system channel calls (`mediumImpact` + `lightImpact`); `disableAnimations` → silent no-op.
-  - `glass_page_route_test.dart` — push/pop transition завершается за `AppMotion.pageRoute`.
-  - `staggered_list_view_test.dart` — items появляются с правильным delay; после `maxStaggered` — без анимации; `RepaintBoundary` присутствует.
+**Status:** 3/9 ship today: `section_header_test.dart`, `status_chip_test.dart` (8.2), `scanline_overlay_test.dart` (0.5).
+**Task 9.1a (новый) — добавить 6 оставшихся.** Test directory: `client/test/themes/apple_liquid/{feedback,motion,navigation,widgets}/`.
+
+- `client/test/themes/apple_liquid/feedback/stealth_snack_bar_test.dart` — показывается через `showStealthSnackBar`, `SnackKind` влияет на accent stripe colour, dismiss работает, auto-haptic через mock `StealthHaptics` (использовать `HapticFeedback` channel-mock из `flutter/services_test`). Тест с `MediaQuery(disableAnimations: true)` — fade-only без slide.
+- `client/test/themes/apple_liquid/feedback/stealth_dialog_test.dart` — actions tappable, destructive 2-tap gate (first arms via snackbar, second confirms), `DialogImportance.high` mount'ит `ScanlineOverlay`.
+- `client/test/ui/widgets/stealth_empty_state_test.dart` (или под `themes/`, выбрать при имплементации) — render icon+title+action; action callback вызывается; **key-fingerprint backdrop в dark, `SizedBox.shrink()` в light.**
+- `client/test/themes/apple_liquid/feedback/stealth_haptics_test.dart` — `StealthHaptics.success` → 2 system channel calls (`mediumImpact` + `lightImpact`); `disableAnimations` → silent no-op; web — no-op без throw.
+- `client/test/themes/apple_liquid/navigation/glass_page_route_test.dart` — push/pop transition завершается за `AppMotion.pageRoute`; `.modal()` slide-up direction отличается от default slide-from-right; iOS использует `CupertinoPageRoute` сwipe-back.
+- `client/test/themes/apple_liquid/motion/staggered_list_view_test.dart` — items появляются с правильным delay; после `maxStaggered = 8` — без анимации; **каждый item обёрнут в `RepaintBoundary`** (regression-gate для 1.11).
+
+Принцип: все тесты используют `pumpForGolden`-style helper / `MediaQuery(disableAnimations: true)`, не `pumpAndSettle` — continuous animations в дизайн-системе хотя бы у одного widget'а ALWAYS будут (см. 9.0 critical rule).
 
 ### 9.2 Regression smoke-tests для мигрируемых экранов
 
@@ -547,23 +589,72 @@
 - `flutter test --update-goldens` baseline commit'ится в `client/test/golden/`. PR CI'ы запускают `flutter test` (без update) — diff'ы блокируют merge.
 - Update `docs/design-system.md → Component gallery` с link'ами на эти изображения.
 
+## Phase 10 — Post-plan signature polish (pass-4 + pass-5)
+
+**Why this phase exists:** two follow-up rounds shipped after pass-3 sign-off. Round 4 (`/frontend-design:frontend-design доработай дизайн`) closed the two `(Reserved)` entries in `docs/design-system.md → Signature elements`. Round 5 (user directive "должна быть папка \\docs\\design-mockups") added a visual companion folder. Both rounds left the `(Implementation status)` line stale until this pass.
+
+### 10.1 `ChromaticAberration` effect
+
+- Файл: `client/lib/themes/apple_liquid/effects/chromatic_aberration.dart` (new).
+- API: `ChromaticAberration({ Widget child, double intensity = 1.0, bool force = false })`. Renders [child] as the interactive baseline + two coloured ghosts (red shifted by `-aberrationDxPx × intensity`, cyan shifted by `+aberrationDxPx × intensity`). Wraps in `RepaintBoundary`. Short-circuits at `intensity == 0` so idle wrappers pay zero cost.
+- Theme-aware gating same contract as `ScanlineOverlay` / `GrainOverlay`.
+- Wired into `GlassTextField` as a 1 → 0 pulse on focus gain via an `AnimationController` driven by the existing focus-change listener.
+- Логирование: `[fx:aberration] mount` once per active build; `gated-out` once when light-mode skip fires.
+
+### 10.2 `DecryptText` motion primitive
+
+- Файл: `client/lib/themes/apple_liquid/motion/decrypt_text.dart` (new).
+- API: `DecryptText(String text, { Duration duration = AppMotion.slow, TextStyle? style, String? alphabet, double? stagger })`. Each character starts as a random char from `alphabet` (default `0-9A-F`) and resolves to its target value at a staggered point along the timeline; per-frame scramble seed advances every ~50 ms to read as decryption, not as slot machine.
+- Respects `MediaQuery.disableAnimations` — reduce-motion users see the final string immediately.
+- Wired into `loading_screen.dart` for the `STEALTH` wordmark in `GeistMono` (mono so character widths don't jitter during the reveal).
+- Логирование: `[ds:decrypt] mount text="..." duration=...ms` once at mount.
+
+### 10.3 design-system.md sync
+
+- Файл: `docs/design-system.md`.
+- The two former `(Reserved)` entries now ship as full Signature elements with the same surface / intensity / why table treatment as `ScanlineOverlay` and `GrainOverlay`.
+- New `(Reserved)` slots flagged for future polish: `IdentityCard rotate-key armed state` (ChromaticAberration), `safety-number reveal dialog` (DecryptText).
+
+### 10.4 Widget tests (+8, 92 → 100)
+
+- `test/themes/apple_liquid/effects/chromatic_aberration_test.dart` — 4 cases (short-circuit at `intensity == 0`, dark renders 2 `ColorFiltered` ghosts + `RepaintBoundary`, light gates out, `force: true` bypasses gate).
+- `test/themes/apple_liquid/motion/decrypt_text_test.dart` — 4 cases (empty string → `SizedBox.shrink`, reduce-motion shortcut, animation settles to final string, mid-animation output stays within target ∪ alphabet character set).
+
+### 10.5 `docs/design-mockups/` visual companion
+
+- Папка: `docs/design-mockups/` (new).
+- 8 файлов / ~3 119 lines:
+  - `index.html` — editorial gallery with tile previews and a decorative vertical hex strip on the right edge;
+  - `chats.html` — iPhone-frame chats list with `ChatTile`, mono timestamps, pinned/recent `SectionHeader`, glass nav bar;
+  - `in-call.html` — in-call HUD with the signature `E2E ENCRYPTED` scan-line badge + mono `02:47` duration + slow-rotating avatar halo + telemetry strip;
+  - `effects.html` — all six signature effects in a panel grid (scanline, grain, fingerprint, chromatic aberration with animated pulse, decrypt-text via CSS `steps()` cycle, loading-screen crossfade);
+  - `empty-state.html` — chats empty with the 14×8 key-fingerprint backdrop + grain;
+  - `tokens.html` — visible token catalog (colour, type, spacing ruler, motion timings with infinite-loop demos, elevation cards, effects + haptics tables);
+  - `README.md` — conventions, parity rules, "Flutter is authoritative";
+  - `_tokens.css` — shared CSS variables mirroring `client/lib/themes/apple_liquid/constants/`.
+- Cross-linked from `docs/design-system.md` header so the mockups are discoverable.
+- No build step; no JS frameworks; Geist + Geist Mono loaded from Google Fonts CDN.
+- Не tested (HTML docs); manual review only. CSS rasterisation differs from Skia — treat as design intent, not as a render contract.
+
 ## Commit plan
 
-Девять чекпоинтов. Каждый коммит green (`flutter analyze` clean, `flutter test` green) перед переходом к следующей фазе.
+Одиннадцать чекпоинтов (Phase 2.5 добавлена post-implementation audit'ом, Phase 10 — post-plan polish; см. преамбулу каждой). Каждый коммит green (`flutter analyze` clean, `flutter test` green) перед переходом к следующей фазе.
 
 | # | Phase | Subtasks | Conventional commit subject |
 |---|-------|---------:|-----------------------------|
 | C1 | Phase 0 | 6 | `chore(design): commit aesthetic direction; verify fonts; add tokens + signature effects` |
 | C2 | Phase 1 | 11 | `feat(ui): design-system primitives (haptics/snack/dialog/route/stagger/section) + a11y + perf rules` |
 | C3 | Phase 2 | 4 | `refactor(ui): chats screen migrated to design-system v2 + mono timestamps + scan-line` |
+| C3.5 | Phase 2.5 | 5 | `refactor(ui): drift cleanup — colorScheme/AlertDialog/ProgressIndicator/ScaffoldMessenger in helper widgets` |
 | C4 | Phase 3 | 3 | `refactor(ui): contacts screen migrated to design-system v2` |
 | C5 | Phase 4 | 3 | `refactor(ui): profile screen — asymmetric card grid + helpers` |
 | C6 | Phase 5 | 4 | `feat(ui): settings screen + dark-first commitment + explicit theme toggle` |
 | C7 | Phase 6 | 3 | `refactor(ui): loading / registration / startup-error polish` |
-| C8 | Phase 7+8 | 5 | `refactor(ui): WebRTC call HUD (shared) + diagnostics screens redesign` |
-| C9 | Phase 9 | 6 | `test+docs(ui): golden infra; cover design-system widgets; visual reel; document tokens` |
+| C8 | Phase 7+8 | 5 | `refactor(ui): WebRTC call HUD (shared) + diagnostics screens redesign + GlassPageRoute wiring` |
+| C9 | Phase 9 | 7 | `test+docs(ui): golden infra; cover design-system widgets (9.1a — 6 new tests); visual reel; document tokens` |
+| C10 | Phase 10 | 5 | `feat(ui): signature polish — ChromaticAberration on focused input + DecryptText loading wordmark + docs/design-mockups gallery` |
 
-**Total tasks:** 45. **Total commits:** 9.
+**Total tasks:** 56 (45 original + 5 в Phase 2.5 + 1 wrapper-task 9.1a + 5 в Phase 10). **Total commits:** 11.
 
 ## Открытые вопросы / решения по умолчанию
 
