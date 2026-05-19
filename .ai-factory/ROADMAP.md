@@ -33,7 +33,7 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 
 - [~] **M10 — Design system v2 (Apple Liquid).** Tokens, primitives, signature effects (ScanlineOverlay, GrainOverlay, ChromaticAberration, DecryptText, key-fingerprint backdrop), `GlassPageRoute`, `StealthHaptics`. Source of truth: `docs/design-system.md` + `docs/design-mockups/`. Backing plan: `.ai-factory/plans/feature-ui-design-refactor.md` (6 refinement passes shipped). **PR #3** open.
 - [~] **M10.1 — GlassTextField focus-pulse perf budget for web.** `ChromaticAberration.ghostBuilder` API + `kIsWeb` cheap-ghost path (`_GlassFieldGhost`). Backing plan: was `.ai-factory/PLAN.md` (fast, transient). **PR #4** open, stacked on PR #3.
-- [~] **M-chore — Re-enable Android CI build-apk.** `ci.yml` `if: false` gate removed. **PR #5** open.
+- [~] **M9.1 — Re-enable Android CI build-apk.** Scoped under M9 (Android release hardening). `ci.yml` `if: false` gate removed (originally gated in commit `06dbd4c` for slowness; gradle cache now warm). **PR #5** open.
 
 ## Committed, not started
 
