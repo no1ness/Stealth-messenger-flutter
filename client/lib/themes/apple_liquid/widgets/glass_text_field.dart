@@ -112,18 +112,11 @@ class _GlassTextFieldState extends State<GlassTextField>
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: _isFocused
+                  decoration: _glassFieldDecoration(
+                    focused: _isFocused,
+                    fillColor: _isFocused
                         ? AppColors.glassMedium
                         : AppColors.glassUltraDark,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(
-                      color: _isFocused
-                          ? AppColors.systemBlue
-                          : AppColors.glassMedium.withValues(alpha: 0.3),
-                      width: _isFocused ? 2 : 1,
-                    ),
                   ),
                   child: TextFormField(
                     controller: widget.controller,
@@ -177,14 +170,37 @@ class _GlassTextFieldState extends State<GlassTextField>
   }
 }
 
+/// Shared decoration contract for `GlassTextField` and
+/// [_GlassFieldGhost]. The fill colour is the only thing that
+/// differs between the two — the border colour, width, and radius
+/// must stay in sync or the web focus cue visibly diverges from the
+/// native one. Routing both consumers through this single function
+/// makes that drift impossible at compile time.
+BoxDecoration _glassFieldDecoration({
+  required bool focused,
+  required Color fillColor,
+}) {
+  return BoxDecoration(
+    color: fillColor,
+    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+    border: Border.all(
+      color: focused
+          ? AppColors.systemBlue
+          : AppColors.glassMedium.withValues(alpha: 0.3),
+      width: focused ? 2 : 1,
+    ),
+  );
+}
+
 /// Border-only ghost for [ChromaticAberration] on platforms where
 /// [BackdropFilter] is expensive (Flutter web). Captures the visible
 /// RGB-split focus cue without paying the full glass cost three
 /// times per frame during the 250 ms pulse.
 ///
-/// Mirrors the focused/unfocused border style of [GlassTextField] —
-/// same colour, same width, same radius — but skips `ClipRRect`,
-/// `BackdropFilter`, and the `TextFormField` subtree.
+/// Mirrors the focused/unfocused border style of [GlassTextField]
+/// via [_glassFieldDecoration] — same colour, same width, same
+/// radius — but skips `ClipRRect`, `BackdropFilter`, and the
+/// `TextFormField` subtree.
 class _GlassFieldGhost extends StatelessWidget {
   const _GlassFieldGhost({required this.focused});
 
@@ -193,15 +209,9 @@ class _GlassFieldGhost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(
-          color: focused
-              ? AppColors.systemBlue
-              : AppColors.glassMedium.withValues(alpha: 0.3),
-          width: focused ? 2 : 1,
-        ),
+      decoration: _glassFieldDecoration(
+        focused: focused,
+        fillColor: Colors.transparent,
       ),
     );
   }

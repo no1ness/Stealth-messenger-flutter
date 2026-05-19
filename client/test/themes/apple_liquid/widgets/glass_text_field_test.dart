@@ -98,9 +98,18 @@ void main() {
       // scoped: the contract being protected (web cost = cost of
       // border outline × 2, not 3× BackdropFilter) is not
       // expressible through pump in the standard test platform.
-      final src = File(
-        'lib/themes/apple_liquid/widgets/glass_text_field.dart',
-      ).readAsStringSync();
+      const sourcePath =
+          'lib/themes/apple_liquid/widgets/glass_text_field.dart';
+      String src;
+      try {
+        src = File(sourcePath).readAsStringSync();
+      } catch (e) {
+        fail(
+          'Cannot read $sourcePath — was the file moved or renamed? '
+          'This source-as-fixture test must be updated when the path '
+          'changes. Underlying error: $e',
+        );
+      }
 
       expect(
         src.contains("import 'package:flutter/foundation.dart';"),
