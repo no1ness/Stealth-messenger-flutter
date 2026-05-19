@@ -40,7 +40,7 @@ This document is the source of truth for **what the local-first architecture com
 ### Quality gates
 
 - `flutter pub get` / `flutter analyze` / `flutter test` — все запускаются локально и в CI.
-- CI quality gate (`.github/workflows/ci.yml`): analyze + test + build web + build apk + optional signaling smoke. (Если `build-apk` job показывает `if: false`, см. ROADMAP.md M-chore для статуса re-enable.)
+- CI quality gate (`.github/workflows/ci.yml`): analyze + test + build web + optional signaling smoke. (The `build-apk` job exists but is currently gated; see `.ai-factory/ROADMAP.md` M9.1 for the re-enable status. Once that lands, append "+ build apk" here.)
 
 ### Дизайн-система v2
 

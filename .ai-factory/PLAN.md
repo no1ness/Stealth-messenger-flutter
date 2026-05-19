@@ -2,7 +2,7 @@
 
 No active fast plan.
 
-`.ai-factory/PLAN.md` is the **fast-plan slot** — `/aif-plan fast <description>` overwrites it freely. If you see content above this comment block, treat it as a transient plan in flight and reconcile before starting a new one.
+`.ai-factory/PLAN.md` is the **fast-plan slot** — `/aif-plan fast <description>` overwrites it freely. If this file currently contains an active plan (instead of this placeholder), treat it as transient and reconcile before starting a new one.
 
 ## Where things live
 
