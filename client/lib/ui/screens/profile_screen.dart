@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
@@ -45,30 +46,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      debugPrint('[Profile] loading userId...');
+      Logger.debug('[Profile] loading userId');
       final userId = await _appService.getUserId();
-      debugPrint('[Profile] userId=$userId');
+      Logger.debug('[Profile] user loaded', extras: {'userId': userId});
       final contactBundle = await _appService.generateQRCode();
 
-      debugPrint('[Profile] loading nickname...');
+      Logger.debug('[Profile] loading nickname');
       final nickname = await _appService.getNickname();
-      debugPrint('[Profile] nickname=$nickname');
+      Logger.debug('[Profile] nickname loaded');
 
-      debugPrint('[Profile] loading storageSummary...');
+      Logger.debug('[Profile] loading storageSummary');
       final storageSummary = await _appService.getStorageDebugSummary();
-      debugPrint('[Profile] storageSummary=$storageSummary');
+      Logger.debug('[Profile] storageSummary loaded', extras: storageSummary);
 
-      debugPrint('[Profile] loading recentCalls...');
+      Logger.debug('[Profile] loading recentCalls');
       final recentCalls = await _appService.getRecentCallHistory();
-      debugPrint('[Profile] recentCalls len=${recentCalls.length}');
+      Logger.debug('[Profile] recentCalls loaded', extras: {
+        'count': recentCalls.length,
+      });
 
-      debugPrint('[Profile] loading dashboard...');
+      Logger.debug('[Profile] loading dashboard');
       final dashboard = await _appService.getDashboardSummary();
-      debugPrint('[Profile] dashboard=$dashboard');
+      Logger.debug('[Profile] dashboard loaded', extras: dashboard);
 
-      debugPrint('[Profile] loading weeklyActivity...');
+      Logger.debug('[Profile] loading weeklyActivity');
       final weeklyActivity = await _appService.getWeeklyActivityBars();
-      debugPrint('[Profile] weeklyActivity=$weeklyActivity');
+      Logger.debug('[Profile] weeklyActivity loaded');
 
       if (!mounted) return;
 
@@ -88,8 +91,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _secureStorageReady = dashboard['secureStorageReady'] as bool? ?? false;
       });
     } catch (e, st) {
-      debugPrint('[Profile] Error loading profile: $e');
-      debugPrint('[Profile] $st');
+      Logger.error('[Profile] error loading profile', extras: {'error': e});
+      Logger.debug('[Profile] stack trace', extras: {'stackTrace': st});
     } finally {
       if (mounted) {
         setState(() {
@@ -154,7 +157,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('ProfileScreen: build called, _isLoading=$_isLoading, _userId=$_userId');
+    Logger.debug(
+      '[Profile] build',
+      extras: {'isLoading': _isLoading, 'userId': _userId},
+    );
 
     if (_isLoading) {
       return const Center(

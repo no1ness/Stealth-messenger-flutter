@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:stealth/local_database_service.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/peer_resolver.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
@@ -28,11 +29,10 @@ class P2PService {
 
   Future<RTCPeerConnection> _createConnection(String chatId) async {
     final config = {
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        // TODO: Add TURN servers for better reliability
-      ],
+      'iceServers': _buildIceServers(),
       'sdpSemantics': 'unified-plan',
+      'iceCandidatePoolSize': 4,
+      'iceTransportPolicy': 'all',
     };
 
     final pc = await createPeerConnection(config);
@@ -59,12 +59,71 @@ class P2PService {
     return pc;
   }
 
+  List<Map<String, dynamic>> _buildIceServers() {
+    final servers = <Map<String, dynamic>>[
+      {
+        'urls': [
+          'stun:stun.l.google.com:19302',
+          'stun:stun1.l.google.com:19302',
+        ],
+      },
+    ];
+
+    _appendTurnServer(
+      servers,
+      label: 'TURN',
+      urlsEnv: dotenv.env['TURN_URL'],
+      userEnv: dotenv.env['TURN_USERNAME'],
+      passEnv: dotenv.env['TURN_PASSWORD'],
+    );
+    _appendTurnServer(
+      servers,
+      label: 'TURNS',
+      urlsEnv: dotenv.env['TURNS_URL'],
+      userEnv: dotenv.env['TURNS_USERNAME'],
+      passEnv: dotenv.env['TURNS_PASSWORD'],
+    );
+
+    if (servers.length == 1) {
+      Logger.warn('[p2p] no TURN/TURNS configured for data channel');
+    }
+    return servers;
+  }
+
+  void _appendTurnServer(
+    List<Map<String, dynamic>> servers, {
+    required String label,
+    required String? urlsEnv,
+    required String? userEnv,
+    required String? passEnv,
+  }) {
+    final urls = urlsEnv
+        ?.split(',')
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (urls == null || urls.isEmpty) return;
+
+    final username = userEnv?.trim();
+    final credential = passEnv?.trim();
+    servers.add({
+      'urls': urls,
+      if (username != null && username.isNotEmpty) 'username': username,
+      if (credential != null && credential.isNotEmpty)
+        'credential': credential,
+    });
+    Logger.info(
+      '[p2p] ICE server configured',
+      extras: {'label': label, 'urlCount': urls.length},
+    );
+  }
+
   Future<void> connectToPeer(String chatId) async {
     if (_connections.containsKey(chatId)) return;
 
     final target = await _resolveTarget(chatId);
     if (target == null) {
-      debugPrint('[FIX:local-only] P2P target unresolved for chatId=$chatId');
+      Logger.warn('[p2p] target unresolved', extras: {'chatId': chatId});
       return;
     }
     await _ensureSignaling(chatId);
@@ -112,7 +171,7 @@ class P2PService {
           break;
       }
     });
-    debugPrint('[FIX:local-only] P2P signaling subscribed chatId=$chatId');
+    Logger.info('[p2p] signaling subscribed', extras: {'chatId': chatId});
   }
 
   Future<String?> _resolveTarget(String chatId) async {
@@ -124,7 +183,7 @@ class P2PService {
         selfUserId: selfUserId,
       );
     } catch (error) {
-      debugPrint('[FIX:local-only] P2P resolve target failed: $error');
+      Logger.warn('[p2p] resolve target failed', extras: {'error': error});
       return null;
     }
   }
@@ -147,12 +206,15 @@ class P2PService {
           await _localDb.saveChat(chat);
         }
       } catch (e) {
-        debugPrint('[p2p] Error receiving message: $e');
+        Logger.warn('[p2p] error receiving message', extras: {'error': e});
       }
     };
 
     dc.onDataChannelState = (state) {
-      debugPrint('[p2p] DataChannel state for $chatId: $state');
+      Logger.debug(
+        '[p2p] data channel state',
+        extras: {'chatId': chatId, 'state': state},
+      );
       if (state == RTCDataChannelState.RTCDataChannelClosed) {
         _dataChannels.remove(chatId);
       }

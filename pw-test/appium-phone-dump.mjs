@@ -11,7 +11,7 @@ const phoneCaps = {
   'appium:deviceName': '2412DPC0AG',
   'appium:udid': 'AQY57PRG4PQCR8UO',
   'appium:automationName': 'UiAutomator2',
-  'appium:appPackage': 'com.example.turbo',
+  'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
   'appium:noReset': true,
   'appium:autoGrantPermissions': true,

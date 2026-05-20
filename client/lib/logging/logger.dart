@@ -11,7 +11,7 @@
 // 3. Keep call sites compact so migrating from `debugPrint('[scope] ...')`
 //    is a one-liner.
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 enum LogLevel { debug, info, warn, error }
 
@@ -21,12 +21,14 @@ enum LogLevel { debug, info, warn, error }
 const Set<String> _sensitiveKeys = <String>{
   'actualPbId',
   'callerUserId',
+  'chatId',
   'creator',
   'email',
   'expectedPbId',
   'fromUserId',
   'localUuid',
   'modelId',
+  'messageId',
   'pbCreator',
   'pbId',
   'pbSelfId',
@@ -36,6 +38,8 @@ const Set<String> _sensitiveKeys = <String>{
   'recipient',
   'selfUserId',
   'sender',
+  'roomId',
+  'storedChatId',
   'storedPbUserId',
   'target',
   'targetUserId',
@@ -60,9 +64,9 @@ String redactId(String? id) {
 
 class Logger {
   /// The minimum level that will be emitted. Mutable for tests / DEBUG
-  /// switches. Default keeps DEBUG enabled — production builds should
-  /// lower this to INFO via a startup hook.
-  static LogLevel currentLevel = LogLevel.debug;
+  /// switches. Debug builds keep DEBUG logs; release/profile builds default
+  /// to INFO to avoid verbose local identifiers in production diagnostics.
+  static LogLevel currentLevel = kDebugMode ? LogLevel.debug : LogLevel.info;
 
   static void debug(String message, {Map<String, dynamic>? extras}) =>
       _log(LogLevel.debug, message, extras);

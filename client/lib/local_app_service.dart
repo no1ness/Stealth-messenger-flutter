@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'crypto/ratchet_service.dart';
 import 'local_database_service.dart';
+import 'logging/logger.dart';
 import 'p2p_service.dart';
 import 'storage_service.dart';
 
@@ -210,7 +210,10 @@ class LocalAppService {
       final decrypted = await _decryptBytesWithSecret(payload, key);
       return utf8.decode(decrypted);
     } catch (error) {
-      debugPrint('[FIX:local-only] decryptMessage failed: $error');
+      Logger.warn(
+        '[local-only] decryptMessage failed',
+        extras: {'error': error},
+      );
       return payload;
     }
   }
@@ -249,7 +252,10 @@ class LocalAppService {
         }
       }
     } catch (error) {
-      debugPrint('[FIX:local-only] decryptRawMessage failed: $error');
+      Logger.warn(
+        '[local-only] decryptRawMessage failed',
+        extras: {'error': error},
+      );
     }
     return message;
   }
@@ -305,7 +311,10 @@ class LocalAppService {
     await _storage.write('privateKey', base64Encode(privateKey));
     await _storage.write('publicKey', base64Encode(publicKey.bytes));
     await _storage.write('registeredAt', DateTime.now().toIso8601String());
-    debugPrint('[FIX:local-only] registered local identity userId=$userId');
+    Logger.info(
+      '[local-only] registered local identity',
+      extras: {'userId': userId},
+    );
   }
 
   Future<void> logout() async {
@@ -346,12 +355,34 @@ class LocalAppService {
         : value.padRight(value.length + 4 - remainder, '=');
   }
 
+  String _compactLocalAttachmentDescriptor(String content) {
+    if (!content.startsWith('local-attachment:')) return content;
+    try {
+      final encoded = content.substring('local-attachment:'.length);
+      final data = jsonDecode(
+        utf8.decode(base64Url.decode(_normalizeBase64Url(encoded))),
+      ) as Map<String, dynamic>;
+      if (!data.containsKey('payload') ||
+          data['attachmentId']?.toString().isNotEmpty != true) {
+        return content;
+      }
+      data.remove('payload');
+      return 'local-attachment:${base64UrlEncode(
+        utf8.encode(jsonEncode(data)),
+      )}';
+    } catch (_) {
+      return content;
+    }
+  }
+
   Map<String, dynamic>? _decodeContactBundle(String input) {
     final trimmed = input.trim();
     if (!trimmed.startsWith('stealth:')) return null;
     try {
       final encoded = trimmed.substring('stealth:'.length);
-      final decoded = utf8.decode(base64Url.decode(_normalizeBase64Url(encoded)));
+      final decoded = utf8.decode(
+        base64Url.decode(_normalizeBase64Url(encoded)),
+      );
       final data = jsonDecode(decoded) as Map<String, dynamic>;
       final userId = data['user_id']?.toString();
       final publicKey = data['public_key']?.toString();
@@ -366,7 +397,10 @@ class LocalAppService {
         'public_key': publicKey,
       };
     } catch (error) {
-      debugPrint('[FIX:local-only] invalid contact bundle: $error');
+      Logger.warn(
+        '[local-only] invalid contact bundle',
+        extras: {'error': error},
+      );
       return null;
     }
   }
@@ -398,7 +432,10 @@ class LocalAppService {
       'updated_at': now,
       'last_read_at': now,
     });
-    debugPrint('[FIX:local-only] created private chat chatId=$chatId');
+    Logger.info(
+      '[local-only] created private chat',
+      extras: {'chatId': chatId},
+    );
     return chatId;
   }
 
@@ -547,17 +584,36 @@ class LocalAppService {
             )
             .length;
 
+    // Keep attachment payload inline for P2P delivery, but store only a
+    // compact descriptor in this device's local message history.
+    final localContent = _compactLocalAttachmentDescriptor(content);
     String encryptedContent;
+    String localEncryptedContent;
     try {
-      encryptedContent = isGroupChat
-          ? await _encryptGroupMessage(chatId, content)
-          : await encryptMessage(
-              content,
-              otherUserId!,
-              ratchetIndex: ratchetIndex,
-            );
+      if (isGroupChat) {
+        encryptedContent = await _encryptGroupMessage(chatId, content);
+        localEncryptedContent = localContent == content
+            ? encryptedContent
+            : await _encryptGroupMessage(chatId, localContent);
+      } else {
+        encryptedContent = await encryptMessage(
+          content,
+          otherUserId!,
+          ratchetIndex: ratchetIndex,
+        );
+        localEncryptedContent = localContent == content
+            ? encryptedContent
+            : await encryptMessage(
+                localContent,
+                otherUserId,
+                ratchetIndex: ratchetIndex,
+              );
+      }
     } catch (error) {
-      debugPrint('[FIX:local-only] sendMessage encryption blocked: $error');
+      Logger.warn(
+        '[local-only] sendMessage encryption blocked',
+        extras: {'error': error},
+      );
       return;
     }
 
@@ -577,8 +633,12 @@ class LocalAppService {
       'metadata': metadata,
       'created_at': now,
     };
+    final localMessageMap = {
+      ...messageMap,
+      'content': localEncryptedContent,
+    };
 
-    await _localDb.saveMessage(messageMap, synced: true);
+    await _localDb.saveMessage(localMessageMap, synced: true);
     final chat = await _localDb.getChatById(chatId);
     if (chat != null) {
       chat['updated_at'] = now;
@@ -678,18 +738,33 @@ class LocalAppService {
         ? await _loadOrCreateGroupSecretKey(chatId)
         : await _getSharedSecret(otherUserId!);
     if (!encrypt) {
-      debugPrint('[FIX:local-only] attachments are stored encrypted; encrypt=false ignored');
+      Logger.info(
+        '[local-only] attachments are stored encrypted; encrypt=false ignored',
+      );
     }
     final encryptedPayload = await _encryptBytesWithSecret(bytes, key);
+    final attachmentId = _uuid.v4();
+    await _localDb.saveAttachment({
+      'id': attachmentId,
+      'chatId': chatId,
+      'fileName': fileName,
+      'isGroupChat': groupChat,
+      'encrypted': true,
+      'payload': encryptedPayload,
+      'createdAt': DateTime.now().toIso8601String(),
+    });
     final descriptor = {
       'v': 1,
+      'attachmentId': attachmentId,
       'fileName': fileName,
       'chatId': chatId,
       'isGroupChat': groupChat,
-      'encrypted': encrypt,
+      'encrypted': true,
       'payload': encryptedPayload,
     };
-    return 'local-attachment:${base64UrlEncode(utf8.encode(jsonEncode(descriptor)))}';
+    return 'local-attachment:${base64UrlEncode(
+      utf8.encode(jsonEncode(descriptor)),
+    )}';
   }
 
   Future<Uint8List?> downloadAttachment(
@@ -706,18 +781,42 @@ class LocalAppService {
       final data = jsonDecode(
         utf8.decode(base64Url.decode(_normalizeBase64Url(encoded))),
       ) as Map<String, dynamic>;
-      final payload = data['payload'] as String;
+      var payload = data['payload'] as String?;
+      if (payload == null) {
+        final attachmentId = data['attachmentId']?.toString();
+        if (attachmentId == null || attachmentId.isEmpty) {
+          return null;
+        }
+        final stored = await _localDb.getAttachment(attachmentId);
+        if (stored == null) return null;
+        final storedChatId = stored['chatId']?.toString();
+        if (storedChatId != null &&
+            storedChatId.isNotEmpty &&
+            storedChatId != chatId) {
+          Logger.warn(
+            '[local-only] attachment chat mismatch',
+            extras: {'chatId': chatId, 'storedChatId': storedChatId},
+          );
+          return null;
+        }
+        payload = stored['payload'] as String?;
+        if (payload == null || payload.isEmpty) return null;
+      }
       final descriptorEncrypted = data['encrypted'] as bool? ?? encrypted;
       if (!descriptorEncrypted) {
         return Uint8List.fromList(base64Decode(payload));
       }
-      final groupChat = isGroupChat ?? (data['isGroupChat'] as bool? ?? await _isGroupChat(chatId));
+      final groupChat = isGroupChat ??
+          (data['isGroupChat'] as bool? ?? await _isGroupChat(chatId));
       final key = groupChat
           ? await _loadOrCreateGroupSecretKey(chatId)
           : await _getSharedSecret((await _getOtherUserId(chatId))!);
       return _decryptBytesWithSecret(payload, key);
     } catch (error) {
-      debugPrint('[FIX:local-only] downloadAttachment failed: $error');
+      Logger.warn(
+        '[local-only] downloadAttachment failed',
+        extras: {'error': error},
+      );
       return null;
     }
   }
@@ -863,8 +962,9 @@ class LocalAppService {
   Future<void> addContact(String userId) async {
     final cached = _lastSearchResults[userId];
     if (cached == null || (cached['public_key']?.toString().isNotEmpty != true)) {
-      debugPrint(
-        '[FIX:local-only] contact add blocked: missing contact bundle/public key for $userId',
+      Logger.warn(
+        '[local-only] contact add blocked: missing contact bundle/public key',
+        extras: {'userId': userId},
       );
       return;
     }
@@ -879,7 +979,10 @@ class LocalAppService {
     };
     await _localDb.saveContact(contact);
     _nicknameCache[userId] = contact['nickname']?.toString();
-    debugPrint('[FIX:local-only] saved local contact userId=$userId');
+    Logger.info(
+      '[local-only] saved local contact',
+      extras: {'userId': userId},
+    );
   }
 
   Future<List<dynamic>> searchUsers(String query) async {
@@ -933,7 +1036,10 @@ class LocalAppService {
     required String chatId,
     required bool isTyping,
   }) async {
-    debugPrint('[FIX:local-only] typing status local-only chatId=$chatId isTyping=$isTyping');
+    Logger.debug(
+      '[local-only] typing status local-only',
+      extras: {'chatId': chatId, 'isTyping': isTyping},
+    );
   }
 
   Future<DateTime?> getOtherLastReadAt(String chatId) async => null;

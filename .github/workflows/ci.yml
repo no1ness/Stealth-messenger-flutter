@@ -93,7 +93,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: analyze-and-test
-    if: false  # temporarily disabled — slow and not needed right now; flip to `true` (or remove) to re-enable
     steps:
       - uses: actions/checkout@v4
 

@@ -121,11 +121,11 @@ adb devices
 adb -s <device_id> install -r client/build/app/outputs/flutter-apk/app-debug.apk
 
 # Запустить приложение
-adb -s <device_id> shell am start -n com.example.turbo/.MainActivity
+adb -s <device_id> shell am start -n com.stealth.messenger/.MainActivity
 
 # Остановить приложение
-adb -s <device_id> shell am force-stop com.example.turbo
+adb -s <device_id> shell am force-stop com.stealth.messenger
 
 # Очистить данные приложения
-adb -s <device_id> shell pm clear com.example.turbo
+adb -s <device_id> shell pm clear com.stealth.messenger
 ```

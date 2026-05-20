@@ -103,7 +103,7 @@ class NativeCallController extends ChangeNotifier {
         return;
       }
 
-      debugPrint('[FIX] webrtc-call: lazy WebRtcSignalingService init');
+      Logger.debug('[stealth-call] lazy WebRtcSignalingService init');
       _signaling = _signalingBuilder();
 
       _selfUserId = await _appService.getUserId();
@@ -121,9 +121,13 @@ class NativeCallController extends ChangeNotifier {
           throw StateError('Callee opened without callerUserId');
         }
       }
-      debugPrint(
-        '[stealth-call] using signaling=PocketBase '
-        'self=$_selfUserId target=$_targetUserId isCaller=$isCaller',
+      Logger.info(
+        '[stealth-call] using signaling=PocketBase',
+        extras: {
+          'selfUserId': _selfUserId,
+          'targetUserId': _targetUserId,
+          'isCaller': isCaller,
+        },
       );
 
       await media.createPeerConnection(
@@ -149,25 +153,25 @@ class NativeCallController extends ChangeNotifier {
       });
 
       if (isCaller) {
-        debugPrint('[stealth-call] caller — creating offer immediately');
+        Logger.debug('[stealth-call] caller creating offer immediately');
         await _sendOffer();
       } else {
         final offerMap = initialOffer;
         if (offerMap != null) {
-          debugPrint('[stealth-call] callee — applying initialOffer');
+          Logger.debug('[stealth-call] callee applying initialOffer');
           await _applyRemoteOffer(RTCSessionDescription(
             offerMap['sdp'] as String?,
             offerMap['type'] as String?,
           ));
         } else {
-          debugPrint('[stealth-call] callee — waiting for offer via signaling');
+          Logger.debug('[stealth-call] callee waiting for offer via signaling');
         }
       }
 
       _initializing = false;
       notifyListeners();
     } catch (error) {
-      debugPrint('WebRTC init error: $error');
+      Logger.error('[stealth-call] WebRTC init error', extras: {'error': error});
       _initializing = false;
       notifyListeners();
       onError?.call('Call setup failed: $error');
@@ -191,13 +195,12 @@ class NativeCallController extends ChangeNotifier {
         state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
       _markConnected();
     } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-      debugPrint(
-          '[stealth-call] ICE Connection Failed - triggering restart if possible');
+      Logger.warn('[stealth-call] ICE connection failed, triggering restart');
       onError?.call('Connection failed. Retrying...');
       hangUp();
     } else if (state ==
         RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
-      debugPrint('[stealth-call] ICE Connection Disconnected');
+      Logger.info('[stealth-call] ICE connection disconnected');
     }
   }
 
@@ -231,7 +234,7 @@ class NativeCallController extends ChangeNotifier {
       targetUserId: target,
       sdp: answer,
     );
-    debugPrint('[stealth-call] answer sent');
+    Logger.info('[stealth-call] answer sent');
   }
 
   Future<void> _onSignalingMessage(RtcMessage message) async {
@@ -239,8 +242,7 @@ class NativeCallController extends ChangeNotifier {
     switch (message.type) {
       case RtcMessageType.offer:
         if (isCaller) {
-          debugPrint(
-              '[stealth-call] caller received unexpected offer; ignored');
+          Logger.warn('[stealth-call] caller received unexpected offer; ignored');
           return;
         }
         final sdp = RTCSessionDescription(
@@ -282,9 +284,9 @@ class NativeCallController extends ChangeNotifier {
   /// ICE timeout 15+ секунд), не пытаемся ещё раз слать sendHangup —
   /// инициатор уже знает.
   Future<void> _handleRemoteHangup(RtcMessage message) async {
-    debugPrint(
-      '[stealth-call] remote hangup → closing screen '
-      'roomId=${message.roomId} from=${message.creator}',
+    Logger.info(
+      '[stealth-call] remote hangup, closing screen',
+      extras: {'roomId': message.roomId, 'fromUserId': message.creator},
     );
     if (_closing) return;
     _closing = true;
@@ -354,7 +356,7 @@ class NativeCallController extends ChangeNotifier {
           targetUserId: target,
         );
       } catch (error) {
-        debugPrint('[stealth-call] sendHangup error: $error');
+        Logger.warn('[stealth-call] sendHangup error', extras: {'error': error});
       }
     }
     onClose?.call();
@@ -362,9 +364,14 @@ class NativeCallController extends ChangeNotifier {
 
   @override
   void dispose() {
-    debugPrint(
-      '[stealth-call] dispose() isCaller=$isCaller '
-      'chat=$chatId connected=$_connected closing=$_closing',
+    Logger.debug(
+      '[stealth-call] dispose',
+      extras: {
+        'isCaller': isCaller,
+        'chatId': chatId,
+        'connected': _connected,
+        'closing': _closing,
+      },
     );
     _connectionTimeout?.cancel();
     _callTimer?.cancel();

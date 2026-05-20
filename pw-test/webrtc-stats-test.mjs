@@ -12,6 +12,7 @@
  */
 
 import { chromium } from "playwright";
+import { readContactBundle } from "./contact-bundle-helper.mjs";
 
 const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:58585";
 const SUFFIX = Date.now().toString(36);
@@ -153,26 +154,7 @@ async function registerUser(page, nickname) {
 }
 
 async function readUserId(page) {
-  return page.evaluate(async () => {
-    for (let i = 0; i < 40; i++) {
-      if (window.stealthCrypto) break;
-      await new Promise((r) => setTimeout(r, 300));
-    }
-    if (!window.stealthCrypto) return null;
-    const raw = localStorage.getItem("flutter.userId");
-    if (!raw) return null;
-    let enc;
-    try {
-      enc = JSON.parse(raw);
-    } catch (_) {
-      enc = raw;
-    }
-    try {
-      return await window.stealthCrypto.decrypt(enc);
-    } catch (_) {
-      return null;
-    }
-  });
+  return readContactBundle(page);
 }
 
 async function goToTab(page, tabName) {
@@ -193,22 +175,22 @@ async function goToTab(page, tabName) {
   return false;
 }
 
-async function addContact(page, contactId) {
+async function addContact(page, contactBundle) {
   await goToTab(page, "Contacts");
   await page.getByRole("button", { name: /Add contact/i }).click();
 
-  await page.evaluate(async (id) => {
+  await page.evaluate(async (bundle) => {
     try {
-      await navigator.clipboard.writeText(id);
+      await navigator.clipboard.writeText(bundle);
     } catch (_) {
       const ta = document.createElement("textarea");
-      ta.value = id;
+      ta.value = bundle;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  }, contactId);
+  }, contactBundle);
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15_000 });
@@ -335,7 +317,7 @@ async function main() {
     info(`Bob:   ${nickB} → ${bobId}`);
 
     if (!aliceId || !bobId) {
-      fail("Registration", "Failed to read UUID");
+      fail("Registration", "Failed to read contact bundle");
       return;
     }
     pass("Registration", "Alice & Bob registered");

@@ -155,6 +155,10 @@ async function registerUser(page, nickname) {
   await page.getByRole("button", { name: "Chats" }).waitFor({ state: "visible", timeout: 60_000 });
 }
 
+async function readUserId(page) {
+  return readContactBundle(page);
+}
+
 async function goToTab(page, tabName) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -259,7 +263,7 @@ async function main() {
     info(`Bob:   ${nickB} → ${bobId}`);
 
     if (!aliceId || !bobId) {
-      fail("Registration", "Failed to read UUID");
+      fail("Registration", "Failed to read contact bundle");
       return;
     }
     pass("Registration", "Alice & Bob registered");

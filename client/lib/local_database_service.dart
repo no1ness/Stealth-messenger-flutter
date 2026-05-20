@@ -11,13 +11,13 @@ import 'package:stealth/helpers/crypto_helper.dart';
 
 class LocalDatabaseService {
   static const String dbName = 'stealth_local_v3.db';
-  // Bumped to v2 to add the `synced` index on the messages store.
-  static const int dbVersion = 4;
+  static const int dbVersion = 5;
 
   static const String messagesStore = 'messages';
   static const String chatsStore = 'chats';
   static const String contactsStore = 'contacts';
   static const String callsStore = 'calls';
+  static const String attachmentsStore = 'attachments';
 
   IdbFactory get _factory => kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
   Database? _db;
@@ -62,6 +62,16 @@ class LocalDatabaseService {
       if (!db.objectStoreNames.contains(callsStore)) {
         final store = db.createObjectStore(callsStore, autoIncrement: true);
         store.createIndex('chatId', 'chatId');
+      }
+      if (!db.objectStoreNames.contains(attachmentsStore)) {
+        final store = db.createObjectStore(attachmentsStore, keyPath: 'id');
+        store.createIndex('chatId', 'chatId');
+      } else if (event.oldVersion < 5) {
+        final txn = event.transaction;
+        final store = txn.objectStore(attachmentsStore);
+        if (!store.indexNames.contains('chatId')) {
+          store.createIndex('chatId', 'chatId');
+        }
       }
     });
 
@@ -274,5 +284,24 @@ class LocalDatabaseService {
     final store = txn.objectStore(callsStore);
     final list = await store.getAll();
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  // --- Attachments ---
+
+  Future<void> saveAttachment(Map<String, dynamic> attachment) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadWrite);
+    final store = txn.objectStore(attachmentsStore);
+    await store.put(attachment);
+    await txn.completed;
+  }
+
+  Future<Map<String, dynamic>?> getAttachment(String id) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadOnly);
+    final store = txn.objectStore(attachmentsStore);
+    final val = await store.getObject(id);
+    if (val == null) return null;
+    return Map<String, dynamic>.from(val as Map);
   }
 }

@@ -21,7 +21,7 @@ const emulatorCaps = {
   'appium:deviceName': 'emulator-5554',
   'appium:udid': 'emulator-5554',
   'appium:automationName': 'UiAutomator2',
-  'appium:appPackage': 'com.example.turbo',
+  'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
   'appium:noReset': true,
   'appium:fullReset': false,
@@ -34,7 +34,7 @@ const phoneCaps = {
   'appium:deviceName': '2412DPC0AG',
   'appium:udid': 'AQY57PRG4PQCR8UO',
   'appium:automationName': 'UiAutomator2',
-  'appium:appPackage': 'com.example.turbo',
+  'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
   'appium:noReset': true,
   'appium:fullReset': false,
@@ -58,6 +58,73 @@ async function findElementWithRetry(driver, selector, timeout = 30000) {
   }
 
   throw new Error(`Element not found: ${selector}. Last error: ${lastError?.message}`);
+}
+
+async function readClipboardText(driver) {
+  const raw = await driver.getClipboard('plaintext');
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  if (raw.startsWith('stealth:')) return raw;
+
+  try {
+    const decoded = Buffer.from(raw, 'base64').toString('utf8');
+    return decoded.startsWith('stealth:') ? decoded : raw;
+  } catch (_) {
+    return raw;
+  }
+}
+
+async function getContactBundle(driver, envVarName) {
+  const envBundle = process.env[envVarName];
+  if (envBundle) {
+    if (!envBundle.startsWith('stealth:')) {
+      throw new Error(`${envVarName} must contain a stealth: contact bundle.`);
+    }
+    return envBundle;
+  }
+
+  console.log('  Получаем contact bundle из профиля...');
+  try {
+    const profileTab = await findElementWithRetry(
+      driver,
+      '//android.widget.Button[@content-desc="Profile"]',
+      10000
+    );
+    await profileTab.click();
+    await delay(3000);
+  } catch (_) {
+    const profileButton = await driver.$('~Profile');
+    await profileButton.click();
+    await delay(3000);
+  }
+
+  const copyButton = await findElementWithRetry(
+    driver,
+    '//*[contains(@content-desc, "Copy contact bundle") or contains(@text, "Copy contact bundle")]',
+    10000
+  );
+  await copyButton.click();
+  await delay(1000);
+
+  const bundle = await readClipboardText(driver);
+  if (!bundle?.startsWith('stealth:')) {
+    await driver.saveScreenshot(`debug-no-contact-bundle-${envVarName}.png`);
+    throw new Error(`Contact bundle не найден. Можно задать ${envVarName}.`);
+  }
+
+  try {
+    const chatsTab = await findElementWithRetry(
+      driver,
+      '//android.widget.Button[@content-desc="Chats"]',
+      5000
+    );
+    await chatsTab.click();
+    await delay(1000);
+  } catch (_) {
+    console.log('  ⚠️  Не удалось вернуться на Chats, продолжаем...');
+  }
+
+  console.log(`  ✅ Contact bundle: ${bundle.slice(0, 32)}...`);
+  return bundle;
 }
 
 async function getUserId(driver) {
@@ -115,8 +182,8 @@ async function getUserId(driver) {
   return userId;
 }
 
-async function addContact(driver, contactId, contactName) {
-  console.log(`  Добавляем контакт: ${contactName} (${contactId})`);
+async function addContact(driver, contactBundle, contactName) {
+  console.log(`  Добавляем контакт: ${contactName}`);
 
   // Переходим на вкладку Contacts
   const contactsTab = await findElementWithRetry(
@@ -139,7 +206,7 @@ async function addContact(driver, contactId, contactName) {
     driver,
     '//android.widget.EditText'
   );
-  await searchField.setValue(contactId);
+  await searchField.setValue(contactBundle);
   await delay(3000); // Ждем результаты поиска
 
   // Нажимаем кнопку "Add"
@@ -236,12 +303,12 @@ async function main() {
     await phone.saveScreenshot('phone-start.png');
     console.log('📸 Начальные скриншоты: emulator-start.png, phone-start.png');
 
-    // Получаем User ID с обоих устройств
-    console.log('\n📱 Получаем User ID с телефона...');
-    const phoneUserId = await getUserId(phone);
+    // Получаем contact bundle с обоих устройств
+    console.log('\n📱 Получаем contact bundle с телефона...');
+    const phoneContactBundle = await getContactBundle(phone, 'STEALTH_PHONE_CONTACT_BUNDLE');
 
-    console.log('\n💻 Получаем User ID с эмулятора...');
-    const emulatorUserId = await getUserId(emulator);
+    console.log('\n💻 Получаем contact bundle с эмулятора...');
+    const emulatorContactBundle = await getContactBundle(emulator, 'STEALTH_EMULATOR_CONTACT_BUNDLE');
 
     // Проверяем, есть ли уже контакты
     console.log('\n🔍 Проверяем существующие контакты...');
@@ -249,7 +316,7 @@ async function main() {
     // Эмулятор добавляет телефон в контакты (если еще не добавлен)
     console.log('\n💻 Эмулятор: Добавляем телефон в контакты...');
     try {
-      await addContact(emulator, phoneUserId, 'Phone');
+      await addContact(emulator, phoneContactBundle, 'Phone');
     } catch (e) {
       console.log('  ℹ️  Контакт уже существует или ошибка добавления:', e.message);
     }
@@ -257,7 +324,7 @@ async function main() {
     // Телефон добавляет эмулятор в контакты (если еще не добавлен)
     console.log('\n📱 Телефон: Добавляем эмулятор в контакты...');
     try {
-      await addContact(phone, emulatorUserId, 'Emulator');
+      await addContact(phone, emulatorContactBundle, 'Emulator');
     } catch (e) {
       console.log('  ℹ️  Контакт уже существует или ошибка добавления:', e.message);
     }
