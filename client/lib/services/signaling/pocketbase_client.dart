@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/logging/logger.dart';
 
 /// Lazy singleton-обёртка над [PocketBase] клиентом.
 ///
@@ -32,7 +32,7 @@ class PocketBaseClient {
         'See docs/POCKETBASE_SETUP.md.',
       );
     }
-    debugPrint('[signaling] PocketBase client init url=$url');
+    Logger.info('[signaling] PocketBase client init', extras: {'url': url});
     final fresh = PocketBaseClient._(PocketBase(url));
     _instance = fresh;
     return fresh;

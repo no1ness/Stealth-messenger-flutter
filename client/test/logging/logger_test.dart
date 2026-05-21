@@ -113,4 +113,29 @@ void main() {
       expect(captured[1], '[INFO] still no extras');
     });
   });
+
+  group('parseLogLevel (STEALTH_LOG_LEVEL override)', () {
+    test('recognises canonical lowercase names', () {
+      expect(parseLogLevel('debug'), LogLevel.debug);
+      expect(parseLogLevel('info'), LogLevel.info);
+      expect(parseLogLevel('warn'), LogLevel.warn);
+      expect(parseLogLevel('error'), LogLevel.error);
+    });
+
+    test('case-insensitive and trims surrounding whitespace', () {
+      expect(parseLogLevel('DEBUG'), LogLevel.debug);
+      expect(parseLogLevel('Info'), LogLevel.info);
+      expect(parseLogLevel('  warn '), LogLevel.warn);
+      expect(parseLogLevel('\tERROR\n'), LogLevel.error);
+    });
+
+    test('returns null for empty / null / unrecognised input', () {
+      expect(parseLogLevel(null), isNull);
+      expect(parseLogLevel(''), isNull);
+      expect(parseLogLevel('verbose'), isNull);
+      expect(parseLogLevel('trace'), isNull);
+      expect(parseLogLevel('warning'), isNull,
+          reason: '"warning" is not an alias — only the exact name "warn"');
+    });
+  });
 }

@@ -3,7 +3,7 @@
 **Branch:** TBD — `feature/call-screens-controller-split`, отрезать **от `main`** после merge `feature/pocketbase-signaling`. До merge план существует только как документ; ветка не создаётся.
 **Created:** 2026-05-14
 **Slug:** `call-screens-controller-split`
-**Source plan:** `.ai-factory/plans/post-pocketbase-hardening.md` (P5.2 / P5.3, deferred)
+**Source plan:** `.ai-factory/specs/post-pocketbase-hardening.md` (P5.2 / P5.3, deferred — archived as of task #15 of client-hardening-followup)
 
 ## Settings
 

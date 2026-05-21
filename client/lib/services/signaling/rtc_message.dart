@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
 
 /// Тип сигнального сообщения, передаваемого между пирами WebRTC через
@@ -68,10 +68,12 @@ class RtcMessage {
     final created =
         DateTime.tryParse(record.created) ?? DateTime.now().toUtc();
 
-    debugPrint(
-      '[signaling] RtcMessage parsed type=${type.wireValue} '
-      'roomId=$roomId from=$creator to=$target',
-    );
+    Logger.debug('[signaling] RtcMessage parsed', extras: {
+      'type': type.wireValue,
+      'roomId': roomId,
+      'fromUserId': creator,
+      'targetUserId': target,
+    });
 
     return RtcMessage(
       id: record.id,

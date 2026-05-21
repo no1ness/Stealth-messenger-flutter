@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:web/web.dart' as web;
 
 /// Web (browser) WebRTC media plumbing for the web variant of
@@ -102,9 +102,8 @@ class WebCallMediaBindings {
       passEnv: dotenv.env['TURNS_PASSWORD'],
     );
     if (iceServers.length == 1) {
-      debugPrint(
-        '[stealth-call] web: no TURN/TURNS in .env — P2P may fail across NAT',
-      );
+      Logger.warn(
+          '[stealth-call] web: no TURN/TURNS in .env — P2P may fail across NAT');
     }
 
     final pc = web.RTCPeerConnection(
@@ -144,7 +143,7 @@ class WebCallMediaBindings {
 
     pc.oniceconnectionstatechange = ((web.Event event) {
       final state = pc.iceConnectionState;
-      debugPrint('[stealth-call] web iceState=$state');
+      Logger.info('[stealth-call] web iceState', extras: {'state': state});
       onIceConnectionState(state);
     }).toJS;
 
@@ -154,7 +153,7 @@ class WebCallMediaBindings {
 
     pc.onconnectionstatechange = ((web.Event event) {
       final state = pc.connectionState;
-      debugPrint('[stealth-call] web peerState=$state');
+      Logger.info('[stealth-call] web peerState', extras: {'state': state});
       onConnectionState(state);
     }).toJS;
   }
@@ -242,7 +241,8 @@ class WebCallMediaBindings {
       _offerSent = true;
       return {'type': offer.type, 'sdp': offer.sdp};
     } catch (error) {
-      debugPrint('Offer creation error: $error');
+      Logger.warn('[stealth-call] web offer creation error',
+          extras: {'error': error});
       return null;
     }
   }
@@ -272,7 +272,8 @@ class WebCallMediaBindings {
           .toDart;
       return {'type': answer.type, 'sdp': answer.sdp};
     } catch (error) {
-      debugPrint('Web applyRemoteOffer error: $error');
+      Logger.warn('[stealth-call] web applyRemoteOffer error',
+          extras: {'error': error});
       return null;
     }
   }
@@ -289,7 +290,8 @@ class WebCallMediaBindings {
           .toDart;
       await flushPendingCandidates();
     } catch (error) {
-      debugPrint('Answer handling error: $error');
+      Logger.warn('[stealth-call] web answer handling error',
+          extras: {'error': error});
     }
   }
 
@@ -309,7 +311,8 @@ class WebCallMediaBindings {
         _pendingRemoteCandidates.add(candidate);
       }
     } catch (error) {
-      debugPrint('Remote candidate error: $error');
+      Logger.warn('[stealth-call] web remote candidate error',
+          extras: {'error': error});
     }
   }
 
@@ -352,11 +355,10 @@ class WebCallMediaBindings {
         // Browsers may delay autoplay until the first user gesture.
       }
     }
-    debugPrint(
-      '[stealth-call] web remote stream attached, '
-      'audio=${stream.getAudioTracks().toDart.length} '
-      'video=${stream.getVideoTracks().toDart.length}',
-    );
+    Logger.info('[stealth-call] web remote stream attached', extras: {
+      'audio': stream.getAudioTracks().toDart.length,
+      'video': stream.getVideoTracks().toDart.length,
+    });
   }
 
   void setMicrophoneEnabled(bool enabled) {
@@ -395,21 +397,25 @@ class WebCallMediaBindings {
       final remote = _remoteStream;
       if (remote == null) return;
       for (final track in remote.getAudioTracks().toDart) {
-        debugPrint(
-          '[stealth-audio-audit] remote audio track id=${track.id} '
-          'kind=${track.kind} readyState=${track.readyState} '
-          'enabled=${track.enabled} muted=${track.muted} '
-          'label=${track.label}',
-        );
+        Logger.debug('[stealth-audio-audit] remote audio track', extras: {
+          'id': track.id,
+          'kind': track.kind,
+          'readyState': track.readyState,
+          'enabled': track.enabled,
+          'muted': track.muted,
+          'label': track.label,
+        });
       }
       final local = _localStream;
       if (local == null) return;
       for (final track in local.getAudioTracks().toDart) {
-        debugPrint(
-          '[stealth-audio-audit] local audio track id=${track.id} '
-          'readyState=${track.readyState} enabled=${track.enabled} '
-          'muted=${track.muted} label=${track.label}',
-        );
+        Logger.debug('[stealth-audio-audit] local audio track', extras: {
+          'id': track.id,
+          'readyState': track.readyState,
+          'enabled': track.enabled,
+          'muted': track.muted,
+          'label': track.label,
+        });
       }
     });
   }
@@ -465,6 +471,7 @@ class WebCallMediaBindings {
         credential: passEnv?.trim() ?? '',
       ),
     );
-    debugPrint('[stealth-call] web $label configured: $raw');
+    Logger.info('[stealth-call] web ice server configured',
+        extras: {'label': label, 'urls': raw});
   }
 }

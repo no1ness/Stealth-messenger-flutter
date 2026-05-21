@@ -104,3 +104,31 @@ After the build completes:
 4. Run `flutter symbolize` against any obfuscated stack traces if
    crashes occur — the release build uses Flutter's standard symbol
    stripping.
+
+## CI release builds (task #13)
+
+A dedicated `build-android-release` job in `.github/workflows/ci.yml`
+produces a signed APK + AAB nightly (`03:00 UTC`) and on demand
+(`gh workflow run ci.yml`). It is **gated on four secrets** — all
+must be set in the GitHub repo settings; if any is missing the job
+skips with a `notice` so PRs from forks don't fail:
+
+| Secret | Purpose |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | The `stealth-release.jks` keystore, `base64`-encoded. |
+| `ANDROID_STORE_PASSWORD`  | The keystore password. |
+| `ANDROID_KEY_ALIAS`       | Alias inside the keystore (typically `stealth`). |
+| `ANDROID_KEY_PASSWORD`    | Password for the key inside the keystore. |
+
+The job:
+
+1. Decodes the keystore into `$RUNNER_TEMP/stealth-release.jks`.
+2. Writes `client/android/key.properties` from the other three secrets.
+3. Runs `flutter build apk --release` and `flutter build appbundle
+   --release` — both rely on the existing signing wiring in
+   `client/android/app/build.gradle.kts`.
+4. Uploads both artifacts (`android-release`, 14-day retention).
+
+There is a sibling `analyze-macos` job on `04:00 UTC` (and
+`workflow_dispatch`) that runs `flutter analyze` + `flutter test` on
+`macos-latest`. It is NOT in the PR matrix to keep the PR cycle short.
