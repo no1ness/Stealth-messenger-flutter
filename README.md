@@ -2,40 +2,48 @@
 
 [![CI](https://github.com/no1ness/Stealth-messenger-flutter/actions/workflows/ci.yml/badge.svg)](https://github.com/no1ness/Stealth-messenger-flutter/actions/workflows/ci.yml)
 
-Local-first Flutter messenger with E2E-encrypted chats, attachments and
-WebRTC peer-to-peer calls. PocketBase is used purely as a transient
-signaling relay for `offer / answer / candidate / hangup` — message
-history, contacts and attachments never leave the device.
+Local-first Flutter-мессенджер с E2E-шифрованием чатов, вложений и
+WebRTC peer-to-peer звонками. PocketBase используется исключительно как
+transient signaling relay для `offer / answer / candidate / hangup` —
+история сообщений, контакты и вложения никогда не покидают устройство.
 
-## Documentation
+## Документация
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system overview
-- [`docs/SECURITY.md`](docs/SECURITY.md) — threat model and crypto
-- [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — signaling
-  server deployment
-- [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) — Android build
-- [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — Android release signing & lint
-- [`AGENTS.md`](AGENTS.md) — baseline rules for AI assistants
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — обзор системы
+- [`docs/SECURITY.md`](docs/SECURITY.md) — модель угроз и криптография
+- [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — развёртывание
+  signaling-сервера
+- [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) — сборка под Android
+- [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — подпись release-сборки и lint
+- [`AGENTS.md`](AGENTS.md) — базовые правила для AI-ассистентов
 
 ## Quality gates
 
-The [`CI workflow`](.github/workflows/ci.yml) runs on every push and pull
-request and gates merges on:
+[`CI workflow`](.github/workflows/ci.yml) запускается на каждый push и
+pull request, гейтит merge'и на:
 
-| Job                | What it does                                         |
+| Job                | Что делает                                           |
 | ------------------ | ---------------------------------------------------- |
 | `analyze + test`   | `flutter pub get`, `flutter analyze`, `flutter test` |
+| `pw-test lint`     | `node pw-test/lint-contact-bundle.mjs` — гарантия что E2E-скрипты используют contact bundle |
 | `build web`        | `flutter build web --release`                        |
 | `build android`    | `flutter build apk --debug` (JDK 17)                 |
-| `signaling smoke`  | End-to-end PocketBase smoke test (optional secret)   |
+| `signaling smoke`  | End-to-end PocketBase smoke-тест (опциональный секрет) |
 
-The optional signaling smoke test runs only when the
-`POCKETBASE_TEST_URL` repository secret is configured; without it the
-job exits with a `notice` annotation and stays green.
+Опциональный signaling smoke-тест запускается только если настроен
+секрет репозитория `POCKETBASE_TEST_URL`; без него job выходит с
+аннотацией `notice` и остаётся зелёным.
 
-## Project layout
+Nightly + manual:
 
-- `client/` — Flutter app source and tests
-- `docs/` — long-form documentation
-- `pw-test/` — Appium / WebRTC integration scripts
-- `.ai-factory/` — internal planning / rules / patches artifacts
+| Job                       | Когда                                                |
+| ------------------------- | ---------------------------------------------------- |
+| `build-android-release`   | 03:00 UTC + `workflow_dispatch`. Подписанные APK и AAB (артефакт хранится 14 дней). Требует секрет `ANDROID_KEYSTORE_BASE64` — без него job пропускается с `notice`. |
+| `analyze-macos`           | 04:00 UTC + `workflow_dispatch`. Прогоняет `flutter analyze` + `flutter test` на `macos-latest`. Не в PR-матрице, чтобы не замедлять обычные PR. |
+
+## Структура проекта
+
+- `client/` — исходники Flutter-приложения и тесты
+- `docs/` — подробная документация
+- `pw-test/` — Appium / WebRTC интеграционные скрипты
+- `.ai-factory/` — внутренние артефакты планирования / правил / патчей
