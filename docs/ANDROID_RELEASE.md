@@ -1,29 +1,28 @@
-# Android Release Guide
+# Гайд по Android Release-сборке
 
-How to produce a publishable Stealth Messenger APK / App Bundle.
-For day-to-day debug builds see [`../INSTALL_ANDROID.md`](../INSTALL_ANDROID.md).
+Как собрать публикабельный Stealth Messenger APK / App Bundle.
+Для повседневных debug-сборок см. [`../INSTALL_ANDROID.md`](../INSTALL_ANDROID.md).
 
-## Application identity
+## Идентичность приложения
 
-| Setting       | Value                  | Where                                    |
-| ------------- | ---------------------- | ---------------------------------------- |
-| `namespace`   | `com.stealth.messenger` | `client/android/app/build.gradle.kts`    |
-| `applicationId` | `com.stealth.messenger` | `client/android/app/build.gradle.kts`    |
+| Параметр        | Значение                | Где                                       |
+| --------------- | ----------------------- | ----------------------------------------- |
+| `namespace`     | `com.stealth.messenger` | `client/android/app/build.gradle.kts`     |
+| `applicationId` | `com.stealth.messenger` | `client/android/app/build.gradle.kts`     |
 
-If you fork the project and ship your own distribution change both
-values (and the Play Console listing). The two must stay in sync.
+Если форкнул проект и хочешь публиковать собственный дистрибутив —
+поменяй оба значения (и листинг в Play Console). Оба должны быть синхронны.
 
 ## Release keystore
 
-Release builds are signed via an optional
-`client/android/key.properties` file. When the file is absent, the
-build falls back to the debug keystore so `flutter run --release`
-keeps working locally; but the resulting artifact is **not**
-suitable for publication.
+Release-сборки подписываются опциональным файлом
+`client/android/key.properties`. Если файла нет, сборка откатывается на
+debug-keystore, чтобы `flutter run --release` продолжал работать
+локально — но артефакт **не подходит** для публикации.
 
-### One-time setup
+### Одноразовая настройка
 
-1. Generate a keystore (do this somewhere outside the repo):
+1. Сгенерируй keystore (где-нибудь вне репо):
 
    ```bash
    keytool -genkeypair -v \
@@ -32,17 +31,16 @@ suitable for publication.
      -keyalg RSA -keysize 2048 -validity 10000
    ```
 
-   Pick a strong store password and key password. Store them in a
-   password manager — Play Console will not accept a keystore swap
-   later.
+   Выбери надёжные store password и key password. Сохрани их в
+   менеджере паролей — Play Console не позволит позже подменить keystore.
 
-2. Copy the template:
+2. Скопируй шаблон:
 
    ```bash
    cp client/android/key.properties.example client/android/key.properties
    ```
 
-3. Edit `client/android/key.properties` and fill in the four fields:
+3. Отредактируй `client/android/key.properties` и заполни четыре поля:
 
    ```properties
    storeFile=/home/you/stealth-release.jks
@@ -51,56 +49,86 @@ suitable for publication.
    keyPassword=...
    ```
 
-   `key.properties` is gitignored. So is `**/*.keystore` / `**/*.jks`.
+   `key.properties` gitignored. То же касается `**/*.keystore` / `**/*.jks`.
 
-### Building
+### Сборка
 
 ```bash
 cd client
 flutter build apk --release \
   --dart-define=POCKETBASE_URL=https://signal.your.tld
 
-# or for Play Console:
+# или для Play Console:
 flutter build appbundle --release \
   --dart-define=POCKETBASE_URL=https://signal.your.tld
 ```
 
-The build script detects `key.properties` automatically and uses the
-release signing config. Verify with:
+Build-скрипт автоматически детектит `key.properties` и использует
+release signing config. Проверь подпись:
 
 ```bash
 keytool -printcert -jarfile \
   build/app/outputs/flutter-apk/app-release.apk | head -20
 ```
 
-The certificate fingerprint must NOT match the debug keystore
-fingerprint shipped with the Android SDK.
+Fingerprint сертификата **не должен** совпадать с fingerprint
+debug-keystore из Android SDK.
 
 ## Lint baseline
 
-`app/build.gradle.kts` enables `checkReleaseBuilds = true` so lint
-runs as part of every release assembly. `abortOnError` is currently
-`false` because the project does not yet ship a `lint-baseline.xml`
-checked in. Generate the baseline once and commit it to lock the
-current lint surface:
+`app/build.gradle.kts` ставит `checkReleaseBuilds = true`, поэтому lint
+гоняется при каждой release-сборке. `abortOnError` сейчас выставлен в
+`false`, потому что в репо ещё нет закоммиченного `lint-baseline.xml`.
+Сгенерируй baseline один раз и закомить, чтобы зафиксировать текущий
+lint-surface:
 
 ```bash
 cd client/android
 ./gradlew :app:updateLintBaseline
 ```
 
-After committing the baseline, flip `abortOnError = true` in
-`app/build.gradle.kts` so future regressions block the build.
+После коммита baseline переключи `abortOnError = true` в
+`app/build.gradle.kts`, чтобы будущие регрессии блокировали сборку.
 
-## Verifying the release
+## Проверка release-сборки
 
-After the build completes:
+После сборки:
 
-1. Install the APK on a clean profile / second device.
-2. Confirm the app advertises `applicationId=com.stealth.messenger`
-   (e.g. `adb shell pm list packages | grep stealth`).
-3. Trigger a real call through the configured PocketBase signaling
-   server to make sure `--dart-define` overrides reached the runtime.
-4. Run `flutter symbolize` against any obfuscated stack traces if
-   crashes occur — the release build uses Flutter's standard symbol
-   stripping.
+1. Установи APK на чистый профиль / второе устройство.
+2. Подтверди что приложение объявляет `applicationId=com.stealth.messenger`
+   (например `adb shell pm list packages | grep stealth`).
+3. Совершишь реальный звонок через настроенный PocketBase signaling
+   сервер, чтобы убедиться что `--dart-define` overrides доехали до runtime.
+4. Если возникают краши с обфусцированными стектрейсами —
+   `flutter symbolize`. Release-сборка использует стандартный
+   symbol stripping от Flutter.
+
+## CI release-сборки (task #13)
+
+Отдельный job `build-android-release` в `.github/workflows/ci.yml`
+выпускает подписанные APK + AAB ночью (`03:00 UTC`) и по запросу
+(`gh workflow run ci.yml`). Job **гейтнут на четырёх секретах** —
+все должны быть проставлены в настройках GitHub репозитория; если
+хотя бы одного нет, job пропускается с аннотацией `notice` (PR от
+форков не падают):
+
+| Секрет                    | Назначение                                          |
+| ------------------------- | --------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64` | Keystore `stealth-release.jks`, закодированный в `base64`. |
+| `ANDROID_STORE_PASSWORD`  | Пароль keystore.                                    |
+| `ANDROID_KEY_ALIAS`       | Алиас ключа внутри keystore (обычно `stealth`).     |
+| `ANDROID_KEY_PASSWORD`    | Пароль ключа внутри keystore.                       |
+
+Что делает job:
+
+1. Декодирует keystore в `$RUNNER_TEMP/stealth-release.jks`.
+2. Пишет `client/android/key.properties` из остальных трёх секретов.
+3. Запускает `flutter build apk --release` и `flutter build appbundle --release` —
+   оба опираются на уже существующее signing-wiring в
+   `client/android/app/build.gradle.kts`.
+4. Загружает оба артефакта (`android-release`, хранится 14 дней).
+
+Рядом есть sibling-job `analyze-macos` на `04:00 UTC` (и
+`workflow_dispatch`), который гоняет `flutter analyze` + `flutter test`
+на `macos-latest`. В PR-матрице его НЕТ — это сохраняет короткий
+PR cycle time.

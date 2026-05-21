@@ -7,6 +7,12 @@ on:
   pull_request:
     branches:
       - main
+  # Task #13: manual trigger for the heavy release + macOS jobs.
+  workflow_dispatch:
+  # Task #13: nightly release-apk + macOS smoke. UTC.
+  schedule:
+    - cron: '0 3 * * *'  # 03:00 UTC → build-android-release
+    - cron: '0 4 * * *'  # 04:00 UTC → analyze-macos
 
 # Cancel in-flight runs for the same ref when a new commit is pushed.
 concurrency:
@@ -27,6 +33,20 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+
+      - name: Guard - zero Supabase references in code
+        working-directory: ${{ github.workspace }}
+        run: |
+          # Project is local-first: signaling stays on PocketBase only.
+          # No external cloud backend may be reintroduced under any name.
+          # Scan source/test paths only — historical docs, plans, and
+          # this guard's own self-reference are out of scope (task #15
+          # archive of .ai-factory/specs/post-pocketbase-hardening.md).
+          if git grep -in -e supabase -e Supabase -- 'client/' 'pw-test/'; then
+            echo "::error::Cloud backend reference reappeared in code. The project is local-first; signaling stays on PocketBase only. See .ai-factory/rules/base.md and the post-pocketbase-hardening archive (.ai-factory/specs/)."
+            exit 1
+          fi
+          echo "OK: code paths clean (client/, pw-test/)"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -64,6 +84,21 @@ jobs:
       - name: flutter test
         run: flutter test --coverage --reporter expanded
 
+  pw-test-lint:
+    name: pw-test contact-bundle lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint pw-test contact-bundle usage
+        working-directory: ${{ github.workspace }}
+        run: node pw-test/lint-contact-bundle.mjs
+
   build-web:
     name: build web
     runs-on: ubuntu-latest
@@ -93,7 +128,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: analyze-and-test
-    if: false  # temporarily disabled — slow and not needed right now; flip to `true` (or remove) to re-enable
     steps:
       - uses: actions/checkout@v4
 
@@ -158,3 +192,111 @@ jobs:
             exit 0
           fi
           flutter test test/services/signaling/pocketbase_signaling_smoke_test.dart
+
+  # Task #13: signed Android release APK + AAB. Runs nightly (03:00 UTC)
+  # and on-demand via `workflow_dispatch`. The build.gradle.kts signing
+  # wiring already exists (client/android/app/build.gradle.kts:18-71);
+  # this job just bridges secrets into key.properties at runtime.
+  # If the keystore secret is missing (e.g. PR from a fork), the job
+  # is skipped entirely so we don't fail unrelated builds.
+  build-android-release:
+    name: build android (release apk + aab)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: >-
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'schedule')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Decode keystore (skip job if secret absent)
+        id: keystore
+        working-directory: ${{ github.workspace }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::notice::ANDROID_KEYSTORE_BASE64 secret not configured — skipping signed release build"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/stealth-release.jks"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "keystore_path=$RUNNER_TEMP/stealth-release.jks" >> "$GITHUB_OUTPUT"
+
+      - name: Write key.properties from secrets
+        if: steps.keystore.outputs.skip != 'true'
+        working-directory: ${{ github.workspace }}
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > client/android/key.properties <<EOF
+          storeFile=${{ steps.keystore.outputs.keystore_path }}
+          storePassword=${STORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      - name: flutter pub get
+        if: steps.keystore.outputs.skip != 'true'
+        run: flutter pub get
+
+      - name: flutter build apk --release
+        if: steps.keystore.outputs.skip != 'true'
+        run: flutter build apk --release
+
+      - name: flutter build appbundle --release
+        if: steps.keystore.outputs.skip != 'true'
+        run: flutter build appbundle --release
+
+      - name: Upload release artifacts
+        if: steps.keystore.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: |
+            client/build/app/outputs/flutter-apk/app-release.apk
+            client/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+  # Task #13: macOS-side analyze + test. Catches macOS-specific path /
+  # case sensitivity issues without slowing every PR. On-demand or
+  # nightly (04:00 UTC) only.
+  analyze-macos:
+    name: analyze + test (macos)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    if: >-
+      (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'schedule')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test --reporter expanded

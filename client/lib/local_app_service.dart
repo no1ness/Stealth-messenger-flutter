@@ -3,256 +3,99 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-import 'crypto/ratchet_service.dart';
+import 'crypto/aes_bytes.dart';
 import 'local_database_service.dart';
+import 'logging/logger.dart';
 import 'p2p_service.dart';
+import 'services/attachments/attachment_service.dart';
+import 'services/calls/call_history_service.dart';
+import 'services/contacts/contact_service.dart';
+import 'services/identity/identity_service.dart';
+import 'services/messaging/message_service.dart';
 import 'storage_service.dart';
 
 class LocalAppService {
-  LocalAppService();
+  LocalAppService() {
+    // Wire group-encryption callbacks into MessageService and
+    // AttachmentService. Group secrets still live in LocalAppService
+    // (deferred until a dedicated GroupEncryptionService is extracted).
+    _messages.attachGroupCrypto(
+      encryptGroup: _encryptGroupMessage,
+      decryptGroup: _decryptGroupMessage,
+    );
+    _messages.attachAttachmentCompactor(_attachments.compactDescriptor);
+    _attachments.attachGroupKeyResolver(_loadOrCreateGroupSecretKey);
+    // Tasks #9 + #12: fire-and-forget background workers. Both touch
+    // LocalDatabaseService (which needs path_provider / IndexedDB
+    // platform bindings); in unit tests without TestWidgetsFlutterBinding
+    // the calls throw. We swallow those errors so test setup that
+    // constructs LocalAppService doesn't fail just because the DB
+    // backend isn't wired.
+    unawaited(_kickoffBackgroundWorkers());
+  }
+
+  Future<void> _kickoffBackgroundWorkers() async {
+    try {
+      await P2PService.instance.startRetryWorker();
+    } catch (error) {
+      Logger.debug(
+        '[bootstrap] retry worker deferred (likely test env / DB unavailable)',
+        extras: {'error': error},
+      );
+    }
+    try {
+      await _attachments.evictOldBlobs();
+    } catch (error) {
+      Logger.debug(
+        '[bootstrap] attachment eviction deferred (likely test env / DB unavailable)',
+        extras: {'error': error},
+      );
+    }
+  }
 
   final StorageService _storage = StorageService();
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final Uuid _uuid = const Uuid();
-  final X25519 _algorithm = X25519();
   final AesGcm _aes = AesGcm.with256bits();
-  final RatchetService _ratchet = RatchetService();
-  final Map<String, SecretKey> _sharedSecretCache = {};
+  final IdentityService _identity = IdentityService();
+  final ContactService _contacts = ContactService();
+  final MessageService _messages = MessageService();
+  final AttachmentService _attachments = AttachmentService();
+  final CallHistoryService _callHistory = CallHistoryService();
   final Map<String, SecretKey> _groupSecretCache = {};
-  final Map<String, String?> _nicknameCache = {};
-  final Map<String, Map<String, dynamic>> _lastSearchResults = {};
 
-  Future<String> _encryptBytesWithSecret(
-    Uint8List bytes,
-    SecretKey secretKey,
-  ) async {
-    final secretBox = await _aes.encrypt(bytes, secretKey: secretKey);
-    final combined = Uint8List(
-      secretBox.nonce.length +
-          secretBox.cipherText.length +
-          secretBox.mac.bytes.length,
-    );
-    combined.setRange(0, secretBox.nonce.length, secretBox.nonce);
-    combined.setRange(
-      secretBox.nonce.length,
-      secretBox.nonce.length + secretBox.cipherText.length,
-      secretBox.cipherText,
-    );
-    combined.setRange(
-      secretBox.nonce.length + secretBox.cipherText.length,
-      combined.length,
-      secretBox.mac.bytes,
-    );
-    return base64Encode(combined);
-  }
+  // Byte-level AES-GCM encrypt/decrypt now lives in
+  // `client/lib/crypto/aes_bytes.dart` (top-level `encryptBytesWithSecret`
+  // / `decryptBytesWithSecret`). Chat-shape / shared-secret helpers moved
+  // to MessageService (task #6). Attachment helpers and group-encryption
+  // code reach them via `_messages.{getSharedSecret,isGroupChat,
+  // getOtherUserId}` + the top-level crypto helpers.
 
-  Future<Uint8List> _decryptBytesWithSecret(
-    String payload,
-    SecretKey secretKey,
-  ) async {
-    final combined = base64Decode(payload);
-    const nonceLength = 12;
-    const macLength = 16;
-    final nonce = combined.sublist(0, nonceLength);
-    final mac = Mac(combined.sublist(combined.length - macLength));
-    final cipherText = combined.sublist(
-      nonceLength,
-      combined.length - macLength,
-    );
-    final clearText = await _aes.decrypt(
-      SecretBox(cipherText, nonce: nonce, mac: mac),
-      secretKey: secretKey,
-    );
-    return Uint8List.fromList(clearText);
-  }
-
-  Future<SimpleKeyPair> _getOwnKeyPair() async {
-    final privateKeyBase64 = await _storage.read('privateKey');
-    final publicKeyBase64 = await _storage.read('publicKey');
-    if (privateKeyBase64 == null || publicKeyBase64 == null) {
-      throw Exception('Keys not found. User might not be registered.');
-    }
-
-    return SimpleKeyPairData(
-      base64Decode(privateKeyBase64),
-      publicKey: SimplePublicKey(
-        base64Decode(publicKeyBase64),
-        type: KeyPairType.x25519,
-      ),
-      type: KeyPairType.x25519,
-    );
-  }
-
-  Future<SimplePublicKey> _getOtherPublicKey(String userId) async {
-    final me = await getUserId();
-    if (userId == me) {
-      final ownPublicKey = await _storage.read('publicKey');
-      if (ownPublicKey == null || ownPublicKey.isEmpty) {
-        throw Exception('Own public key is missing.');
-      }
-      return SimplePublicKey(
-        base64Decode(ownPublicKey),
-        type: KeyPairType.x25519,
-      );
-    }
-
-    final contacts = await _localDb.getContacts();
-    for (final contact in contacts) {
-      final id = (contact['contact_user_id'] ?? contact['user_id'])?.toString();
-      if (id == userId) {
-        final publicKey = contact['public_key']?.toString();
-        if (publicKey != null && publicKey.isNotEmpty) {
-          return SimplePublicKey(
-            base64Decode(publicKey),
-            type: KeyPairType.x25519,
-          );
-        }
-      }
-    }
-    throw Exception(
-      'Missing public key for $userId. Add the contact from a Stealth contact bundle.',
-    );
-  }
-
-  Future<SecretKey> _getSharedSecret(String otherUserId) async {
-    if (_sharedSecretCache.containsKey(otherUserId)) {
-      return _sharedSecretCache[otherUserId]!;
-    }
-
-    final ownKeyPair = await _getOwnKeyPair();
-    final otherPublicKey = await _getOtherPublicKey(otherUserId);
-    final sharedSecret = await _algorithm.sharedSecretKey(
-      keyPair: ownKeyPair,
-      remotePublicKey: otherPublicKey,
-    );
-    _sharedSecretCache[otherUserId] = sharedSecret;
-    return sharedSecret;
-  }
-
-  Future<List<String>> _getChatMemberIds(String chatId) async {
-    final chat = await _localDb.getChatById(chatId);
-    final rawMembers = chat?['members'];
-    if (rawMembers is List) {
-      return rawMembers.map((member) => member.toString()).toList();
-    }
-    return const [];
-  }
-
-  Future<String?> _getOtherUserId(String chatId) async {
-    final me = await getUserId();
-    final members = await _getChatMemberIds(chatId);
-    for (final member in members) {
-      if (member != me) {
-        return member;
-      }
-    }
-    return null;
-  }
-
-  Future<bool> _isGroupChat(String chatId) async {
-    final chat = await _localDb.getChatById(chatId);
-    final isPrivate = chat?['is_private'];
-    if (isPrivate is bool) {
-      return !isPrivate;
-    }
-    return (await _getChatMemberIds(chatId)).length != 2;
-  }
+  // Message-domain methods delegate to MessageService (task #6). The
+  // group-encryption callbacks are wired in this class's constructor.
 
   Future<String> encryptMessage(
     String content,
     String otherUserId, {
     int? ratchetIndex,
-  }) async {
-    SecretKey key;
-    if (ratchetIndex != null) {
-      final myId = (await getUserId())!;
-      final sharedSecret = await _getSharedSecret(otherUserId);
-      final chains =
-          await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-      key =
-          await _ratchet.getNthMessageKey(chains['mySendChain']!, ratchetIndex);
-    } else {
-      key = await _getSharedSecret(otherUserId);
-    }
-    return _encryptBytesWithSecret(
-      Uint8List.fromList(utf8.encode(content)),
-      key,
-    );
-  }
+  }) =>
+      _messages.encryptMessage(content, otherUserId,
+          ratchetIndex: ratchetIndex);
 
   Future<String> decryptMessage(
     String payload,
     String otherUserId, {
     int? ratchetIndex,
     bool senderIsMe = false,
-  }) async {
-    try {
-      if (!RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(payload)) {
-        return payload;
-      }
-
-      SecretKey key;
-      if (ratchetIndex != null) {
-        final myId = (await getUserId())!;
-        final sharedSecret = await _getSharedSecret(otherUserId);
-        final chains =
-            await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-        final chainKey =
-            senderIsMe ? chains['mySendChain']! : chains['theirSendChain']!;
-        key = await _ratchet.getNthMessageKey(chainKey, ratchetIndex);
-      } else {
-        key = await _getSharedSecret(otherUserId);
-      }
-      final decrypted = await _decryptBytesWithSecret(payload, key);
-      return utf8.decode(decrypted);
-    } catch (error) {
-      debugPrint('[FIX:local-only] decryptMessage failed: $error');
-      return payload;
-    }
-  }
+  }) =>
+      _messages.decryptMessage(payload, otherUserId,
+          ratchetIndex: ratchetIndex, senderIsMe: senderIsMe);
 
   Future<Map<String, dynamic>> decryptRawMessage(
-    Map<String, dynamic> row,
-  ) async {
-    final message = Map<String, dynamic>.from(row);
-    if (message['deleted_at'] != null) {
-      return message;
-    }
-
-    final metadata =
-        message['metadata'] as Map<String, dynamic>? ?? const {};
-    final encryption = metadata['encryption'] as String?;
-    final ratchetIndex = metadata['sender_ratchet_index'] as int?;
-    final senderId = message['sender_id'] as String?;
-    final me = await getUserId();
-
-    try {
-      if (encryption == 'group_e2e') {
-        message['content'] = await _decryptGroupMessage(
-          message['chat_id'] as String,
-          message['content'] as String,
-        );
-      } else {
-        final otherUserId =
-            senderId == me ? await _getOtherUserId(message['chat_id'] as String) : senderId;
-        if (otherUserId != null && otherUserId.isNotEmpty) {
-          message['content'] = await decryptMessage(
-            message['content'] as String,
-            otherUserId,
-            ratchetIndex: ratchetIndex,
-            senderIsMe: me != null && senderId == me,
-          );
-        }
-      }
-    } catch (error) {
-      debugPrint('[FIX:local-only] decryptRawMessage failed: $error');
-    }
-    return message;
-  }
+          Map<String, dynamic> row) =>
+      _messages.decryptRawMessage(row);
 
   Future<SecretKey> _loadOrCreateGroupSecretKey(String chatId) async {
     if (_groupSecretCache.containsKey(chatId)) {
@@ -273,103 +116,41 @@ class LocalAppService {
 
   Future<String> _encryptGroupMessage(String chatId, String content) async {
     final key = await _loadOrCreateGroupSecretKey(chatId);
-    return _encryptBytesWithSecret(Uint8List.fromList(utf8.encode(content)), key);
+    return encryptBytesWithSecret(Uint8List.fromList(utf8.encode(content)), key);
   }
 
   Future<String> _decryptGroupMessage(String chatId, String payload) async {
     final key = await _loadOrCreateGroupSecretKey(chatId);
-    final bytes = await _decryptBytesWithSecret(payload, key);
+    final bytes = await decryptBytesWithSecret(payload, key);
     return utf8.decode(bytes);
   }
 
-  Future<String?> getUserId() => _storage.read('userId');
+  // Identity-domain methods delegate to IdentityService (task #5).
+  Future<String?> getUserId() => _identity.getUserId();
 
-  Future<String?> getNickname() => _storage.read('nickname');
+  Future<String?> getNickname() => _identity.getNickname();
 
   Future<void> updateNickname(String nickname) async {
-    await _storage.write('nickname', nickname);
-    final userId = await getUserId();
-    if (userId != null) {
-      _nicknameCache[userId] = nickname;
-    }
+    await _identity.updateNickname(nickname);
+    final me = await _identity.getUserId();
+    if (me != null) _contacts.invalidateNicknameFor(me);
   }
 
-  Future<void> registerUser(String nickname) async {
-    final userId = _uuid.v4();
-    final keyPair = await _algorithm.newKeyPair();
-    final publicKey = await keyPair.extractPublicKey();
-    final privateKey = await keyPair.extractPrivateKeyBytes();
-
-    await _storage.write('userId', userId);
-    await _storage.write('nickname', nickname);
-    await _storage.write('privateKey', base64Encode(privateKey));
-    await _storage.write('publicKey', base64Encode(publicKey.bytes));
-    await _storage.write('registeredAt', DateTime.now().toIso8601String());
-    debugPrint('[FIX:local-only] registered local identity userId=$userId');
-  }
+  Future<void> registerUser(String nickname) => _identity.registerUser(nickname);
 
   Future<void> logout() async {
-    await _storage.deleteAll();
-    _sharedSecretCache.clear();
+    await _identity.logout();
+    _messages.clearCaches();
     _groupSecretCache.clear();
-    _nicknameCache.clear();
+    _contacts.clearCaches();
   }
 
-  Future<String> generateQRCode() async {
-    final userId = await getUserId();
-    final nickname = await getNickname();
-    final publicKey = await _storage.read('publicKey');
-    if (userId == null || publicKey == null) {
-      return '';
-    }
-    return _encodeContactBundle({
-      'user_id': userId,
-      'name': nickname ?? userId,
-      'public_key': publicKey,
-    });
-  }
+  Future<String> generateQRCode() => _identity.generateQRCode();
 
-  String _encodeContactBundle(Map<String, dynamic> contact) {
-    final json = jsonEncode({
-      'v': 1,
-      'user_id': contact['user_id'],
-      'name': contact['name'],
-      'public_key': contact['public_key'],
-    });
-    return 'stealth:${base64UrlEncode(utf8.encode(json))}';
-  }
-
-  String _normalizeBase64Url(String value) {
-    final remainder = value.length % 4;
-    return remainder == 0
-        ? value
-        : value.padRight(value.length + 4 - remainder, '=');
-  }
-
-  Map<String, dynamic>? _decodeContactBundle(String input) {
-    final trimmed = input.trim();
-    if (!trimmed.startsWith('stealth:')) return null;
-    try {
-      final encoded = trimmed.substring('stealth:'.length);
-      final decoded = utf8.decode(base64Url.decode(_normalizeBase64Url(encoded)));
-      final data = jsonDecode(decoded) as Map<String, dynamic>;
-      final userId = data['user_id']?.toString();
-      final publicKey = data['public_key']?.toString();
-      if (userId == null || userId.isEmpty || publicKey == null || publicKey.isEmpty) {
-        return null;
-      }
-      return {
-        'user_id': userId,
-        'contact_user_id': userId,
-        'name': data['name']?.toString() ?? userId,
-        'nickname': data['name']?.toString() ?? userId,
-        'public_key': publicKey,
-      };
-    } catch (error) {
-      debugPrint('[FIX:local-only] invalid contact bundle: $error');
-      return null;
-    }
-  }
+  // Attachment helpers (_normalizeBase64Url + _compactLocalAttachmentDescriptor)
+  // moved to AttachmentService (task #7). LocalAppService accesses them via
+  // `_attachments.compactDescriptor(...)` (wired into MessageService in the
+  // constructor) and never directly.
 
   Future<String?> findOrCreatePrivateChatWith(String otherUserId) async {
     final me = await getUserId();
@@ -398,7 +179,10 @@ class LocalAppService {
       'updated_at': now,
       'last_read_at': now,
     });
-    debugPrint('[FIX:local-only] created private chat chatId=$chatId');
+    Logger.info(
+      '[local-only] created private chat',
+      extras: {'chatId': chatId},
+    );
     return chatId;
   }
 
@@ -506,19 +290,8 @@ class LocalAppService {
     String chatId, {
     int limit = 40,
     int offset = 0,
-  }) async {
-    final messages = await _localDb.getMessages(chatId);
-    final visible = messages
-        .where((message) => message['deleted_at'] == null)
-        .map((message) => Map<String, dynamic>.from(message))
-        .toList()
-      ..sort(
-        (a, b) => (a['created_at']?.toString() ?? '')
-            .compareTo(b['created_at']?.toString() ?? ''),
-      );
-    final page = visible.skip(offset).take(limit).toList();
-    return Future.wait(page.map(decryptRawMessage));
-  }
+  }) =>
+      _messages.getMessages(chatId, limit: limit, offset: offset);
 
   Future<void> sendMessage({
     required String chatId,
@@ -526,217 +299,65 @@ class LocalAppService {
     required String type,
     String? replyToId,
     Map<String, dynamic>? metadataOverride,
-  }) async {
-    final me = await getUserId();
-    if (me == null) return;
-
-    final isGroupChat = await _isGroupChat(chatId);
-    final otherUserId = isGroupChat ? null : await _getOtherUserId(chatId);
-    if (!isGroupChat && (otherUserId == null || otherUserId.isEmpty)) {
-      return;
-    }
-    final localMessages = await _localDb.getMessages(chatId);
-    final ratchetIndex = isGroupChat
-        ? null
-        : localMessages
-            .where(
-              (message) =>
-                  message['sender_id'] == me &&
-                  (message['metadata'] as Map<String, dynamic>? ?? {})
-                      .containsKey('sender_ratchet_index'),
-            )
-            .length;
-
-    String encryptedContent;
-    try {
-      encryptedContent = isGroupChat
-          ? await _encryptGroupMessage(chatId, content)
-          : await encryptMessage(
-              content,
-              otherUserId!,
-              ratchetIndex: ratchetIndex,
-            );
-    } catch (error) {
-      debugPrint('[FIX:local-only] sendMessage encryption blocked: $error');
-      return;
-    }
-
-    final metadata = <String, dynamic>{
-      'encryption': isGroupChat ? 'group_e2e' : 'e2e',
-      if (metadataOverride != null) ...metadataOverride,
-      if (ratchetIndex != null) 'sender_ratchet_index': ratchetIndex,
-    };
-    final now = DateTime.now().toIso8601String();
-    final messageMap = {
-      'id': _uuid.v4(),
-      'chat_id': chatId,
-      'sender_id': me,
-      'content': encryptedContent,
-      'message_type': type,
-      'reply_to_id': replyToId,
-      'metadata': metadata,
-      'created_at': now,
-    };
-
-    await _localDb.saveMessage(messageMap, synced: true);
-    final chat = await _localDb.getChatById(chatId);
-    if (chat != null) {
-      chat['updated_at'] = now;
-      await _localDb.saveChat(chat);
-    }
-
-    if (!isGroupChat) {
-      final prefs = await SharedPreferences.getInstance();
-      final useP2P = prefs.getBool('useP2P') ?? true;
-      if (useP2P) {
-        await P2PService.instance.sendP2PMessage(chatId, messageMap);
-      }
-    }
-  }
+  }) =>
+      _messages.sendMessage(
+        chatId: chatId,
+        content: content,
+        type: type,
+        replyToId: replyToId,
+        metadataOverride: metadataOverride,
+      );
 
   Future<void> editMessage({
     required String messageId,
     required String chatId,
     required String content,
-  }) async {
-    final messages = await _localDb.getMessages(chatId);
-    final existing = messages.firstWhere(
-      (message) => message['id'] == messageId,
-      orElse: () => <String, dynamic>{},
-    );
-    if (existing.isEmpty) return;
-    final me = await getUserId();
-    final isGroupChat = await _isGroupChat(chatId);
-    final otherUserId = isGroupChat ? null : await _getOtherUserId(chatId);
-    if (!isGroupChat && (otherUserId == null || otherUserId.isEmpty)) {
-      return;
-    }
-    final encrypted = isGroupChat
-        ? await _encryptGroupMessage(chatId, content)
-        : await encryptMessage(content, otherUserId!);
-    existing['content'] = encrypted;
-    existing['edited_at'] = DateTime.now().toIso8601String();
-    existing['sender_id'] = existing['sender_id'] ?? me;
-    await _localDb.saveMessage(existing, synced: true);
-  }
+  }) =>
+      _messages.editMessage(
+          messageId: messageId, chatId: chatId, content: content);
 
-  Future<void> softDeleteMessage({required String messageId}) async {
-    final chats = await _localDb.getChats();
-    for (final chat in chats) {
-      final messages = await _localDb.getMessages(chat['id'].toString());
-      for (final message in messages) {
-        if (message['id'] == messageId) {
-          message['deleted_at'] = DateTime.now().toIso8601String();
-          await _localDb.saveMessage(message, synced: true);
-          return;
-        }
-      }
-    }
-  }
+  Future<void> softDeleteMessage({required String messageId}) =>
+      _messages.softDeleteMessage(messageId: messageId);
 
   Future<void> pinMessage({
     required String chatId,
     required String messageId,
-  }) async {
-    final chat = await _localDb.getChatById(chatId);
-    if (chat == null) return;
-    chat['pinned_message_id'] = messageId;
-    await _localDb.saveChat(chat);
-  }
+  }) =>
+      _messages.pinMessage(chatId: chatId, messageId: messageId);
 
-  Future<void> unpinMessage({required String chatId}) async {
-    final chat = await _localDb.getChatById(chatId);
-    if (chat == null) return;
-    chat.remove('pinned_message_id');
-    await _localDb.saveChat(chat);
-  }
+  Future<void> unpinMessage({required String chatId}) =>
+      _messages.unpinMessage(chatId: chatId);
 
-  Future<Map<String, dynamic>?> getPinnedMessage(String chatId) async {
-    final chat = await _localDb.getChatById(chatId);
-    final pinnedId = chat?['pinned_message_id']?.toString();
-    if (pinnedId == null || pinnedId.isEmpty) return null;
-    final messages = await getMessages(chatId, limit: 1000);
-    for (final message in messages.cast<Map<String, dynamic>>()) {
-      if (message['id'] == pinnedId) return message;
-    }
-    return null;
-  }
+  Future<Map<String, dynamic>?> getPinnedMessage(String chatId) =>
+      _messages.getPinnedMessage(chatId);
 
+  // Attachment-domain methods delegate to AttachmentService (task #7).
   Future<String?> uploadAttachmentBytes({
     required Uint8List bytes,
     required String fileName,
     required String chatId,
     bool encrypt = true,
     bool? isGroupChat,
-  }) async {
-    final groupChat = isGroupChat ?? await _isGroupChat(chatId);
-    final otherUserId = groupChat ? null : await _getOtherUserId(chatId);
-    if (!groupChat && (otherUserId == null || otherUserId.isEmpty)) {
-      return null;
-    }
-    final key = groupChat
-        ? await _loadOrCreateGroupSecretKey(chatId)
-        : await _getSharedSecret(otherUserId!);
-    if (!encrypt) {
-      debugPrint('[FIX:local-only] attachments are stored encrypted; encrypt=false ignored');
-    }
-    final encryptedPayload = await _encryptBytesWithSecret(bytes, key);
-    final descriptor = {
-      'v': 1,
-      'fileName': fileName,
-      'chatId': chatId,
-      'isGroupChat': groupChat,
-      'encrypted': encrypt,
-      'payload': encryptedPayload,
-    };
-    return 'local-attachment:${base64UrlEncode(utf8.encode(jsonEncode(descriptor)))}';
-  }
+  }) =>
+      _attachments.uploadBytes(
+        bytes: bytes,
+        fileName: fileName,
+        chatId: chatId,
+        encrypt: encrypt,
+        isGroupChat: isGroupChat,
+      );
 
   Future<Uint8List?> downloadAttachment(
     String url,
     String chatId, {
     bool encrypted = true,
     bool? isGroupChat,
-  }) async {
-    if (!url.startsWith('local-attachment:')) {
-      return null;
-    }
-    try {
-      final encoded = url.substring('local-attachment:'.length);
-      final data = jsonDecode(
-        utf8.decode(base64Url.decode(_normalizeBase64Url(encoded))),
-      ) as Map<String, dynamic>;
-      final payload = data['payload'] as String;
-      final descriptorEncrypted = data['encrypted'] as bool? ?? encrypted;
-      if (!descriptorEncrypted) {
-        return Uint8List.fromList(base64Decode(payload));
-      }
-      final groupChat = isGroupChat ?? (data['isGroupChat'] as bool? ?? await _isGroupChat(chatId));
-      final key = groupChat
-          ? await _loadOrCreateGroupSecretKey(chatId)
-          : await _getSharedSecret((await _getOtherUserId(chatId))!);
-      return _decryptBytesWithSecret(payload, key);
-    } catch (error) {
-      debugPrint('[FIX:local-only] downloadAttachment failed: $error');
-      return null;
-    }
-  }
+  }) =>
+      _attachments.download(url, chatId,
+          encrypted: encrypted, isGroupChat: isGroupChat);
 
-  Future<Map<String, dynamic>> getStorageDebugSummary() async {
-    final messages = <Map<String, dynamic>>[];
-    for (final chat in await _localDb.getChats()) {
-      messages.addAll(await _localDb.getMessages(chat['id'].toString()));
-    }
-    final attachmentCount = messages
-        .where((message) => message['content']?.toString().startsWith('local-attachment:') ?? false)
-        .length;
-    return {
-      'localMediaReady': true,
-      'bucketReady': true,
-      'fileCount': attachmentCount,
-      'bucketName': 'local encrypted storage',
-    };
-  }
+  Future<Map<String, dynamic>> getStorageDebugSummary() =>
+      _attachments.getStorageDebugSummary();
 
   Future<Map<String, dynamic>> getDashboardSummary() async {
     final chats = await _localDb.getChats();
@@ -774,16 +395,8 @@ class LocalAppService {
     return counts.map((count) => count == 0 ? 0.12 : count / maxCount).toList();
   }
 
-  Future<Map<String, dynamic>?> fetchLastMessage(String chatId) async {
-    final messages = await getMessages(chatId, limit: 1000);
-    if (messages.isEmpty) return null;
-    final list = messages.cast<Map<String, dynamic>>()
-      ..sort(
-        (a, b) => (a['created_at']?.toString() ?? '')
-            .compareTo(b['created_at']?.toString() ?? ''),
-      );
-    return list.last;
-  }
+  Future<Map<String, dynamic>?> fetchLastMessage(String chatId) =>
+      _messages.fetchLastMessage(chatId);
 
   Future<DateTime?> getLastSeen(String chatId) async {
     final chat = await _localDb.getChatById(chatId);
@@ -799,141 +412,44 @@ class LocalAppService {
     }).length;
   }
 
-  Future<List<dynamic>> getContacts() async {
-    final contacts = await _localDb.getContacts();
-    return contacts.map((contact) {
-      final copy = Map<String, dynamic>.from(contact);
-      copy['user_id'] ??= copy['contact_user_id'];
-      copy['name'] ??= copy['nickname'] ?? copy['user_id'];
-      return copy;
-    }).toList();
-  }
+  // Contact-domain methods delegate to ContactService (task #5).
+  Future<List<dynamic>> getContacts() => _contacts.getContacts();
 
-  Future<void> deleteContact(String userId) => _localDb.deleteContact(userId);
+  Future<void> deleteContact(String userId) => _contacts.deleteContact(userId);
 
-  Future<void> getNicknames(Set<String> userIds) async {
-    for (final id in userIds) {
-      _nicknameCache[id] = await getNicknameForUser(id);
-    }
-  }
+  Future<void> getNicknames(Set<String> userIds) =>
+      _contacts.getNicknames(userIds);
 
-  Future<String?> getNicknameForUser(String userId) async {
-    if (_nicknameCache.containsKey(userId)) {
-      return _nicknameCache[userId];
-    }
-    final me = await getUserId();
-    if (userId == me) {
-      final nickname = await getNickname();
-      _nicknameCache[userId] = nickname;
-      return nickname;
-    }
-    for (final contact in await _localDb.getContacts()) {
-      final id = (contact['contact_user_id'] ?? contact['user_id'])?.toString();
-      if (id == userId) {
-        final nickname =
-            (contact['nickname'] ?? contact['name'] ?? userId).toString();
-        _nicknameCache[userId] = nickname;
-        return nickname;
-      }
-    }
-    return null;
-  }
+  Future<String?> getNicknameForUser(String userId) =>
+      _contacts.getNicknameForUser(userId);
 
-  Future<String?> getUserNicknameById(String userId) => getNicknameForUser(userId);
+  Future<String?> getUserNicknameById(String userId) =>
+      _contacts.getUserNicknameById(userId);
 
-  Future<String?> getUserNickname() => getNickname();
+  Future<String?> getUserNickname() => _contacts.getUserNickname();
 
-  Future<String?> getSafetyNumber(String otherUserId) async {
-    final ownPublic = await _storage.read('publicKey');
-    late final String otherPublic;
-    try {
-      final key = await _getOtherPublicKey(otherUserId);
-      otherPublic = base64Encode(key.bytes);
-    } catch (_) {
-      return null;
-    }
-    if (ownPublic == null || ownPublic.isEmpty || otherPublic.isEmpty) {
-      return null;
-    }
-    final bytes = utf8.encode('$ownPublic:$otherPublic');
-    final hash = await Sha256().hash(bytes);
-    return base64Encode(hash.bytes).replaceAll('=', '').substring(0, 32);
-  }
+  Future<String?> getSafetyNumber(String otherUserId) =>
+      _contacts.getSafetyNumber(otherUserId);
 
-  Future<void> addContact(String userId) async {
-    final cached = _lastSearchResults[userId];
-    if (cached == null || (cached['public_key']?.toString().isNotEmpty != true)) {
-      debugPrint(
-        '[FIX:local-only] contact add blocked: missing contact bundle/public key for $userId',
-      );
-      return;
-    }
-    final now = DateTime.now().toIso8601String();
-    final contact = {
-      'contact_user_id': userId,
-      'user_id': userId,
-      'name': cached['name'] ?? userId,
-      'nickname': cached['nickname'] ?? cached['name'] ?? userId,
-      'public_key': cached['public_key'],
-      'created_at': now,
-    };
-    await _localDb.saveContact(contact);
-    _nicknameCache[userId] = contact['nickname']?.toString();
-    debugPrint('[FIX:local-only] saved local contact userId=$userId');
-  }
+  Future<void> addContact(String userId) => _contacts.addContact(userId);
 
-  Future<List<dynamic>> searchUsers(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return const [];
+  Future<List<dynamic>> searchUsers(String query) =>
+      _contacts.searchUsers(query);
 
-    final bundle = _decodeContactBundle(trimmed);
-    if (bundle != null) {
-      _lastSearchResults[bundle['user_id'] as String] = bundle;
-      return [bundle];
-    }
+  Future<void> markChatRead(String chatId) => _messages.markChatRead(chatId);
 
-    final results = <Map<String, dynamic>>[];
-    final me = await getUserId();
-    final nickname = await getNickname();
-    final publicKey = await _storage.read('publicKey');
-    if (me != null &&
-        (me == trimmed || (nickname ?? '').toLowerCase().contains(trimmed.toLowerCase()))) {
-      final self = {
-        'user_id': me,
-        'contact_user_id': me,
-        'name': nickname ?? me,
-        'nickname': nickname ?? me,
-        'public_key': publicKey ?? '',
-      };
-      _lastSearchResults[me] = self;
-      results.add(self);
-    }
-
-    for (final contact in await getContacts()) {
-      final id = contact['user_id']?.toString() ?? '';
-      final name = contact['name']?.toString() ?? '';
-      if (id == trimmed || name.toLowerCase().contains(trimmed.toLowerCase())) {
-        final row = Map<String, dynamic>.from(contact as Map);
-        _lastSearchResults[id] = row;
-        results.add(row);
-      }
-    }
-
-    return results;
-  }
-
-  Future<void> markChatRead(String chatId) async {
-    final chat = await _localDb.getChatById(chatId);
-    if (chat == null) return;
-    chat['last_read_at'] = DateTime.now().toIso8601String();
-    await _localDb.saveChat(chat);
-  }
+  /// User-initiated retry of a failed outgoing 1:1 message (task #10
+  /// failed-state UI tap). Delegates to MessageService → P2PService.
+  Future<void> retryNow(String messageId) => _messages.retryNow(messageId);
 
   Future<void> setTypingStatus({
     required String chatId,
     required bool isTyping,
   }) async {
-    debugPrint('[FIX:local-only] typing status local-only chatId=$chatId isTyping=$isTyping');
+    Logger.debug(
+      '[local-only] typing status local-only',
+      extras: {'chatId': chatId, 'isTyping': isTyping},
+    );
   }
 
   Future<DateTime?> getOtherLastReadAt(String chatId) async => null;
@@ -942,52 +458,28 @@ class LocalAppService {
     unawaited(P2PService.instance.subscribeSignaling(chatId));
   }
 
+  // Call-history methods delegate to CallHistoryService (task #7).
   Future<void> recordIncomingCall({
     required String chatId,
     required String fromUserId,
     required String fromNickname,
-  }) async {
-    await _localDb.saveCall({
-      'id': _uuid.v4(),
-      'chat_id': chatId,
-      'direction': 'incoming',
-      'status': 'initiated',
-      'peer_user_id': fromUserId,
-      'peer_nickname': fromNickname,
-      'started_at': DateTime.now().toIso8601String(),
-    });
-  }
+  }) =>
+      _callHistory.recordIncomingCall(
+        chatId: chatId,
+        fromUserId: fromUserId,
+        fromNickname: fromNickname,
+      );
 
   Future<void> markIncomingCallDeclined({
     required String chatId,
     required String fromUserId,
-  }) async {
-    await _localDb.saveCall({
-      'id': _uuid.v4(),
-      'chat_id': chatId,
-      'direction': 'incoming',
-      'status': 'declined',
-      'peer_user_id': fromUserId,
-      'started_at': DateTime.now().toIso8601String(),
-    });
-  }
+  }) =>
+      _callHistory.markIncomingCallDeclined(
+          chatId: chatId, fromUserId: fromUserId);
 
-  Future<void> markCurrentUserCallEnded({required String chatId}) async {
-    await _localDb.saveCall({
-      'id': _uuid.v4(),
-      'chat_id': chatId,
-      'direction': 'local',
-      'status': 'ended',
-      'started_at': DateTime.now().toIso8601String(),
-    });
-  }
+  Future<void> markCurrentUserCallEnded({required String chatId}) =>
+      _callHistory.markCurrentUserCallEnded(chatId: chatId);
 
-  Future<List<Map<String, dynamic>>> getRecentCallHistory({int limit = 5}) async {
-    final calls = await _localDb.getCalls();
-    calls.sort(
-      (a, b) => (b['started_at']?.toString() ?? '')
-          .compareTo(a['started_at']?.toString() ?? ''),
-    );
-    return calls.take(limit).toList();
-  }
+  Future<List<Map<String, dynamic>>> getRecentCallHistory({int limit = 5}) =>
+      _callHistory.getRecentCallHistory(limit: limit);
 }

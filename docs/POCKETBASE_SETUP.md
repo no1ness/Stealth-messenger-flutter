@@ -1,29 +1,29 @@
-# PocketBase Signaling Server — Setup Guide
+# PocketBase Signaling Server — гайд по развёртыванию
 
-This document describes how to deploy the PocketBase backend that the Stealth
-Messenger uses as a WebRTC signaling channel (offer / answer / candidate /
-hangup). Once `POCKETBASE_URL` in `client/.env` points at a reachable instance
-the calls work end-to-end with no legacy cloud backend involvement.
+Этот документ описывает как развернуть PocketBase-бэкенд, который Stealth
+Messenger использует как WebRTC signaling-канал (offer / answer /
+candidate / hangup). Как только `POCKETBASE_URL` в `client/.env` указывает
+на достижимый инстанс — звонки работают end-to-end, без какого-либо
+legacy cloud backend'а.
 
-The Stealth client only needs:
+Stealth-клиенту достаточно:
 
-- A reachable PocketBase URL (HTTPS recommended, plain HTTP only for local
-  development).
-- A `users` collection with email+password authentication (PocketBase ships
-  with one out of the box).
-- A custom `rtc_signaling` collection — see schema below.
-- A scheduled cleanup hook so the collection does not grow indefinitely.
+- Достижимый PocketBase URL (HTTPS рекомендуется, plain HTTP — только для
+  локальной разработки).
+- Коллекция `users` с email+password аутентификацией (PocketBase из коробки её даёт).
+- Кастомная коллекция `rtc_signaling` — схема ниже.
+- Scheduled cleanup hook, чтобы коллекция не росла бесконечно.
 
-The signaling layer ignores the rest of the PocketBase featureset; you can
-self-host the binary on a VPS, a homelab MikroTik container, or any container
-runtime.
+Signaling-слой игнорирует остальной функционал PocketBase; можно
+self-host'ить бинарник на VPS, в MikroTik-контейнере на homelab'е или в
+любом container runtime.
 
-## 1. Deploy the binary
+## 1. Развёртывание бинарника
 
-### 1.1 Local / VPS via docker compose
+### 1.1 Local / VPS через docker compose
 
-Drop the snippet below in `pocketbase/docker-compose.yml` next to a
-`pb_data/` volume:
+Положи сниппет ниже в `pocketbase/docker-compose.yml` рядом с volume
+`pb_data/`:
 
 ```yaml
 services:
@@ -54,7 +54,7 @@ volumes:
   caddy_config:
 ```
 
-Minimal `Caddyfile` (replace `signal.example.com` with your domain):
+Минимальный `Caddyfile` (замени `signal.example.com` на свой домен):
 
 ```
 signal.example.com {
@@ -62,46 +62,47 @@ signal.example.com {
 }
 ```
 
-After `docker compose up -d` the admin UI is available at
-`https://signal.example.com/_/`. Create the first admin via the prompt that
-appears in the container logs (`docker compose logs pocketbase`).
+После `docker compose up -d` admin UI будет доступен по
+`https://signal.example.com/_/`. Создай первого админа через промпт,
+который появится в логах контейнера (`docker compose logs pocketbase`).
 
 ### 1.2 MikroTik containers (RouterOS 7.4+)
 
-PocketBase is a single Go binary, so it fits the RouterOS container runtime
-nicely. Pull the same image, mount `/disk1/pb_data` for persistence, and add a
-NAT rule so port 443 reaches the Caddy container. A full walkthrough is out of
-scope for this document, but the key tested settings are:
+PocketBase — один Go-бинарник, поэтому он хорошо ложится в RouterOS
+container runtime. Тащи тот же образ, mount'и `/disk1/pb_data` для
+persistence и настрой NAT-правило, чтобы порт 443 доходил до Caddy
+контейнера. Полный walkthrough — за рамками этого документа, но
+ключевые проверенные настройки:
 
-- `interface veth` with bridge to the LAN bridge.
-- `container envs` with `TZ=UTC`.
-- `container mounts` with `dst=/pb_data, src=/disk1/pb_data`.
-- Start order: PocketBase → Caddy.
+- `interface veth` с bridge на LAN bridge.
+- `container envs` с `TZ=UTC`.
+- `container mounts` с `dst=/pb_data, src=/disk1/pb_data`.
+- Порядок старта: PocketBase → Caddy.
 
-If you front the container with the MikroTik DNS, point `signal.<your-domain>`
-at the router and let Caddy obtain the Let's Encrypt certificate via HTTP-01.
+Если фронтишь контейнер MikroTik DNS, укажи `signal.<your-domain>` на
+роутер и дай Caddy получить Let's Encrypt сертификат через HTTP-01.
 
-### 1.3 TLS notes
+### 1.3 Заметки про TLS
 
-The Stealth client refuses to start when `POCKETBASE_URL` is empty (see
-`client/lib/main.dart`), but it does NOT pin certificates. For production
-make sure the URL is HTTPS and the cert is trusted by the device. Caddy with
-the default ACME flow is sufficient.
+Stealth-клиент отказывается стартовать когда `POCKETBASE_URL` пустой
+(см. `client/lib/main.dart`), но он **не** pin'ит сертификаты. Для
+production убедись что URL — HTTPS, и cert доверен устройству. Caddy
+с дефолтным ACME-флоу — достаточно.
 
-## 2. Schema for `rtc_signaling`
+## 2. Схема `rtc_signaling`
 
-Create the collection from the admin UI (Collections → New collection →
-`base`), or import the JSON below via Settings → Import collections.
+Создай коллекцию из admin UI (Collections → New collection → `base`),
+либо импортируй JSON через Settings → Import collections.
 
-| Field      | Type         | Required | Notes                                                       |
+| Поле       | Тип          | Required | Заметки                                                     |
 | ---------- | ------------ | -------- | ----------------------------------------------------------- |
-| `roomId`   | text         | yes      | indexed; equals chatId for 1-to-1 calls                     |
-| `creator`  | text         | yes      | local user UUID of the sender (not relation: see Section 4) |
-| `target`   | text         | yes      | indexed; local user UUID of the receiver                    |
-| `type`     | select       | yes      | values: `offer`, `answer`, `candidate`, `hangup`            |
-| `payload`  | json         | yes      | raw SDP / candidate object passed verbatim                  |
+| `roomId`   | text         | yes      | indexed; равен chatId для 1-к-1 звонков                     |
+| `creator`  | text         | yes      | локальный user UUID отправителя (не relation: см. §4)       |
+| `target`   | text         | yes      | indexed; локальный user UUID получателя                     |
+| `type`     | select       | yes      | значения: `offer`, `answer`, `candidate`, `hangup`          |
+| `payload`  | json         | yes      | сырой SDP / candidate-объект, передаётся как есть           |
 
-Recommended indexes (Settings → Indexes):
+Рекомендуемые индексы (Settings → Indexes):
 
 ```
 CREATE INDEX idx_rtc_signaling_target_created
@@ -110,14 +111,14 @@ CREATE INDEX idx_rtc_signaling_room
   ON rtc_signaling (roomId);
 ```
 
-The `created` index makes the cleanup query (Section 5) cheap; the `roomId`
-index is for ad-hoc debugging in the admin UI.
+Индекс по `created` делает cleanup-запрос (§5) дешёвым; индекс по
+`roomId` — для ad-hoc дебага в admin UI.
 
 ## 3. API rules
 
-Set the rules on the `rtc_signaling` collection so each user only sees
-messages addressed to them and can only post messages signed with their own
-identity:
+Выстави rules на коллекции `rtc_signaling` так, чтобы каждый
+пользователь видел только сообщения, адресованные ему, и мог постить
+только сообщения, подписанные своим identity:
 
 - **List / View rule**
 
@@ -143,31 +144,32 @@ identity:
   creator = @request.auth.id
   ```
 
-These rules assume the `creator` field holds the PocketBase user id (the
-authenticated `users.id`). Stealth's lazy auth flow registers a per-device
-PocketBase account whose id matches the local user UUID written into
-`creator`/`target` (see `client/lib/services/signaling/webrtc_signaling_service.dart`,
-method `_ensureAuth`).
+Эти rules предполагают что поле `creator` хранит PocketBase user id
+(аутентифицированный `users.id`). Lazy auth-флоу Stealth регистрирует
+per-device PocketBase аккаунт, чей id совпадает с локальным user UUID,
+записанным в `creator`/`target` (см.
+`client/lib/services/signaling/webrtc_signaling_service.dart`, метод
+`_ensureAuth`).
 
-If you prefer the `creator`/`target` fields to be `relation` instead of
-`text`, change the type and update the rules to use `creator.id` /
-`target.id`. The Stealth client treats the field as opaque ID either way.
+Если предпочитаешь, чтобы `creator`/`target` были `relation` вместо
+`text` — поменяй тип и обнови rules использовать `creator.id` /
+`target.id`. Stealth-клиент обращается с полем как с opaque id в любом случае.
 
-## 4. Users collection
+## 4. Коллекция `users`
 
-PocketBase ships a `users` auth collection by default; nothing extra is
-required. The client uses `email + password` auth with synthetic credentials
-of the form `<localUuid>@stealth.local`. Allow public sign-ups (the default)
-or call `pb.collection('users').create()` from your own admin tooling — the
-client logs in via password once the record exists.
+PocketBase из коробки даёт auth-коллекцию `users`; ничего дополнительно
+не нужно. Клиент использует `email + password` auth с синтетическими
+кредами вида `<localUuid>@stealth.local`. Разреши публичную регистрацию
+(дефолт) или вызывай `pb.collection('users').create()` из своих
+admin-тулов — клиент логинится по паролю как только запись существует.
 
 ## 5. Scheduled cleanup (TTL)
 
-Without cleanup the collection grows by every signaling message. Add a hook
-at `pb_hooks/rtc_cleanup.pb.js` to delete records older than 1 hour:
+Без cleanup'а коллекция растёт на каждое signaling-сообщение. Добавь hook
+в `pb_hooks/rtc_cleanup.pb.js`, чтобы удалять записи старше 1 часа:
 
 ```js
-// Runs every 10 minutes, keeps only the last hour of signaling traffic.
+// Запускается каждые 10 минут, держит только последний час signaling-трафика.
 cronAdd("rtc_cleanup", "*/10 * * * *", () => {
   const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   $app.dao().db()
@@ -177,48 +179,48 @@ cronAdd("rtc_cleanup", "*/10 * * * *", () => {
 });
 ```
 
-Reload the hooks (`docker compose restart pocketbase`) — you should see the
-job in `_/#/settings/logs`.
+Перезагрузи hooks (`docker compose restart pocketbase`) — job должен
+появиться в `_/#/settings/logs`.
 
-If you need stronger guarantees (e.g. delete on disconnect), drive the
-cleanup from the application layer instead: each peer issues
-`pb.collection('rtc_signaling').delete(record.id)` after consuming the record.
-Stealth's current implementation does NOT do this; the SQL TTL above is
-sufficient for typical call traffic.
+Если нужны более строгие гарантии (например, удаление on disconnect) —
+управляй cleanup'ом с application layer: каждый peer вызывает
+`pb.collection('rtc_signaling').delete(record.id)` после потребления
+записи. Текущая реализация Stealth этого **не** делает; SQL TTL выше
+достаточен для типичного call-трафика.
 
-## 6. Verifying the deployment
+## 6. Верификация развёртывания
 
-From the Stealth client root:
+Из корня Stealth-клиента:
 
 ```bash
 export POCKETBASE_TEST_URL=https://signal.example.com
 flutter test test/services/signaling/pocketbase_signaling_smoke_test.dart
 ```
 
-The test exchanges offer → answer → hangup between two synthetic users using
-the real backend. If you also export `POCKETBASE_TEST_ADMIN_EMAIL` and
-`POCKETBASE_TEST_ADMIN_PASSWORD` it will clean up the throwaway users at the
-end.
+Тест прогоняет offer → answer → hangup между двумя синтетическими
+юзерами через реальный бэкенд. Если дополнительно экспортируешь
+`POCKETBASE_TEST_ADMIN_EMAIL` и `POCKETBASE_TEST_ADMIN_PASSWORD` —
+он подчистит throwaway users в конце.
 
-A green run confirms:
+Зелёный прогон подтверждает:
 
-1. The server is reachable from the host running `flutter test`.
-2. The `rtc_signaling` schema and rules are correct.
-3. Realtime SSE delivers in-room messages within ~10 seconds.
+1. Сервер достижим с хоста, где запускается `flutter test`.
+2. Схема и rules `rtc_signaling` корректны.
+3. Realtime SSE доставляет in-room сообщения за ~10 секунд.
 
-## 7. Operational notes
+## 7. Операционные заметки
 
-- **Backups.** PocketBase stores everything in `pb_data/data.db` (SQLite).
-  Snapshot the volume from the admin UI (Settings → Backup) or with
-  filesystem-level tooling.
-- **Monitoring.** Hook PocketBase access logs into your logging stack — the
-  client tags signaling errors with `[signaling]`, so cross-referencing is
-  straightforward.
-- **TURNS.** PocketBase only carries signaling. Media still needs a TURN /
-  TURNS server; the client expects `TURNS_URL`, `TURNS_USERNAME`,
-  `TURNS_PASSWORD` to be configured separately (typically `coturn` behind
-  Caddy on port 443).
-- **Scale.** A single PocketBase instance handles thousands of concurrent
-  SSE clients on commodity hardware. Horizontal scaling is not currently
-  supported by PocketBase; if you outgrow one node, move signaling to a
-  managed pub/sub instead.
+- **Бэкапы.** PocketBase хранит всё в `pb_data/data.db` (SQLite).
+  Снимок volume'а — через admin UI (Settings → Backup) или средствами
+  файловой системы.
+- **Мониторинг.** Подключи access-логи PocketBase к своему logging-stack
+  — клиент тегает signaling-ошибки `[signaling]`, кросс-референс
+  прямолинейный.
+- **TURNS.** PocketBase везёт только signaling. Для media нужен TURN /
+  TURNS сервер; клиент ожидает `TURNS_URL`, `TURNS_USERNAME`,
+  `TURNS_PASSWORD` сконфигурированы отдельно (обычно `coturn` за Caddy
+  на порту 443).
+- **Масштабирование.** Один инстанс PocketBase держит тысячи
+  параллельных SSE-клиентов на типовом железе. Horizontal scaling
+  сейчас PocketBase'ом не поддерживается; если перерос один узел —
+  переноси signaling на managed pub/sub.

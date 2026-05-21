@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:stealth/logging/logger.dart';
+import 'package:stealth/services/webrtc/ice_config.dart';
 
 /// Native (mobile/desktop) WebRTC media plumbing for [WebRTCCallScreen].
 ///
@@ -60,7 +60,8 @@ class NativeCallMediaBindings {
       }
       return null;
     } catch (error) {
-      debugPrint('Permission request error: $error');
+      Logger.warn('[stealth-call] permission request error',
+          extras: {'error': error});
       return null;
     }
   }
@@ -71,7 +72,7 @@ class NativeCallMediaBindings {
     required void Function(RTCIceConnectionState state) onIceConnectionState,
   }) async {
     final configuration = <String, dynamic>{
-      'iceServers': _buildIceServers(),
+      'iceServers': buildIceServers(),
       'sdpSemantics': 'unified-plan',
       'iceCandidatePoolSize': 4,
       'iceTransportPolicy': 'all',
@@ -88,10 +89,12 @@ class NativeCallMediaBindings {
     };
 
     pc.onTrack = (event) async {
-      debugPrint(
-        '[stealth-call] onTrack kind=${event.track.kind} id=${event.track.id} '
-        'enabled=${event.track.enabled} streams=${event.streams.length}',
-      );
+      Logger.info('[stealth-call] onTrack', extras: {
+        'kind': event.track.kind,
+        'id': event.track.id,
+        'enabled': event.track.enabled,
+        'streams': event.streams.length,
+      });
       if (event.streams.isNotEmpty) {
         final stream = event.streams.first;
         for (final track in stream.getTracks()) {
@@ -111,12 +114,12 @@ class NativeCallMediaBindings {
     };
 
     pc.onIceConnectionState = (state) {
-      debugPrint('[stealth-call] iceState=$state');
+      Logger.info('[stealth-call] iceState', extras: {'state': state.toString()});
       onIceConnectionState(state);
     };
 
     pc.onConnectionState = (state) {
-      debugPrint('[stealth-call] peerState=$state');
+      Logger.info('[stealth-call] peerState', extras: {'state': state.toString()});
     };
   }
 
@@ -137,19 +140,19 @@ class NativeCallMediaBindings {
             : false,
       });
     } catch (error) {
-      debugPrint(
-          '[stealth-call] getUserMedia strict failed: $error, falling back');
+      Logger.warn('[stealth-call] getUserMedia strict failed, falling back',
+          extras: {'error': error});
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': isVideoCall,
       });
     }
     final audioTracks = _localStream?.getAudioTracks() ?? const [];
-    debugPrint(
-      '[stealth-call] local stream ready: audio=${audioTracks.length} '
-      'ids=${audioTracks.map((t) => t.id).toList()} '
-      'enabled=${audioTracks.map((t) => t.enabled).toList()}',
-    );
+    Logger.info('[stealth-call] local stream ready', extras: {
+      'audio': audioTracks.length,
+      'ids': audioTracks.map((t) => t.id).toList(),
+      'enabled': audioTracks.map((t) => t.enabled).toList(),
+    });
     if (_localStream != null && isVideoCall) {
       _localRenderer.srcObject = _localStream;
     }
@@ -190,7 +193,8 @@ class NativeCallMediaBindings {
       _offerSent = true;
       return offer.toMap();
     } catch (error) {
-      debugPrint('Offer creation error: $error');
+      Logger.warn('[stealth-call] offer creation error',
+          extras: {'error': error});
       return null;
     }
   }
@@ -205,10 +209,11 @@ class NativeCallMediaBindings {
       await flushPendingCandidates();
       final answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
-      debugPrint('[stealth-call] answer ready');
+      Logger.info('[stealth-call] answer ready');
       return answer.toMap();
     } catch (error) {
-      debugPrint('[stealth-call] applyRemoteOffer error: $error');
+      Logger.warn('[stealth-call] applyRemoteOffer error',
+          extras: {'error': error});
       return null;
     }
   }
@@ -219,9 +224,10 @@ class NativeCallMediaBindings {
     try {
       await connection.setRemoteDescription(answer);
       await flushPendingCandidates();
-      debugPrint('[stealth-call] remote answer applied');
+      Logger.info('[stealth-call] remote answer applied');
     } catch (error) {
-      debugPrint('[stealth-call] Answer handling error: $error');
+      Logger.warn('[stealth-call] answer handling error',
+          extras: {'error': error});
     }
   }
 
@@ -235,7 +241,8 @@ class NativeCallMediaBindings {
         _pendingRemoteCandidates.add(candidate);
       }
     } catch (error) {
-      debugPrint('[stealth-call] Remote candidate error: $error');
+      Logger.warn('[stealth-call] remote candidate error',
+          extras: {'error': error});
     }
   }
 
@@ -335,19 +342,20 @@ class NativeCallMediaBindings {
           }
           final kind = report.values['kind'] ?? report.values['mediaType'];
           if (kind != null && kind != 'audio') continue;
-          debugPrint(
-            '[rtc-stats] $type id=${report.id} '
-            'bytesSent=${report.values['bytesSent']} '
-            'bytesReceived=${report.values['bytesReceived']} '
-            'packetsSent=${report.values['packetsSent']} '
-            'packetsReceived=${report.values['packetsReceived']} '
-            'audioLevel=${report.values['audioLevel']} '
-            'totalAudioEnergy=${report.values['totalAudioEnergy']} '
-            'totalSamplesDuration=${report.values['totalSamplesDuration']}',
-          );
+          Logger.debug('[rtc-stats]', extras: {
+            'type': type,
+            'id': report.id,
+            'bytesSent': report.values['bytesSent'],
+            'bytesReceived': report.values['bytesReceived'],
+            'packetsSent': report.values['packetsSent'],
+            'packetsReceived': report.values['packetsReceived'],
+            'audioLevel': report.values['audioLevel'],
+            'totalAudioEnergy': report.values['totalAudioEnergy'],
+            'totalSamplesDuration': report.values['totalSamplesDuration'],
+          });
         }
       } catch (error) {
-        debugPrint('[rtc-stats] error: $error');
+        Logger.warn('[rtc-stats] error', extras: {'error': error});
       }
     });
   }
@@ -363,64 +371,8 @@ class NativeCallMediaBindings {
     await _remoteRenderer.dispose();
   }
 
-  /// Собирает список ICE-серверов. STUN идёт всегда. Дополнительно
-  /// добавляются TURN и TURNS — обе пары независимы. TURNS на 443/TLS
-  /// критичен для обхода ТСПУ в РФ: маскируется под обычный HTTPS.
-  List<Map<String, dynamic>> _buildIceServers() {
-    final servers = <Map<String, dynamic>>[
-      {
-        'urls': [
-          'stun:stun.l.google.com:19302',
-          'stun:stun1.l.google.com:19302',
-        ],
-      },
-    ];
-    _appendTurnServer(
-      servers,
-      label: 'TURN',
-      urlsEnv: dotenv.env['TURN_URL'],
-      userEnv: dotenv.env['TURN_USERNAME'],
-      passEnv: dotenv.env['TURN_PASSWORD'],
-    );
-    _appendTurnServer(
-      servers,
-      label: 'TURNS',
-      urlsEnv: dotenv.env['TURNS_URL'],
-      userEnv: dotenv.env['TURNS_USERNAME'],
-      passEnv: dotenv.env['TURNS_PASSWORD'],
-    );
-    if (servers.length == 1) {
-      debugPrint(
-        '[stealth-call] WARNING: no TURN/TURNS in .env — P2P will fail '
-        'across NAT/VPN. Set TURN_URL/TURN_USERNAME/TURN_PASSWORD or '
-        'TURNS_URL/TURNS_USERNAME/TURNS_PASSWORD.',
-      );
-    }
-    return servers;
-  }
-
-  void _appendTurnServer(
-    List<Map<String, dynamic>> servers, {
-    required String label,
-    required String? urlsEnv,
-    required String? userEnv,
-    required String? passEnv,
-  }) {
-    final urls = urlsEnv?.trim();
-    if (urls == null || urls.isEmpty) return;
-    final user = userEnv?.trim();
-    final pass = passEnv?.trim();
-    servers.add({
-      'urls': urls
-          .split(',')
-          .map((u) => u.trim())
-          .where((u) => u.isNotEmpty)
-          .toList(),
-      if (user != null && user.isNotEmpty) 'username': user,
-      if (pass != null && pass.isNotEmpty) 'credential': pass,
-    });
-    debugPrint('[stealth-call] $label configured: $urls');
-  }
+  // ICE config moved to `services/webrtc/ice_config.dart` (task #8) —
+  // both native call media and P2PService delegate there.
 }
 
 /// Глобальная функция `createPeerConnection` из `flutter_webrtc` конфликтует

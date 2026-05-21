@@ -23,6 +23,7 @@
  * URL можно переопределить: set STEALTH_WEB_URL=http://127.0.0.1:PORT
  */
 import { chromium } from "playwright";
+import { readContactBundle } from "./contact-bundle-helper.mjs";
 
 const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:57575";
 const suffix = Date.now().toString(36);
@@ -186,6 +187,8 @@ async function registerUser(page, nickname) {
 //   Требует, чтобы профиль успел загрузить данные и Flutter-семантика
 //   экспонировала текст в дереве доступности.
 async function readUserIdFromProfile(page) {
+  return readContactBundle(page);
+
   const uuidRe =
     /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
@@ -312,8 +315,8 @@ async function main() {
   await registerUser(bob, nickB);
 
   // Читаем ID из профиля
-  const bobId = await readUserIdFromProfile(bob);
-  console.log("Bob user_id:", bobId);
+  const bobBundle = await readUserIdFromProfile(bob);
+  console.log("Bob contact bundle:", bobBundle);
 
   // Возвращаемся на экран чатов
   await bob.getByRole("button", { name: "Chats" }).click();
@@ -346,7 +349,7 @@ async function main() {
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  }, bobId);
+  }, bobBundle);
 
   // Ждём открытия модала (поле поиска должно быть видимым)
   const searchField = getContactSearchInput(alice);

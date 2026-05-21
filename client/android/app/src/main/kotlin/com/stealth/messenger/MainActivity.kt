@@ -1,4 +1,4 @@
-package com.example.turbo
+package com.stealth.messenger
 
 import io.flutter.embedding.android.FlutterActivity
 

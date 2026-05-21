@@ -3,6 +3,7 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
     as glass;
+import 'package:stealth/themes/apple_liquid/widgets/outgoing_delivery_status_icon.dart';
 import 'package:stealth/ui/screens/chats/conversation_attachment.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
@@ -152,28 +153,65 @@ class ConversationPanel extends StatelessWidget {
                               orElse: () => null,
                             );
 
+                    // Task #10: render an OutgoingDeliveryStatusIcon under
+                    // the bubble only for OUTGOING 1:1 messages that carry
+                    // a `deliveryStatus`. Group rows and incoming rows
+                    // never trigger this — outgoing-only by design.
+                    final isSent = message['isSent'] as bool? ?? false;
+                    final isGroupChat =
+                        message['isGroupChat'] as bool? ?? false;
+                    final deliveryStatus =
+                        message['deliveryStatus'] as String?;
+                    final showStatusIcon = isSent &&
+                        !isGroupChat &&
+                        deliveryStatus != null;
+                    final messageId = message['id']?.toString();
+
+                    final bubble = glass.GlassChatBubble(
+                      message:
+                          '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
+                      timestamp: message['timestamp'] as String?,
+                      isDelivered: message['isDelivered'] as bool?,
+                      isRead: message['isRead'] as bool?,
+                      attachmentWidget: buildConversationAttachment(
+                        message: message,
+                        appService: appService,
+                        chatId: chatId,
+                      ),
+                      replyPreview: repliedMessage == null
+                          ? null
+                          : _ReplyPreview(
+                              text:
+                                  repliedMessage['message'] as String? ?? '',
+                            ),
+                      type: isSent
+                          ? glass.MessageType.sent
+                          : glass.MessageType.received,
+                    );
+
                     return GestureDetector(
                       onLongPress: () => onMessageLongPress(message),
-                      child: glass.GlassChatBubble(
-                        message:
-                            '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
-                        timestamp: message['timestamp'] as String?,
-                        isDelivered: message['isDelivered'] as bool?,
-                        isRead: message['isRead'] as bool?,
-                        attachmentWidget: buildConversationAttachment(
-                          message: message,
-                          appService: appService,
-                          chatId: chatId,
-                        ),
-                        replyPreview: repliedMessage == null
-                            ? null
-                            : _ReplyPreview(
-                                text:
-                                    repliedMessage['message'] as String? ?? '',
+                      child: Column(
+                        crossAxisAlignment: isSent
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          bubble,
+                          if (showStatusIcon)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
                               ),
-                        type: (message['isSent'] as bool? ?? false)
-                            ? glass.MessageType.sent
-                            : glass.MessageType.received,
+                              child: OutgoingDeliveryStatusIcon(
+                                status: deliveryStatus,
+                                onRetryNow: deliveryStatus == 'failed' &&
+                                        messageId != null
+                                    ? () => appService.retryNow(messageId)
+                                    : null,
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },

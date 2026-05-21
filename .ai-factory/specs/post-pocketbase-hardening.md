@@ -24,11 +24,11 @@
 | 1   | PocketBase identity/rules | **Реальный баг.** `_ensureAuth` создаёт PB-аккаунт без `id`, документ `docs/POCKETBASE_SETUP.md:146-150` утверждает обратное.                          |
 | 2   | Plaintext key export      | **Уже устранено.** В `lib/` нет `stealth_private_key.txt`. `docs/SECURITY.md:22` фиксирует политику. Остаётся regression-guard.                          |
 | 3   | Crypto claims sync        | **Реальный баг (но другой).** `docs/SECURITY.md` уже честный. Но `client/lib/crypto/ratchet_service.dart:4-10` утверждает Double Ratchet/PFS — это ложь. |
-| 4   | Bootstrap                 | **Частично устранено.** Supabase env из `main.dart` убран. Остаётся `pubspec.yaml:106` объявляет `.env` как asset, при этом `.env` в `.gitignore`.       |
-| 5   | CI                        | **Реально отсутствует.** Нет `.github/workflows/`.                                                                                                       |
-| 6   | Split UI                  | **Реально.** `supabase_service.dart` удалён. Остаётся `chats_screen.dart` (1794), `webrtc_call_screen_web.dart` (1144), native (994).                    |
-| 7   | Android release           | **Реально.** `applicationId = com.example.turbo`, release signed by debug key, lint отключён (`gradle.properties:5-6`).                                  |
-| 8   | Logger/redaction          | **Частично.** Supabase bucket пункт неактуален (Supabase удалён). Остаётся: 7+ `debugPrint` с user ids; нужен logger c redaction.                         |
+| 4   | Bootstrap                 | **Устранено.** Legacy cloud env из `main.dart` убран; в asset bundle используется committed `.env.defaults`, а `.env` остаётся вне Git.       |
+| 5   | CI                        | **Устранено.** `.github/workflows/ci.yml` содержит analyze/test, web build, Android debug APK build и optional signaling smoke.                                                                                                       |
+| 6   | Split UI                  | **Реально.** Legacy cloud service удалён. Остаётся `chats_screen.dart` (1794), `webrtc_call_screen_web.dart` (1144), native (994).                    |
+| 7   | Android release           | **Частично устранено.** `applicationId`/`namespace` переведены на `com.stealth.messenger`; остаются проверки release signing/lint.                                  |
+| 8   | Logger/redaction          | **Частично устранено.** Ключевые local/P2P/profile/call-controller пути переведены на `Logger` с redaction; остаточные `debugPrint` в design-system/media helpers требуют отдельного пасса.                         |
 
 ## Фазы и порядок
 
@@ -316,7 +316,7 @@ callback-проброс (notifier/controller-pattern не вводили — п�
 
 - Не реализуем настоящий DH Double Ratchet (зафиксировано future-work, Phase 6.3).
 - Не вводим внешний cloud backend (запрещено `base.md:13-16`).
-- Не возвращаем Supabase ни в каком виде.
+- Не возвращаем внешний cloud backend ни в каком виде.
 - Не добавляем in-app экспорт приватного ключа.
 
 ## Следующие шаги

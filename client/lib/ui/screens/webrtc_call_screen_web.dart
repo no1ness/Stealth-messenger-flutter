@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -95,11 +96,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
-        debugPrint(
-          '[stealth-call] web PopScope didPop=$didPop '
-          'isCaller=${widget.isCaller} '
-          'connected=${_controller.connected} closing=${_controller.closing}',
-        );
+        Logger.debug('[stealth-call] web PopScope', extras: {
+          'didPop': didPop,
+          'isCaller': widget.isCaller,
+          'connected': _controller.connected,
+          'closing': _controller.closing,
+        });
         if (!didPop) await _controller.hangUp();
       },
       child: Scaffold(

@@ -13,6 +13,7 @@
 import { remote } from "webdriverio";
 import { chromium } from "playwright";
 import { execSync } from "child_process";
+import { readContactBundle } from "./contact-bundle-helper.mjs";
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:58585";
@@ -23,7 +24,7 @@ const emulatorCaps = {
   "appium:deviceName": "emulator-5554",
   "appium:udid": "emulator-5554",
   "appium:automationName": "UiAutomator2",
-  "appium:appPackage": "com.example.turbo",
+  "appium:appPackage": "com.stealth.messenger",
   "appium:appActivity": ".MainActivity",
   "appium:noReset": true,
   "appium:fullReset": false,
@@ -70,6 +71,51 @@ async function findTextInPageSource(driver) {
   const src = await driver.getPageSource();
   const m = src.match(UUID_RE);
   return m ? m[0] : null;
+}
+
+async function readClipboardText(driver) {
+  const raw = await driver.getClipboard("plaintext");
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  if (raw.startsWith("stealth:")) return raw;
+
+  try {
+    const decoded = Buffer.from(raw, "base64").toString("utf8");
+    return decoded.startsWith("stealth:") ? decoded : raw;
+  } catch (_) {
+    return raw;
+  }
+}
+
+async function readEmulatorContactBundle(driver) {
+  if (process.env.STEALTH_EMULATOR_CONTACT_BUNDLE) {
+    if (!process.env.STEALTH_EMULATOR_CONTACT_BUNDLE.startsWith("stealth:")) {
+      throw new Error(
+        "STEALTH_EMULATOR_CONTACT_BUNDLE must contain a stealth: contact bundle.",
+      );
+    }
+    return process.env.STEALTH_EMULATOR_CONTACT_BUNDLE;
+  }
+
+  console.log("  Emulator: opening Profile to copy contact bundle...");
+  await findElementByA11y(driver, "Profile", 15000).then((e) => e.click());
+  await delay(4000);
+
+  const copied = await clickByXPath(
+    driver,
+    "//*[contains(@text, 'Copy contact bundle') or contains(@content-desc, 'Copy contact bundle')]",
+    10000,
+  );
+  if (!copied) {
+    await driver.saveScreenshot("emulator-no-contact-bundle.png");
+    return null;
+  }
+
+  await delay(1000);
+  const bundle = await readClipboardText(driver);
+  await findElementByA11y(driver, "Chats", 10000).then((e) => e.click());
+  await delay(1000);
+
+  return bundle?.startsWith("stealth:") ? bundle : null;
 }
 
 // ── Web (Playwright) ───────────────────────────────────────────────────────
@@ -128,6 +174,8 @@ async function registerWebUser(page, nickname) {
 }
 
 async function readWebUserId(page) {
+  return readContactBundle(page);
+
   // Стратегия 1: localStorage + stealthCrypto
   try {
     const id = await page.evaluate(async () => {
@@ -167,22 +215,22 @@ async function readWebUserId(page) {
   throw new Error("Web UUID not found");
 }
 
-async function addContactWeb(page, targetId, targetNick) {
+async function addContactWeb(page, targetBundle, targetNick) {
   console.log(`  Web: adding contact ${targetNick}...`);
   await page.getByRole("button", { name: "Contacts" }).click();
   await page.getByRole("button", { name: /Add contact/i }).click();
 
   // Вставляем UUID через clipboard + Paste contact
-  await page.evaluate(async (id) => {
-    try { await navigator.clipboard.writeText(id); } catch (_) {
+  await page.evaluate(async (bundle) => {
+    try { await navigator.clipboard.writeText(bundle); } catch (_) {
       const ta = document.createElement("textarea");
-      ta.value = id;
+      ta.value = bundle;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-  }, targetId);
+  }, targetBundle);
 
   const searchField = page.locator('input[aria-label*="nickname" i], input[aria-label*="Search by" i]').first();
   await searchField.waitFor({ state: "visible", timeout: 15000 });
@@ -229,7 +277,7 @@ async function readEmulatorUserId(driver) {
   return null;
 }
 
-async function addContactEmulator(driver, targetId) {
+async function addContactEmulator(driver, targetBundle) {
   console.log("  Emulator: adding contact...");
   await findElementByA11y(driver, "Contacts", 15000).then((e) => e.click());
   await delay(2000);
@@ -249,7 +297,7 @@ async function addContactEmulator(driver, targetId) {
   // Вводим UUID
   const searchField = await driver.$("//android.widget.EditText");
   if (await searchField.isDisplayed()) {
-    await searchField.setValue(targetId);
+    await searchField.setValue(targetBundle);
     await delay(3000);
   }
 
@@ -314,21 +362,26 @@ async function main() {
     const webNick = `Web_${suffix}`;
     console.log(`\n� Registering web user: ${webNick}`);
     await registerWebUser(web, webNick);
-    const webId = await readWebUserId(web);
-    console.log(`✅ Web user ID: ${webId}`);
+    const webBundle = await readWebUserId(web);
+    if (!webBundle) {
+      throw new Error("Cannot read web contact bundle.");
+    }
+    console.log(`✅ Web contact bundle: ${webBundle.slice(0, 32)}...`);
 
     // ── Регистрация эмулятора и получение его ID ──
-    console.log("\n📝 Reading emulator user ID...");
-    const emulatorId = await readEmulatorUserId(emulator);
-    if (!emulatorId) {
-      throw new Error("Cannot read emulator UUID automatically. Pre-seed contacts or run manually.");
+    console.log("\n📝 Reading emulator contact bundle...");
+    const emulatorBundle = await readEmulatorContactBundle(emulator);
+    if (!emulatorBundle) {
+      throw new Error(
+        "Cannot read emulator contact bundle automatically. Set STEALTH_EMULATOR_CONTACT_BUNDLE or copy it manually.",
+      );
     }
-    console.log(`✅ Emulator user ID: ${emulatorId}`);
+    console.log(`✅ Emulator contact bundle: ${emulatorBundle.slice(0, 32)}...`);
 
     // ── Добавляем контакты друг к другу ──
     console.log("\n📋 Adding contacts cross-device...");
-    await addContactWeb(web, emulatorId, `Emulator_${suffix}`);
-    await addContactEmulator(emulator, webId);
+    await addContactWeb(web, emulatorBundle, `Emulator_${suffix}`);
+    await addContactEmulator(emulator, webBundle);
 
     // ── Эмулятор инициирует звонок ──
     console.log("\n📞 Initiating call from emulator...");

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:stealth/logging/logger.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -76,14 +77,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         (url.startsWith('http://') || url.startsWith('https://'));
 
     if (!hasValidUrl) {
-      debugPrint('VoiceMessagePlayer skipped: invalid audio url "$url"');
+      Logger.warn('[voice-player] skipped: invalid audio url',
+          extras: {'url': url});
       return;
     }
 
     try {
       await _audioPlayer.setSource(UrlSource(url));
     } catch (e) {
-      debugPrint('Error initializing audio player: $e');
+      Logger.warn('[voice-player] error initializing audio player',
+          extras: {'error': e});
       // Don't show snackbar for every error, as this might flood the UI
       // Just log the error and continue
     }
@@ -97,7 +100,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         await _audioPlayer.resume();
       }
     } catch (e) {
-      debugPrint('Error toggling playback: $e');
+      Logger.warn('[voice-player] error toggling playback',
+          extras: {'error': e});
     }
   }
 

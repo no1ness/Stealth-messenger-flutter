@@ -1,76 +1,76 @@
 # AGENTS.md
 
-> Universal baseline rules for AI agents. Reuse this file across different projects.
+> Универсальные базовые правила для AI-агентов. Файл переиспользуется между разными проектами.
 
-## Purpose
+## Назначение
 
-This file defines default execution behavior:
+Этот файл задаёт поведение по умолчанию при исполнении задач:
 
-- keep changes minimal and request-scoped
-- avoid hidden assumptions
-- prefer simple, maintainable solutions
-- verify outcomes before claiming completion
+- держать изменения минимальными и в рамках запроса
+- избегать скрытых допущений
+- предпочитать простые, поддерживаемые решения
+- проверять результат до того как заявлять о завершении
 
-## Core Rules
+## Базовые правила
 
-### 1) Think Before Coding
+### 1) Думай до того как писать код
 
-- State assumptions explicitly.
-- If requirements are ambiguous, ask concise clarifying questions first.
-- If multiple valid interpretations exist, present options briefly.
-- If a simpler approach exists, recommend it.
+- Явно проговаривай допущения.
+- Если требования неоднозначны — задавай короткие уточняющие вопросы до начала работы.
+- Если есть несколько допустимых трактовок — кратко перечисли варианты.
+- Если есть более простой подход — порекомендуй его.
 
-### 2) Simplicity First
+### 2) Простота прежде всего
 
-- Implement only what was requested.
-- Avoid speculative abstractions and premature architecture.
-- Reuse existing patterns before introducing new layers.
-- Prefer the smallest clear change that solves the task.
+- Реализуй только то, что было запрошено.
+- Избегай спекулятивных абстракций и преждевременной архитектуры.
+- Переиспользуй существующие паттерны прежде чем вводить новые слои.
+- Предпочитай наименьшее ясное изменение, решающее задачу.
 
-### 3) Surgical Changes
+### 3) Хирургические изменения
 
-- Change only files and lines required for the task.
-- Do not perform unrelated refactors or formatting sweeps.
-- Keep existing style and conventions unless asked to change them.
-- Remove only artifacts introduced by your own changes.
+- Меняй только те файлы и строки, которые требуются для задачи.
+- Не делай не связанных с задачей рефакторингов или форматирования.
+- Сохраняй существующий стиль и конвенции если не просили их менять.
+- Удаляй только артефакты, которые ты сам ввёл этими изменениями.
 
-### 4) Goal-Driven Execution
+### 4) Целеориентированное исполнение
 
-- Define concrete success criteria before implementation.
-- Validate with reproducible checks (build, lint, tests, or explicit manual steps).
-- For multi-step work, verify each step before moving on.
+- Определи конкретные критерии успеха до начала реализации.
+- Проверяй воспроизводимыми способами (build, lint, tests или явные ручные шаги).
+- Для многошаговых работ верифицируй каждый шаг прежде чем идти дальше.
 
-## Safety & Quality
+## Безопасность и качество
 
 ### MUST
 
-- Keep diffs narrow, reviewable, and reversible.
-- Preserve existing behavior unless behavior change is requested.
-- Run the most relevant validation for touched areas.
-- Report blockers early with concrete evidence.
-- Be explicit about what changed and how it was verified.
+- Держи diff'ы узкими, обозримыми и обратимыми.
+- Сохраняй существующее поведение если не просили его изменить.
+- Прогоняй наиболее релевантную валидацию для затронутых областей.
+- Сообщай о блокерах рано, с конкретными подтверждениями.
+- Явно описывай что изменил и как это верифицировал.
 
 ### NEVER
 
-- Never invent requirements not requested by the user.
-- Never modify unrelated modules "while you are here."
-- Never claim verification you did not run.
-- Never run destructive commands unless explicitly approved.
-- Never expose secrets or commit sensitive credentials.
+- Никогда не выдумывай требования, которые не запрашивал пользователь.
+- Никогда не меняй несвязанные модули "раз уж ты здесь".
+- Никогда не заявляй о верификации, которую не проводил.
+- Никогда не запускай деструктивные команды без явного одобрения.
+- Никогда не раскрывай секреты и не коммить чувствительные креды.
 
-## Recommended Skill Layout
+## Рекомендуемая раскладка skill'ов
 
-Use reusable skills under:
+Переиспользуемые skill'ы клади под:
 
 - `.agents/skills/karpathy-guidelines/SKILL.md`
 - `.agents/skills/frontend-pro/SKILL.md`
 - `.agents/skills/frontend-debug/SKILL.md`
 - `.agents/skills/frontend-review/SKILL.md`
-- add stack-specific skills only when relevant to the target project
+- стек-специфичные skill'ы добавляй только когда они релевантны целевому проекту
 
-## Final Checklist
+## Финальный чеклист
 
-- [ ] Assumptions were explicit or clarified.
-- [ ] The solution is the simplest valid one.
-- [ ] The diff maps directly to the request.
-- [ ] Verification steps and outcomes are documented.
+- [ ] Допущения проговорены явно или согласованы.
+- [ ] Решение — самое простое из допустимых.
+- [ ] Diff напрямую соответствует запросу.
+- [ ] Шаги верификации и их результаты задокументированы.

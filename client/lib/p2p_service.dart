@@ -1,16 +1,63 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'dart:typed_data';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:stealth/local_database_service.dart';
+import 'package:stealth/logging/logger.dart';
+import 'package:stealth/services/attachments/attachment_service.dart';
+import 'package:stealth/services/messaging/message_service.dart';
 import 'package:stealth/services/signaling/peer_resolver.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
+import 'package:stealth/services/webrtc/ice_config.dart';
 import 'package:stealth/storage_service.dart';
+
+/// Per-chat in-memory retry state. Resets on app restart — that is
+/// intentional: a fresh tab/launch should re-try cleanly, and the
+/// multi-tab anti-double-retry guard (`lastRetryAttemptedAt` written to
+/// LocalDatabaseService) handles cross-tab coordination separately.
+class _RetryState {
+  int attempts = 0;
+  Duration nextDelay = const Duration(seconds: 1);
+}
+
+/// In-memory assembly buffer for an incoming chunked blob transfer.
+/// Sparse — chunks may arrive out of order over a single DataChannel
+/// stream (in practice they don't, but the protocol allows it).
+class _BlobAssembly {
+  final int total;
+  final String expectedHash;
+  final String chatId;
+  final String fileName;
+  final String? mime;
+  final bool? isGroupChat;
+  final Map<int, Uint8List> chunks = <int, Uint8List>{};
+  int receivedBytes = 0;
+
+  _BlobAssembly({
+    required this.total,
+    required this.expectedHash,
+    required this.chatId,
+    required this.fileName,
+    this.mime,
+    this.isGroupChat,
+  });
+
+  bool get isComplete => chunks.length == total;
+}
 
 class P2PService {
   P2PService._();
   static final P2PService instance = P2PService._();
+
+  /// Max retry attempts before flipping the row to `failed`. Matches the
+  /// hardening plan refinement (1/2/4/8/16s, then `failed`).
+  static const int _maxRetries = 5;
+
+  /// Multi-tab anti-double-retry window. Tabs other than the leader will
+  /// skip rows whose `lastRetryAttemptedAt` is younger than this.
+  static const Duration _multiTabGuardWindow = Duration(seconds: 30);
 
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final StorageService _storage = StorageService();
@@ -20,6 +67,15 @@ class P2PService {
   final Map<String, RTCDataChannel> _dataChannels = {};
   final Map<String, WebRtcSignalingService> _signaling = {};
   final Map<String, StreamSubscription<RtcMessage>> _signalingSubs = {};
+  final Map<String, _RetryState> _retryState = {};
+
+  /// blobId → assembly buffer for incoming chunked blobs (task #11).
+  final Map<String, _BlobAssembly> _blobAssemblies = {};
+
+  /// Chunk size for outgoing blob transfers (~64 KB). RTCDataChannel
+  /// has a per-message size limit (varies by implementation, but 64 KB
+  /// is safe across all WebRTC backends).
+  static const int _blobChunkBytes = 64 * 1024;
 
   final StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -28,11 +84,10 @@ class P2PService {
 
   Future<RTCPeerConnection> _createConnection(String chatId) async {
     final config = {
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        // TODO: Add TURN servers for better reliability
-      ],
+      'iceServers': buildIceServers(),
       'sdpSemantics': 'unified-plan',
+      'iceCandidatePoolSize': 4,
+      'iceTransportPolicy': 'all',
     };
 
     final pc = await createPeerConnection(config);
@@ -64,7 +119,7 @@ class P2PService {
 
     final target = await _resolveTarget(chatId);
     if (target == null) {
-      debugPrint('[FIX:local-only] P2P target unresolved for chatId=$chatId');
+      Logger.warn('[p2p] target unresolved', extras: {'chatId': chatId});
       return;
     }
     await _ensureSignaling(chatId);
@@ -112,7 +167,7 @@ class P2PService {
           break;
       }
     });
-    debugPrint('[FIX:local-only] P2P signaling subscribed chatId=$chatId');
+    Logger.info('[p2p] signaling subscribed', extras: {'chatId': chatId});
   }
 
   Future<String?> _resolveTarget(String chatId) async {
@@ -124,7 +179,7 @@ class P2PService {
         selfUserId: selfUserId,
       );
     } catch (error) {
-      debugPrint('[FIX:local-only] P2P resolve target failed: $error');
+      Logger.warn('[p2p] resolve target failed', extras: {'error': error});
       return null;
     }
   }
@@ -134,11 +189,33 @@ class P2PService {
     dc.onMessage = (data) async {
       try {
         final message = jsonDecode(data.text) as Map<String, dynamic>;
+
+        // ACK frame (task #9): inbound delivery confirmation from the
+        // peer. Flip the local row to `delivered` and stop here — ACKs
+        // are not user-visible messages. No-op on missing row.
+        if (message['type'] == 'ack') {
+          final messageId = message['messageId']?.toString();
+          if (messageId == null || messageId.isEmpty) {
+            Logger.debug('[p2p] ack with missing messageId, ignoring');
+            return;
+          }
+          Logger.debug('[p2p] ack received', extras: {'messageId': messageId});
+          await MessageService().markDelivered(messageId);
+          return;
+        }
+
+        // Chunked blob transfer (task #11): receiver-side assembly.
+        if (message['type'] == 'blob-chunk') {
+          await _handleBlobChunk(chatId, message);
+          return;
+        }
+
         _messageController.add({
           'chat_id': chatId,
           'message': message,
         });
         // P2P delivery is live, so the local delivery marker is true.
+        // No `deliveryStatus` field for incoming rows — outgoing-only.
         await _localDb.saveMessage(message, synced: true);
         final chat = await _localDb.getChatById(chatId);
         if (chat != null) {
@@ -146,15 +223,35 @@ class P2PService {
               DateTime.now().toIso8601String();
           await _localDb.saveChat(chat);
         }
+
+        // Send ACK back so the sender can flip their local row to
+        // `delivered`. Best-effort: if the DC is open we just got a
+        // message on it, so .send is safe.
+        final incomingMessageId = message['id']?.toString();
+        if (incomingMessageId != null && incomingMessageId.isNotEmpty) {
+          dc.send(RTCDataChannelMessage(jsonEncode({
+            'type': 'ack',
+            'messageId': incomingMessageId,
+          })));
+          Logger.debug('[p2p] ack sent',
+              extras: {'messageId': incomingMessageId});
+        }
       } catch (e) {
-        debugPrint('[p2p] Error receiving message: $e');
+        Logger.warn('[p2p] error receiving message', extras: {'error': e});
       }
     };
 
     dc.onDataChannelState = (state) {
-      debugPrint('[p2p] DataChannel state for $chatId: $state');
+      Logger.debug(
+        '[p2p] data channel state',
+        extras: {'chatId': chatId, 'state': state},
+      );
       if (state == RTCDataChannelState.RTCDataChannelClosed) {
         _dataChannels.remove(chatId);
+      } else if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        // Pump any pending outgoing rows for this chat as soon as the
+        // channel comes up (task #9 retry worker).
+        unawaited(pumpPendingForChat(chatId));
       }
     };
   }
@@ -172,6 +269,122 @@ class P2PService {
       return true;
     }
     return false;
+  }
+
+  /// One-shot sweep of all pending outgoing messages — call once from
+  /// app bootstrap (`LocalAppService` constructor). Messages whose data
+  /// channels are not yet open stay pending; their per-chat
+  /// [_setupDataChannel] `onOpen` handler will retry as the DC comes up.
+  Future<void> startRetryWorker() async {
+    Logger.info('[p2p-retry] startRetryWorker');
+    final pending = await _localDb.getPendingMessages();
+    Logger.debug('[p2p-retry] startup sweep',
+        extras: {'pendingCount': pending.length});
+    for (final message in pending) {
+      final chatId = message['chat_id']?.toString();
+      if (chatId == null || chatId.isEmpty) continue;
+      await _tryDeliverPending(chatId: chatId, row: message);
+    }
+  }
+
+  /// Pump pending outgoing rows for a single chat. Invoked from the
+  /// DataChannel `open` handler.
+  Future<void> pumpPendingForChat(String chatId) async {
+    Logger.debug('[p2p-retry] pumpPendingForChat', extras: {'chatId': chatId});
+    final pending = await _localDb.getPendingMessages();
+    for (final message in pending) {
+      if (message['chat_id']?.toString() != chatId) continue;
+      await _tryDeliverPending(chatId: chatId, row: message);
+    }
+  }
+
+  /// Resets the in-memory retry state for a message and immediately
+  /// re-attempts delivery. Called by `MessageService.retryNow(messageId)`
+  /// when the user taps the failed-state indicator (task #10).
+  Future<void> retryNow(String messageId) async {
+    final pending = await _localDb.getPendingMessages();
+    Map<String, dynamic>? row;
+    for (final m in pending) {
+      if (m['id']?.toString() == messageId) {
+        row = m;
+        break;
+      }
+    }
+    if (row == null) {
+      Logger.warn('[p2p-retry] retryNow: row not found in pending queue '
+          '(likely user-deleted or already delivered)',
+          extras: {'messageId': messageId});
+      return;
+    }
+    final chatId = row['chat_id']?.toString();
+    if (chatId == null || chatId.isEmpty) return;
+    _retryState.remove(chatId);
+    Logger.info('[p2p-retry] retryNow', extras: {'messageId': messageId});
+    await _tryDeliverPending(chatId: chatId, row: row);
+  }
+
+  Future<void> _tryDeliverPending({
+    required String chatId,
+    required Map<String, dynamic> row,
+  }) async {
+    final messageId = row['id']?.toString();
+    if (messageId == null || messageId.isEmpty) return;
+
+    // Multi-tab anti-double-retry: skip rows whose `lastRetryAttemptedAt`
+    // is younger than the guard window — another tab is leading.
+    final lastIso = row['lastRetryAttemptedAt']?.toString();
+    if (lastIso != null && lastIso.isNotEmpty) {
+      final lastAt = DateTime.tryParse(lastIso);
+      if (lastAt != null &&
+          DateTime.now().difference(lastAt) < _multiTabGuardWindow) {
+        Logger.debug(
+            '[p2p-retry] skipped (another tab attempted within '
+            '${_multiTabGuardWindow.inSeconds}s window)',
+            extras: {'messageId': messageId});
+        return;
+      }
+    }
+
+    final state = _retryState.putIfAbsent(chatId, () => _RetryState());
+
+    if (state.attempts >= _maxRetries) {
+      Logger.warn('[p2p-retry] max attempts exhausted, marking failed',
+          extras: {'messageId': messageId, 'attempts': state.attempts});
+      await MessageService().markFailed(messageId);
+      _retryState.remove(chatId);
+      return;
+    }
+
+    state.attempts += 1;
+    // Persist the attempt timestamp BEFORE sending so other tabs see it.
+    await _localDb.updateMessageDeliveryStatus(messageId, 'pending',
+        lastRetryAt: DateTime.now());
+
+    final ok = await sendP2PMessage(chatId, row);
+    if (ok) {
+      Logger.info('[p2p-retry] resend succeeded', extras: {
+        'messageId': messageId,
+        'attempt': state.attempts,
+      });
+      await MessageService().markSent(messageId);
+      _retryState.remove(chatId);
+      return;
+    }
+
+    final nextDelay = state.nextDelay;
+    Logger.info('[p2p-retry] retry scheduled', extras: {
+      'messageId': messageId,
+      'attempt': state.attempts,
+      'nextDelayMs': nextDelay.inMilliseconds,
+    });
+    // Exponential backoff capped at 30s.
+    final doubled = state.nextDelay.inSeconds * 2;
+    state.nextDelay = Duration(seconds: doubled > 30 ? 30 : doubled);
+
+    Future.delayed(nextDelay, () {
+      // Re-fetch the row in case it was deleted in the interim.
+      unawaited(pumpPendingForChat(chatId));
+    });
   }
 
   Future<void> handleOffer(
@@ -215,6 +428,138 @@ class P2PService {
       candidateMap['sdpMLineIndex'],
     );
     await pc.addCandidate(candidate);
+  }
+
+  // -------------- Task #11: chunked blob transfer --------------
+
+  /// Splits an encrypted blob into ~64 KB chunks and pushes each as a
+  /// `blob-chunk` DC frame to the peer. Called by `MessageService` right
+  /// after sending a message whose content is a v2 attachment descriptor.
+  ///
+  /// The receiver assembles + sha256-verifies + saves via
+  /// `AttachmentService.saveReceivedBlob` in [_handleBlobChunk]. Sender
+  /// fire-and-forget: if the DC is closed mid-transfer the receiver will
+  /// stay incomplete; the next message-level retry will re-send.
+  Future<void> sendBlobChunks({
+    required String chatId,
+    required String blobId,
+    required String hash,
+    required String fileName,
+    String? mime,
+    bool? isGroupChat,
+  }) async {
+    final dc = _dataChannels[chatId];
+    if (dc == null || dc.state != RTCDataChannelState.RTCDataChannelOpen) {
+      Logger.debug('[p2p-blob] DC not open, deferring blob chunks',
+          extras: {'chatId': chatId, 'blobId': blobId});
+      return;
+    }
+    final bytes = await AttachmentService().readBlobBytes(blobId);
+    if (bytes == null) {
+      Logger.warn('[p2p-blob] blob missing locally, cannot chunk-send',
+          extras: {'blobId': blobId});
+      return;
+    }
+    final total = (bytes.length + _blobChunkBytes - 1) ~/ _blobChunkBytes;
+    Logger.info('[p2p-blob] chunked transfer starting', extras: {
+      'blobId': blobId,
+      'size': bytes.length,
+      'chunkCount': total,
+    });
+    for (var seq = 0; seq < total; seq++) {
+      final start = seq * _blobChunkBytes;
+      final end = (start + _blobChunkBytes).clamp(0, bytes.length);
+      final slice = bytes.sublist(start, end);
+      final frame = <String, dynamic>{
+        'type': 'blob-chunk',
+        'blobId': blobId,
+        'seq': seq,
+        'total': total,
+        'hash': hash,
+        'fileName': fileName,
+        if (mime != null) 'mime': mime,
+        if (isGroupChat != null) 'isGroupChat': isGroupChat,
+        'bytes': base64Encode(slice),
+      };
+      dc.send(RTCDataChannelMessage(jsonEncode(frame)));
+    }
+    Logger.debug('[p2p-blob] all chunks sent',
+        extras: {'blobId': blobId, 'chunkCount': total});
+  }
+
+  Future<void> _handleBlobChunk(
+      String chatId, Map<String, dynamic> frame) async {
+    final blobId = frame['blobId']?.toString();
+    final total = frame['total'] as int?;
+    final seq = frame['seq'] as int?;
+    final hash = frame['hash']?.toString();
+    if (blobId == null || total == null || seq == null || hash == null) {
+      Logger.warn('[p2p-blob] malformed blob-chunk frame, ignoring');
+      return;
+    }
+    final assembly = _blobAssemblies.putIfAbsent(
+      blobId,
+      () => _BlobAssembly(
+        total: total,
+        expectedHash: hash,
+        chatId: chatId,
+        fileName: frame['fileName']?.toString() ?? 'attachment',
+        mime: frame['mime']?.toString(),
+        isGroupChat: frame['isGroupChat'] as bool?,
+      ),
+    );
+    final chunkBytes = Uint8List.fromList(base64Decode(frame['bytes'] as String));
+    assembly.chunks[seq] = chunkBytes;
+    assembly.receivedBytes += chunkBytes.length;
+    Logger.debug('[p2p-blob] chunk received', extras: {
+      'blobId': blobId,
+      'seq': seq,
+      'total': total,
+      'receivedChunks': assembly.chunks.length,
+    });
+
+    if (!assembly.isComplete) return;
+
+    // Concatenate in seq order.
+    final reassembled = BytesBuilder();
+    for (var i = 0; i < assembly.total; i++) {
+      final chunk = assembly.chunks[i];
+      if (chunk == null) {
+        Logger.warn('[p2p-blob] missing chunk on completion claim, aborting',
+            extras: {'blobId': blobId, 'missingSeq': i});
+        _blobAssemblies.remove(blobId);
+        return;
+      }
+      reassembled.add(chunk);
+    }
+    final fullBytes = reassembled.toBytes();
+    final actualHash = base64UrlEncode(
+      (await Sha256().hash(fullBytes)).bytes,
+    ).replaceAll('=', '');
+    if (actualHash != assembly.expectedHash) {
+      Logger.warn('[p2p-blob] sha256 mismatch, blob discarded', extras: {
+        'blobId': blobId,
+        'expectedHash': assembly.expectedHash,
+        'actualHash': actualHash,
+      });
+      _blobAssemblies.remove(blobId);
+      return;
+    }
+    await AttachmentService().saveReceivedBlob(
+      blobId: blobId,
+      encryptedBytes: fullBytes,
+      hash: assembly.expectedHash,
+      chatId: assembly.chatId,
+      fileName: assembly.fileName,
+      mime: assembly.mime,
+      isGroupChat: assembly.isGroupChat,
+    );
+    _blobAssemblies.remove(blobId);
+    Logger.info('[p2p-blob] blob reassembled and saved', extras: {
+      'blobId': blobId,
+      'size': fullBytes.length,
+      'chunkCount': assembly.total,
+    });
   }
 
   void disposeConnection(String chatId) {

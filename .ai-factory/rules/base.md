@@ -37,7 +37,7 @@
 - После `await` перед `setState` проверять `mounted`.
 - Для startup failures использовать `StartupErrorScreen`.
 - Recovery corrupted secure storage: один wipe локальных credentials и retry.
-- Логи через `debugPrint`, не через `print`.
+- Логи через `Logger.*` (`client/lib/logging/logger.dart`), не через `debugPrint`/`print` напрямую. Регрессия закреплена в `client/test/security/no_bare_logging_test.dart`.
 - Не логировать приватные ключи, plaintext сообщений, пароли, tokens.
 
 ## Конфиг

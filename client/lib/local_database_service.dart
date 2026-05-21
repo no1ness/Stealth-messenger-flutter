@@ -11,13 +11,17 @@ import 'package:stealth/helpers/crypto_helper.dart';
 
 class LocalDatabaseService {
   static const String dbName = 'stealth_local_v3.db';
-  // Bumped to v2 to add the `synced` index on the messages store.
-  static const int dbVersion = 4;
+  // v6 (task #8 of client-hardening-followup): `deliveryStatus` index on
+  // messagesStore for the pending-message worker. Schema is additive —
+  // legacy rows without `deliveryStatus` read as `'sent'` (computed by
+  // MessageService at read time).
+  static const int dbVersion = 6;
 
   static const String messagesStore = 'messages';
   static const String chatsStore = 'chats';
   static const String contactsStore = 'contacts';
   static const String callsStore = 'calls';
+  static const String attachmentsStore = 'attachments';
 
   IdbFactory get _factory => kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
   Database? _db;
@@ -39,6 +43,7 @@ class LocalDatabaseService {
         store.createIndex('chatId', 'chatId');
         store.createIndex('synced', 'synced');
         store.createIndex('messageId', 'messageId');
+        store.createIndex('deliveryStatus', 'deliveryStatus');
       } else {
         final txn = event.transaction;
         final store = txn.objectStore(messagesStore);
@@ -52,6 +57,11 @@ class LocalDatabaseService {
             store.createIndex('messageId', 'messageId');
           }
         }
+        if (event.oldVersion < 6) {
+          if (!store.indexNames.contains('deliveryStatus')) {
+            store.createIndex('deliveryStatus', 'deliveryStatus');
+          }
+        }
       }
       if (!db.objectStoreNames.contains(chatsStore)) {
         db.createObjectStore(chatsStore, keyPath: 'id');
@@ -62,6 +72,16 @@ class LocalDatabaseService {
       if (!db.objectStoreNames.contains(callsStore)) {
         final store = db.createObjectStore(callsStore, autoIncrement: true);
         store.createIndex('chatId', 'chatId');
+      }
+      if (!db.objectStoreNames.contains(attachmentsStore)) {
+        final store = db.createObjectStore(attachmentsStore, keyPath: 'id');
+        store.createIndex('chatId', 'chatId');
+      } else if (event.oldVersion < 5) {
+        final txn = event.transaction;
+        final store = txn.objectStore(attachmentsStore);
+        if (!store.indexNames.contains('chatId')) {
+          store.createIndex('chatId', 'chatId');
+        }
       }
     });
 
@@ -83,6 +103,7 @@ class LocalDatabaseService {
   Future<Object?> saveMessage(
     Map<String, dynamic> message, {
     bool synced = true,
+    String? deliveryStatus,
   }) async {
     await _ensureInitialized();
 
@@ -105,6 +126,12 @@ class LocalDatabaseService {
           val['timestamp'] = DateTime.now().millisecondsSinceEpoch;
           val['chatId'] = message['chat_id'];
           val['synced'] = synced ? 1 : (val['synced'] as int? ?? 1);
+          // deliveryStatus is OUTGOING-only. When non-null, overwrite (the
+          // caller knows it's a state transition); when null, preserve the
+          // existing value if any (don't fabricate a status for incoming).
+          if (deliveryStatus != null) {
+            val['deliveryStatus'] = deliveryStatus;
+          }
           await store.put(val, existingKey);
         }
         await txn.completed;
@@ -122,9 +149,75 @@ class LocalDatabaseService {
       'chatId': message['chat_id'],
       'messageId': messageId,
       'synced': synced ? 1 : 0,
+      // Top-level field — indexed for the pending-message worker.
+      // Absent for incoming messages (UI must treat absence as no indicator).
+      if (deliveryStatus != null) 'deliveryStatus': deliveryStatus,
     });
     await txn.completed;
     return localKey;
+  }
+
+  /// Updates the outgoing-message lifecycle marker without re-encrypting the
+  /// payload. Used by the P2P retry worker and ACK handler (task #9).
+  /// No-op if no message with this `messageId` exists (legitimately deleted).
+  ///
+  /// `lastRetryAt` lets the multi-tab anti-double-retry coordinator skip
+  /// rows that another tab attempted within the last 30 s. Pass `null`
+  /// for terminal transitions (markSent, markDelivered, markFailed).
+  Future<void> updateMessageDeliveryStatus(
+    String messageId,
+    String newStatus, {
+    DateTime? lastRetryAt,
+  }) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(messagesStore, idbModeReadWrite);
+    final store = txn.objectStore(messagesStore);
+    final index = store.index('messageId');
+    final existingKey = await index.getKey(messageId);
+    if (existingKey == null) {
+      await txn.completed;
+      return;
+    }
+    final existing = await store.getObject(existingKey);
+    if (existing is Map) {
+      final val = Map<String, dynamic>.from(existing);
+      val['deliveryStatus'] = newStatus;
+      if (lastRetryAt != null) {
+        val['lastRetryAttemptedAt'] = lastRetryAt.toIso8601String();
+      }
+      await store.put(val, existingKey);
+    }
+    await txn.completed;
+  }
+
+  /// Returns outgoing messages with `deliveryStatus == 'pending'` ordered by
+  /// IDB insertion. Decrypts the payload and surfaces top-level retry
+  /// coordination fields (`deliveryStatus`, `lastRetryAttemptedAt`) on the
+  /// returned map.
+  Future<List<Map<String, dynamic>>> getPendingMessages({int? limit}) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(messagesStore, idbModeReadOnly);
+    final store = txn.objectStore(messagesStore);
+    final index = store.index('deliveryStatus');
+
+    final pending = <Map<String, dynamic>>[];
+    final cursor = index.openCursor(key: 'pending', autoAdvance: true);
+    var count = 0;
+    await for (final cv in cursor) {
+      if (limit != null && count >= limit) break;
+      final val = cv.value as Map;
+      final decrypted =
+          await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
+      final message = jsonDecode(decrypted) as Map<String, dynamic>;
+      message['_local_key'] = cv.primaryKey;
+      message['deliveryStatus'] = val['deliveryStatus'];
+      if (val['lastRetryAttemptedAt'] != null) {
+        message['lastRetryAttemptedAt'] = val['lastRetryAttemptedAt'];
+      }
+      pending.add(message);
+      count += 1;
+    }
+    return pending;
   }
 
   /// Returns all messages for [chatId], decrypted.
@@ -141,7 +234,14 @@ class LocalDatabaseService {
       final val = cv.value as Map;
       final decrypted =
           await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
-      messages.add(jsonDecode(decrypted) as Map<String, dynamic>);
+      final message = jsonDecode(decrypted) as Map<String, dynamic>;
+      // Surface the top-level deliveryStatus marker (task #8) so the UI
+      // layer can render the per-message status icon (task #10). Absent
+      // for incoming rows; present for outgoing only.
+      if (val['deliveryStatus'] != null) {
+        message['deliveryStatus'] = val['deliveryStatus'];
+      }
+      messages.add(message);
     }
 
     return messages;
@@ -274,5 +374,50 @@ class LocalDatabaseService {
     final store = txn.objectStore(callsStore);
     final list = await store.getAll();
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  // --- Attachments ---
+
+  Future<void> saveAttachment(Map<String, dynamic> attachment) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadWrite);
+    final store = txn.objectStore(attachmentsStore);
+    await store.put(attachment);
+    await txn.completed;
+  }
+
+  Future<Map<String, dynamic>?> getAttachment(String id) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadOnly);
+    final store = txn.objectStore(attachmentsStore);
+    final val = await store.getObject(id);
+    if (val == null) return null;
+    return Map<String, dynamic>.from(val as Map);
+  }
+
+  /// Returns every attachment row (for LRU eviction sweeps — task #12).
+  /// Rows include the encrypted `payload` field; callers should consider
+  /// memory if the attachment store is large.
+  Future<List<Map<String, dynamic>>> getAllAttachments() async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadOnly);
+    final store = txn.objectStore(attachmentsStore);
+    final all = <Map<String, dynamic>>[];
+    final cursor = store.openCursor(autoAdvance: true);
+    await for (final cv in cursor) {
+      final val = cv.value as Map;
+      all.add(Map<String, dynamic>.from(val));
+    }
+    return all;
+  }
+
+  /// Hard-delete an attachment by id. Used by LRU eviction (task #12)
+  /// and by manual storage management.
+  Future<void> deleteAttachment(String id) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(attachmentsStore, idbModeReadWrite);
+    final store = txn.objectStore(attachmentsStore);
+    await store.delete(id);
+    await txn.completed;
   }
 }

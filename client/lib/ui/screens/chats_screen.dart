@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
@@ -9,13 +8,12 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/ui/screens/chats/chat_list_panel.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
-import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
-import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
+import 'package:stealth/ui/screens/chats/insight_panel.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
-import 'package:stealth/constants/accessibility_ids.dart';
 
 class ChatsScreen extends StatefulWidget {
   const ChatsScreen({super.key, this.initialChatId});
@@ -489,6 +487,9 @@ class _ChatsScreenState extends State<ChatsScreen>
         _otherLastReadAt != null &&
         !createdAtValue.isAfter(_otherLastReadAt!);
 
+    final metadata =
+        (row['metadata'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+    final isGroupEncryption = metadata['encryption'] == 'group_e2e';
     return {
       'id': row['id'],
       'sender_id': row['sender_id'],
@@ -501,7 +502,12 @@ class _ChatsScreenState extends State<ChatsScreen>
       'isSent': isSent,
       'isDelivered': isSent,
       'isRead': isRead,
-      'metadata': row['metadata'],
+      'metadata': metadata,
+      // Task #8/#10: deliveryStatus is OUTGOING-only; absent for incoming.
+      // `isGroupChat` gates the icon so groups (which don't go over P2P
+      // today) don't show a false-positive `pending` state.
+      'deliveryStatus': row['deliveryStatus'] as String?,
+      'isGroupChat': isGroupEncryption,
     };
   }
 
@@ -608,7 +614,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               children: [
                 SizedBox(
                   width: 360,
-                  child: _buildChatListPanel(filteredChats, showStats: true),
+                  child: _chatListPanel(filteredChats, showStats: true),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(
@@ -619,14 +625,18 @@ class _ChatsScreenState extends State<ChatsScreen>
                 const VerticalDivider(width: 1),
                 SizedBox(
                   width: 280,
-                  child: _buildInsightPanel(filteredChats.length),
+                  child: InsightPanel(
+                    messageCount: _messages.length,
+                    visibleChatCount: filteredChats.length,
+                    myUserId: _myUserId,
+                  ),
                 ),
               ],
             );
           }
 
           if (_selectedChatId == null) {
-            return _buildChatListPanel(filteredChats, showStats: false);
+            return _chatListPanel(filteredChats, showStats: false);
           }
 
           return _buildConversationPanel(visibleMessages);
@@ -635,200 +645,36 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Widget _buildChatListPanel(
+  // Chat list rendering moved to `ChatListPanel` (task #14). This thin
+  // helper wires the parent's state into the widget's props/callbacks.
+  Widget _chatListPanel(
     List<Map<String, dynamic>> chats, {
     required bool showStats,
-  }) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search chats',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.1),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              if (showStats) ...[
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Chats',
-                        value: '${_chats.length}',
-                        accent: AppColors.systemBlue,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Unread',
-                        value: '${_totalUnreadCount()}',
-                        accent: AppColors.systemOrange,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => showCreateGroupSheet(
-                      context: context,
-                      appService: _appService,
-                      nameController: _groupNameController,
-                      onGroupCreated: (chatId) async {
-                        await _loadChats();
-                        if (mounted) {
-                          await _selectChat(chatId);
-                        }
-                      },
-                    ),
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('New group'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : chats.isEmpty
-                  ? Semantics(
-                      label: 'No chats',
-                      child: EmptyState(type: 'chats'),
-                    )
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(12, 0, 12,
-                          MediaQuery.of(context).padding.bottom + 80),
-                      itemCount: chats.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final chat = chats[index];
-                        final isSelected = chat['id'] == _selectedChatId;
-                        return _buildChatTile(chat, isSelected);
-                      },
-                    ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChatTile(Map<String, dynamic> chat, bool isSelected) {
-    final unreadCount = chat['unreadCount'] as int? ?? 0;
-    final memberCount = chat['memberCount'] as int? ?? 0;
-    final isPrivate = chat['isPrivate'] as bool? ?? true;
-    final name = chat['name'] as String? ?? 'Chat';
-
-    return Semantics(
-      label: AccessibilityIds.chat(name),
-      button: true,
-      child: AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.systemBlue.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isSelected
-              ? AppColors.systemBlue.withValues(alpha: 0.45)
-              : Colors.white.withValues(alpha: 0.05),
-        ),
-      ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        onTap: () => _selectChat(chat['id'] as String),
-        onLongPress: isPrivate
-            ? null
-            : () => showManageGroupSheet(
-                  context: context,
-                  chat: chat,
-                  appService: _appService,
-                  myUserId: _myUserId,
-                  onMembersChanged: () async {
-                    await _loadChats();
-                    if (_selectedChatId == chat['id']) {
-                      await _loadMessages(chat['id'] as String);
-                    }
-                  },
-                ),
-        leading: CircleAvatar(
-          backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
-          child: Text(
-            _initials(chat['name'] as String?),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        title: Text(
-          chat['name'] as String? ?? 'Chat',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          ((chat['lastMessage'] as String?)?.isEmpty ?? true)
-              ? (isPrivate ? 'No messages yet' : '$memberCount members')
-              : chat['lastMessage'] as String,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: SizedBox(
-          width: 58,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                chat['timestamp'] as String? ?? '',
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: 6),
-              if (unreadCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.systemOrange,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$unreadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    ),
-    );
-  }
+  }) =>
+      ChatListPanel(
+        chats: chats,
+        showStats: showStats,
+        loading: _loading,
+        selectedChatId: _selectedChatId,
+        totalChatsCount: _chats.length,
+        unreadCount: _totalUnreadCount(),
+        searchController: _searchController,
+        groupNameController: _groupNameController,
+        appService: _appService,
+        myUserId: _myUserId,
+        onSearchChanged: () => setState(() {}),
+        onSelectChat: (chatId) {
+          if (!mounted) return;
+          _selectChat(chatId);
+        },
+        onChatsReloadNeeded: _loadChats,
+        onMessagesReloadNeeded: (chatId) async {
+          if (_selectedChatId == chatId) {
+            await _loadMessages(chatId);
+          }
+        },
+        initials: _initials,
+      );
 
   Widget _buildConversationPanel(List<Map<String, dynamic>> visibleMessages) {
     return ConversationPanel(
@@ -885,68 +731,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Widget _buildInsightPanel(int visibleChats) {
-    final theme = Theme.of(context);
-    final values = [
-      _messages.isEmpty ? 0.18 : 0.68,
-      visibleChats == 0 ? 0.12 : 0.54,
-      kIsWeb ? 0.74 : 0.49,
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Session insight', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _InsightTile(
-            label: 'Realtime sync',
-            value: 'Active',
-            accent: AppColors.systemGreen,
-          ),
-          const SizedBox(height: 10),
-          _InsightTile(
-            label: 'Platform',
-            value: kIsWeb ? 'Web' : 'Mobile',
-            accent: AppColors.systemBlue,
-          ),
-          const SizedBox(height: 10),
-          _InsightTile(
-            label: 'Current user',
-            value: _myUserId == null ? 'Unknown' : _myUserId!.substring(0, 8),
-            accent: AppColors.systemOrange,
-          ),
-          const SizedBox(height: 22),
-          Text('Load profile', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 130,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: values
-                  .map(
-                    (value) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 240),
-                          height: 110 * value,
-                          decoration: BoxDecoration(
-                            color: AppColors.systemBlue.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // _buildInsightPanel moved to InsightPanel widget (task #14).
 
   int _totalUnreadCount() {
     return _chats.fold<int>(
@@ -1069,85 +854,5 @@ class _ChatsScreenState extends State<ChatsScreen>
       return 'audio';
     }
     return 'file';
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.24)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InsightTile extends StatelessWidget {
-  const _InsightTile({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: accent,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label)),
-            Text(
-              value,
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

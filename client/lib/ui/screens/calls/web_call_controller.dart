@@ -99,7 +99,7 @@ class WebCallController extends ChangeNotifier {
         throw Exception(support.blockingIssues.join(' '));
       }
 
-      debugPrint('[FIX] webrtc-call web: lazy WebRtcSignalingService init');
+      Logger.debug('[stealth-call] web lazy WebRtcSignalingService init');
       _signaling = _signalingBuilder();
 
       _selfUserId = await _appService.getUserId();
@@ -117,9 +117,13 @@ class WebCallController extends ChangeNotifier {
           throw StateError('Callee opened without callerUserId');
         }
       }
-      debugPrint(
-        '[stealth-call] web using signaling=PocketBase '
-        'self=$_selfUserId target=$_targetUserId isCaller=$isCaller',
+      Logger.info(
+        '[stealth-call] web using signaling=PocketBase',
+        extras: {
+          'selfUserId': _selfUserId,
+          'targetUserId': _targetUserId,
+          'isCaller': isCaller,
+        },
       );
 
       if (isVideoCall) {
@@ -154,24 +158,22 @@ class WebCallController extends ChangeNotifier {
 
       _connectionTimeout = Timer(const Duration(seconds: 120), () {
         if (!_connected) {
-          debugPrint('[stealth-call] web connection timeout fired');
+          Logger.warn('[stealth-call] web connection timeout fired');
           onError?.call('Connection timed out.');
           hangUp();
         }
       });
 
       if (isCaller) {
-        debugPrint('[stealth-call] web caller — creating offer immediately');
+        Logger.debug('[stealth-call] web caller creating offer immediately');
         await _sendOffer();
       } else {
         final offerMap = initialOffer;
         if (offerMap != null) {
-          debugPrint('[stealth-call] web callee — applying initialOffer');
+          Logger.debug('[stealth-call] web callee applying initialOffer');
           await _applyRemoteOffer(offerMap);
         } else {
-          debugPrint(
-            '[stealth-call] web callee — waiting for offer via signaling',
-          );
+          Logger.debug('[stealth-call] web callee waiting for offer via signaling');
         }
       }
 
@@ -179,7 +181,7 @@ class WebCallController extends ChangeNotifier {
       _setupError = null;
       notifyListeners();
     } catch (error) {
-      debugPrint('Web call init error: $error');
+      Logger.error('[stealth-call] web call init error', extras: {'error': error});
       _initializing = false;
       _setupError = 'Call setup failed: $error';
       notifyListeners();
@@ -228,7 +230,7 @@ class WebCallController extends ChangeNotifier {
     if (state == 'connected' || state == 'completed') {
       _markConnected();
     } else if (state == 'failed') {
-      debugPrint('[stealth-call] web ICE failed — calling hangUp');
+      Logger.warn('[stealth-call] web ICE failed, calling hangUp');
       onError?.call('Connection failed.');
       hangUp();
     }
@@ -260,7 +262,7 @@ class WebCallController extends ChangeNotifier {
       targetUserId: target,
       sdp: answer,
     );
-    debugPrint('[stealth-call] web answer sent');
+    Logger.info('[stealth-call] web answer sent');
   }
 
   Future<void> _onSignalingMessage(RtcMessage message) async {
@@ -268,8 +270,9 @@ class WebCallController extends ChangeNotifier {
     switch (message.type) {
       case RtcMessageType.offer:
         if (isCaller) {
-          debugPrint(
-              '[stealth-call] web caller received unexpected offer; ignored');
+          Logger.warn(
+            '[stealth-call] web caller received unexpected offer; ignored',
+          );
           return;
         }
         await _applyRemoteOffer(message.payload);
@@ -298,9 +301,9 @@ class WebCallController extends ChangeNotifier {
   }
 
   Future<void> _handleRemoteHangup(RtcMessage message) async {
-    debugPrint(
-      '[stealth-call] web remote hangup → closing screen '
-      'roomId=${message.roomId} from=${message.creator}',
+    Logger.info(
+      '[stealth-call] web remote hangup, closing screen',
+      extras: {'roomId': message.roomId, 'fromUserId': message.creator},
     );
     if (_closing) return;
     _closing = true;
@@ -363,7 +366,10 @@ class WebCallController extends ChangeNotifier {
           targetUserId: target,
         );
       } catch (error) {
-        debugPrint('[stealth-call] web sendHangup error: $error');
+        Logger.warn(
+          '[stealth-call] web sendHangup error',
+          extras: {'error': error},
+        );
       }
     }
     onClose?.call();
@@ -371,9 +377,14 @@ class WebCallController extends ChangeNotifier {
 
   @override
   void dispose() {
-    debugPrint(
-      '[stealth-call] web dispose() isCaller=$isCaller '
-      'chat=$chatId connected=$_connected closing=$_closing',
+    Logger.debug(
+      '[stealth-call] web dispose',
+      extras: {
+        'isCaller': isCaller,
+        'chatId': chatId,
+        'connected': _connected,
+        'closing': _closing,
+      },
     );
     _connectionTimeout?.cancel();
     _callTimer?.cancel();
