@@ -37,6 +37,9 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `client/lib/crypto/aes_bytes.dart` — top-level `encryptBytesWithSecret` / `decryptBytesWithSecret` (AES-GCM-256), используется и message, и group, и attachment слоями (task #6)
 - `client/lib/services/attachments/attachment_service.dart` — uploadBytes/download/compactDescriptor/getStorageDebugSummary; групповой ключ инжектируется через `attachGroupKeyResolver()` (task #7)
 - `client/lib/services/calls/call_history_service.dart` — запись incoming/declined/ended звонков + getRecentCallHistory (task #7)
+- `client/lib/services/chat_management/chat_management_service.dart` — private/group chat lifecycle (findOrCreatePrivateChatWith / createGroupChat / member-role mgmt); групповой секрет инжектируется через `attachGroupSecretKeyResolver()` (FIX_PLAN A1)
+- `client/lib/services/dashboard/dashboard_service.dart` — analytics rollups (getDashboardSummary / getWeeklyActivityBars / getLastSeen / countUnreadSince); pure aggregator `computeWeeklyBars()` доступен top-level для unit-тестов (FIX_PLAN A2)
+- `client/lib/services/crypto/group_secret_service.dart` — owner группового секрета (in-memory cache + `flutter_secure_storage_x` persist); экспортирует `resolve()` / `encryptForGroup()` / `decryptForGroup()` / `clearOnLogout()`. Используется MessageService, AttachmentService, ChatManagementService через callback injection из LocalAppService ctor (FIX_PLAN D1)
 - `client/lib/services/webrtc/ice_config.dart` — top-level `buildIceServers()` (STUN + TURN/TURNS from `.env`), используется и `P2PService`, и `NativeCallMediaBindings` (task #8)
 - `LocalDatabaseService` schema v6: top-level `deliveryStatus` поле + `lastRetryAttemptedAt` (для outgoing 1:1 only) + индекс `deliveryStatus` для pending-queue worker; legacy rows без поля читаются как `sent` (task #8, готовит почву под task #9 retry)
 - `client/lib/local_database_service.dart` — зашифрованное локальное хранилище

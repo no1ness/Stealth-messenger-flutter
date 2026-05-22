@@ -45,7 +45,7 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 ## Future direction (committed but blocked / awaiting prerequisite)
 
 - [ ] **M15 — Cryptographic upgrade: DH Double Ratchet (PFS).** Current ratchet is a symmetric KDF chain (see M6); a root-key leak compromises all messages. Upgrade to a true Signal-style Double Ratchet to gain PFS. Scope includes ratchet migration plan, backward-compat envelope, and threat-model update in `docs/SECURITY.md`. Prerequisite: M3 (sealed); explicitly future-work, `post-pocketbase-hardening` Phase 6.3.
-- [ ] **M16 — Riverpod DI + secure-storage refactor.** Referenced in design-system v2 compatibility note (`feature/hardening-di-secure-storage` branch). Migrate `ThemeController` `ValueNotifier` + signaling-service singletons to Riverpod providers without changing public APIs. Prerequisite: M10 merge.
+- [ ] **M16 — Riverpod DI + secure-storage refactor.** Referenced in design-system v2 compatibility note (`feature/hardening-di-secure-storage` branch). Migrate `ThemeController` `ValueNotifier` + signaling-service singletons to Riverpod providers without changing public APIs. **Scope addendum (2026-05-22):** also includes the `chats_screen.dart` <500-line refactor (currently 806 строк после Phase B из FIX_PLAN.md). State machinery (29 полей, 3 domain) требует DI для разделения — без Riverpod дальнейший extraction только перегоняет prop-drilling. Prerequisite: M10 merge.
 
 ## Speculative / not on roadmap
 

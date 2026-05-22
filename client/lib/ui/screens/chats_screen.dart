@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:stealth/helpers/attachment_type_resolver.dart';
+import 'package:stealth/helpers/chat_stats.dart';
+import 'package:stealth/helpers/date_formatting.dart';
 import 'package:stealth/helpers/file_bytes.dart';
-import 'package:intl/intl.dart';
+import 'package:stealth/helpers/name_initials.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
@@ -12,6 +15,7 @@ import 'package:stealth/ui/screens/chats/chat_list_panel.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/insight_panel.dart';
+import 'package:stealth/ui/utils/scroll_helpers.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
 
@@ -79,7 +83,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
-            _scheduleScrollToBottom();
+            scheduleScrollToBottom(_messagesScrollController);
           }
         });
       }
@@ -174,7 +178,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           'name': title,
           'memberCount': members.length,
           'isPrivate': isPrivate,
-          'timestamp': createdAt == null ? '' : _formatTimestamp(createdAt),
+          'timestamp': createdAt == null ? '' : formatTimestamp(createdAt),
           'lastMessage': (lastMessage?['content'] as String? ?? '').trim(),
           'unreadCount': unread,
         };
@@ -259,7 +263,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     await _appService.markChatRead(chatId);
     _subscribeToChatP2P(chatId);
-    _scheduleScrollToBottom();
+    scheduleScrollToBottom(_messagesScrollController);
   }
 
   Future<void> _loadOlderMessages() async {
@@ -336,7 +340,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
-            _scheduleScrollToBottom();
+            scheduleScrollToBottom(_messagesScrollController);
           }
         });
       }
@@ -446,37 +450,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     _appService.subscribeP2PSignaling(chatId);
   }
 
-  void _scheduleScrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_messagesScrollController.hasClients) {
-        _messagesScrollController.animateTo(
-          _messagesScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  String _formatTimestamp(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final thatDay = DateTime(dateTime.year, dateTime.month, dateTime.day);
-    final diffDays = today.difference(thatDay).inDays;
-
-    if (diffDays == 0) {
-      return DateFormat('HH:mm').format(dateTime);
-    }
-    if (diffDays == 1) {
-      return 'Yesterday';
-    }
-    return DateFormat('dd.MM.yyyy').format(dateTime);
-  }
-
-  String _formatMessageTime(String? value) {
-    final parsed = DateTime.tryParse(value ?? '')?.toLocal();
-    return parsed == null ? '' : DateFormat('HH:mm').format(parsed);
-  }
+  // Pure helpers (`_scheduleScrollToBottom`, `_formatTimestamp`,
+  // `_formatMessageTime`) extracted to `lib/ui/utils/scroll_helpers.dart`
+  // and `lib/helpers/date_formatting.dart` (FIX_PLAN Phase B).
 
   Map<String, dynamic> _toUiMessage(Map<String, dynamic> row) {
     final createdAt = row['created_at'] as String? ?? '';
@@ -498,7 +474,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       'reply_to_id': row['reply_to_id']?.toString(),
       'edited_at': row['edited_at'],
       'created_at': createdAt,
-      'timestamp': _formatMessageTime(createdAt),
+      'timestamp': formatMessageTime(createdAt),
       'isSent': isSent,
       'isDelivered': isSent,
       'isRead': isRead,
@@ -511,16 +487,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     };
   }
 
-  String _initials(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return '?';
-    }
-
-    final parts = value.trim().split(RegExp(r'\s+'));
-    final first = parts.first.isNotEmpty ? parts.first[0] : '';
-    final second = parts.length > 1 && parts[1].isNotEmpty ? parts[1][0] : '';
-    return (first + second).toUpperCase();
-  }
+  // `_initials` extracted to `lib/helpers/name_initials.dart`
+  // (FIX_PLAN Phase B).
 
   @override
   Widget build(BuildContext context) {
@@ -657,7 +625,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         loading: _loading,
         selectedChatId: _selectedChatId,
         totalChatsCount: _chats.length,
-        unreadCount: _totalUnreadCount(),
+        unreadCount: totalUnreadCount(_chats),
         searchController: _searchController,
         groupNameController: _groupNameController,
         appService: _appService,
@@ -673,7 +641,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             await _loadMessages(chatId);
           }
         },
-        initials: _initials,
+        initials: nameInitials,
       );
 
   Widget _buildConversationPanel(List<Map<String, dynamic>> visibleMessages) {
@@ -733,12 +701,8 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   // _buildInsightPanel moved to InsightPanel widget (task #14).
 
-  int _totalUnreadCount() {
-    return _chats.fold<int>(
-      0,
-      (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
-    );
-  }
+  // `_totalUnreadCount` extracted to `lib/helpers/chat_stats.dart`
+  // (FIX_PLAN Phase B).
 
   Future<void> _handleAttachment() async {
     final chatId = _selectedChatId;
@@ -787,7 +751,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
-      type: _resolveAttachmentType(file.name),
+      type: resolveAttachmentType(file.name),
       metadataOverride: {'file_encrypted': true},
     );
     await _loadMessages(chatId);
@@ -837,22 +801,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     await _loadMessages(chatId);
   }
 
-  String _resolveAttachmentType(String fileName) {
-    final lower = fileName.toLowerCase();
-    if (lower.endsWith('.png') ||
-        lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.webp')) {
-      return 'image';
-    }
-    if (lower.endsWith('.m4a') ||
-        lower.endsWith('.aac') ||
-        lower.endsWith('.mp3') ||
-        lower.endsWith('.wav') ||
-        lower.endsWith('.ogg')) {
-      return 'audio';
-    }
-    return 'file';
-  }
+  // `_resolveAttachmentType` extracted to
+  // `lib/helpers/attachment_type_resolver.dart` (FIX_PLAN Phase B).
 }

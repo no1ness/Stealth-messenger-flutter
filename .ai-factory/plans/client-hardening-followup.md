@@ -11,7 +11,7 @@
 - Testing: yes (unit + widget tests required for split services, P2P retry, attachment descriptor, delivery UI)
 - Logging: verbose (Logger.debug on every state transition; Logger.info on user-visible events; Logger.warn on degraded paths; Logger.error only for unrecoverable)
 - Docs: yes — mandatory docs checkpoint at completion (touches public API of LocalAppService, P2P delivery semantics, attachment protocol, CI matrix)
-- Roadmap linkage: none (`.ai-factory/ROADMAP.md` doesn't exist in repo; `/aif-verify --strict` may WARN but not fail)
+- Roadmap linkage: linked to M5 (Structured logging), M7 (Quality gates), M8 (chats_screen split) — все sealed. *(2026-05-22: `.ai-factory/ROADMAP.md` создан 2026-05-19; изначальная заметка про отсутствие файла устарела.)*
 
 ## Goal
 
@@ -161,8 +161,8 @@ If the dirty changes belong to the perf branch (likely, given the branch name), 
 
 - `git grep -in supabase` returns 0; CI enforces.
 - `flutter analyze` clean; all existing tests pass.
-- `client/lib/local_app_service.dart` < 300 lines (facade).
-- `client/lib/ui/screens/chats_screen.dart` < 500 lines.
+- `client/lib/local_app_service.dart` < 300 lines (facade). *(2026-05-22: ✅ **279 строк** после Phase A+D из FIX_PLAN.md. Phase A извлекла ChatManagement + Dashboard сервисы → 313; Phase D вынесла group-secret machinery в GroupSecretService → 279.)*
+- `client/lib/ui/screens/chats_screen.dart` < 500 lines. *(2026-05-22: после Phase B из FIX_PLAN.md (pure helpers extraction) — **806 строк**; honest <500 требует Riverpod DI и заблокирован за M16 в ROADMAP.)*
 - New Dart tests: 7 minimum (identity, contact, message, attachment_v2, ice_config, p2p_retry, attachment_eviction).
 - New widget test: `delivery_status_icon_test.dart`.
 - New CI jobs: nightly release Android + macOS analyze matrix.
