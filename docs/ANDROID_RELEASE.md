@@ -1,7 +1,7 @@
 # Гайд по Android Release-сборке
 
 Как собрать публикабельный Stealth Messenger APK / App Bundle.
-Для повседневных debug-сборок см. [`../INSTALL_ANDROID.md`](../INSTALL_ANDROID.md).
+Для повседневных debug-сборок см. [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md).
 
 ## Идентичность приложения
 

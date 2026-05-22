@@ -13,8 +13,10 @@ transient signaling relay для `offer / answer / candidate / hangup` —
 - [`docs/SECURITY.md`](docs/SECURITY.md) — модель угроз и криптография
 - [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — развёртывание
   signaling-сервера
-- [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) — сборка под Android
+- [`docs/INSTALL_ANDROID.md`](docs/INSTALL_ANDROID.md) — сборка под Android
 - [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — подпись release-сборки и lint
+- [`docs/diagnostics.md`](docs/diagnostics.md) — in-app экран диагностики и экспорт логов
+- [`docs/MANUAL_CALL_TEST.md`](docs/MANUAL_CALL_TEST.md) — ручной план тестирования звонков
 - [`AGENTS.md`](AGENTS.md) — базовые правила для AI-ассистентов
 
 ## Quality gates

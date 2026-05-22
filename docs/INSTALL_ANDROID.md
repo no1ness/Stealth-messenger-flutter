@@ -131,7 +131,7 @@ TURNS_PASSWORD=your-password
 
 ### 3. Подписать APK (для production)
 
-Полный гайд по release-подписи — в [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md).
+Полный гайд по release-подписи — в [`ANDROID_RELEASE.md`](ANDROID_RELEASE.md).
 Краткая выжимка:
 
 ```bash
@@ -200,7 +200,7 @@ adb devices
 
 ### Ошибка сборки: `Execution failed for task ':app:lintVitalAnalyzeRelease'`
 
-Подробно см. [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) (раздел Lint baseline).
+Подробно см. [`ANDROID_RELEASE.md`](ANDROID_RELEASE.md) (раздел Lint baseline).
 Быстрый workaround — собрать lint baseline:
 
 ```bash
