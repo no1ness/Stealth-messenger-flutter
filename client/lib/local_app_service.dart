@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'local_database_service.dart';
 import 'logging/logger.dart';
 import 'p2p_service.dart';
@@ -10,6 +12,7 @@ import 'services/chat_management/chat_management_service.dart';
 import 'services/contacts/contact_service.dart';
 import 'services/crypto/group_secret_service.dart';
 import 'services/dashboard/dashboard_service.dart';
+import 'services/diagnostics/diagnostics_service.dart';
 import 'services/identity/identity_service.dart';
 import 'services/messaging/message_service.dart';
 
@@ -27,7 +30,23 @@ class LocalAppService {
     // Background workers must start AFTER all callback wiring is done so
     // they never observe a half-wired service. See `_kickoffBackgroundWorkers`.
     unawaited(_kickoffBackgroundWorkers());
+    Logger.info('[app] diagnostics factory ready');
   }
+
+  /// Builds a fresh [DiagnosticsService] for the in-app diagnostics
+  /// screen. Caller (the screen state) owns the lifecycle and MUST
+  /// call `dispose()` — diagnostics is intentionally NOT a singleton
+  /// so repeated open/close on the screen doesn't leak `Timer.periodic`
+  /// instances. See `.ai-factory/plans/diagnostics-logs-screen.md`
+  /// (Pass 5 lifecycle finding).
+  DiagnosticsService createDiagnostics() => DiagnosticsService(
+        dashboardSummary: _dashboard.getDashboardSummary,
+        attachmentDebugSummary: _attachments.getStorageDebugSummary,
+        getUserId: _identity.getUserId,
+        p2pActiveChannelCount: () => P2PService.instance.activeChannelCount,
+        p2pRetryWorkerRunning: () => P2PService.instance.retryWorkerRunning,
+        pocketbaseUrl: () => dotenv.env['POCKETBASE_URL']?.trim(),
+      );
 
   Future<void> _kickoffBackgroundWorkers() async {
     try {

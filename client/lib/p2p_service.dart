@@ -82,6 +82,19 @@ class P2PService {
 
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
 
+  bool _retryWorkerStarted = false;
+
+  /// Number of active per-chat signaling subscriptions. Health signal for
+  /// the diagnostics screen — non-zero means at least one P2P session
+  /// has running signaling glue.
+  int get activeChannelCount => _signalingSubs.length;
+
+  /// `true` once [startRetryWorker] has finished its initial pending-sweep.
+  /// Health signal for the diagnostics screen — `false` indicates the
+  /// background retry worker hasn't been kicked off (typical in test envs
+  /// where DB is unavailable, see `LocalAppService._kickoffBackgroundWorkers`).
+  bool get retryWorkerRunning => _retryWorkerStarted;
+
   Future<RTCPeerConnection> _createConnection(String chatId) async {
     final config = {
       'iceServers': buildIceServers(),
@@ -285,6 +298,7 @@ class P2PService {
       if (chatId == null || chatId.isEmpty) continue;
       await _tryDeliverPending(chatId: chatId, row: message);
     }
+    _retryWorkerStarted = true;
   }
 
   /// Pump pending outgoing rows for a single chat. Invoked from the

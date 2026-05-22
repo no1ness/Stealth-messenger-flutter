@@ -10,6 +10,8 @@ import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/logging/logger.dart';
+import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
@@ -390,6 +392,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             icon: const Icon(Icons.network_check),
             label: const Text('Open WebRTC diagnostics'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: () {
+              Logger.debug('[settings.ui] navigate to diagnostics');
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => DiagnosticsScreen(
+                    diagnosticsFactory: _appService.createDiagnostics,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.bug_report),
+            label: const Text('Open diagnostics & logs'),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(

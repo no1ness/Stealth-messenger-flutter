@@ -16,6 +16,8 @@
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
+import 'log_buffer.dart';
+
 enum LogLevel { debug, info, warn, error }
 
 /// Keys in `extras` whose values are treated as sensitive identifiers.
@@ -124,12 +126,33 @@ class Logger {
     String message,
     Map<String, dynamic>? extras,
   ) {
-    if (level.index < currentLevel.index) return;
-    final levelTag = '[${level.name.toUpperCase()}]';
     final redactSensitive = level != LogLevel.debug;
     final extrasText = _formatExtras(extras, redact: redactSensitive);
+    // Buffer writes happen BEFORE the currentLevel guard so WARN/ERROR
+    // are always captured for the in-app diagnostics screen, regardless
+    // of console verbosity (release builds default to INFO console).
+    LogBuffer.instance.append(LogEntry(
+      level: level,
+      timestampUtc: DateTime.now().toUtc(),
+      message: message,
+      extrasText: extrasText.isEmpty ? null : extrasText,
+    ));
+    if (level.index < currentLevel.index) return;
+    final levelTag = '[${level.name.toUpperCase()}]';
     debugPrint('$levelTag $message$extrasText');
   }
+
+  /// Recent log entries from the in-memory ring buffer.
+  ///
+  /// [min] — lowest level to include (default: WARN).
+  /// [limit] — newest-first cap.
+  ///
+  /// Returned list is unmodifiable; entries themselves are immutable.
+  static List<LogEntry> snapshot({
+    LogLevel min = LogLevel.warn,
+    int? limit,
+  }) =>
+      LogBuffer.instance.snapshot(min: min, limit: limit);
 
   static String _formatExtras(
     Map<String, dynamic>? extras, {
