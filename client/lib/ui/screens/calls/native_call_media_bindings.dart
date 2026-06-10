@@ -199,6 +199,28 @@ class NativeCallMediaBindings {
     }
   }
 
+  /// Создаёт offer с флагом iceRestart для переподключения WebRTC.
+  Future<Map<String, dynamic>?> createIceRestartOffer({
+    required bool isVideoCall,
+  }) async {
+    final connection = _peerConnection;
+    if (connection == null) return null;
+    try {
+      final offer = await connection.createOffer({
+        'offerToReceiveAudio': 1,
+        'offerToReceiveVideo': isVideoCall ? 1 : 0,
+        'iceRestart': true,
+      });
+      await connection.setLocalDescription(offer);
+      return offer.toMap();
+    } catch (error) {
+      Logger.warn('[stealth-call] ICE restart offer creation error',
+          extras: {'error': error});
+      return null;
+    }
+  }
+
+
   /// Применяет принятый offer и возвращает answer payload для отправки.
   Future<Map<String, dynamic>?> applyRemoteOffer(
       RTCSessionDescription offer) async {

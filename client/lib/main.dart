@@ -7,7 +7,12 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/services/app_metadata/app_metadata_service.dart';
+import 'package:stealth/services/app_update/app_update_installer.dart';
+import 'package:stealth/services/app_update/app_update_models.dart';
+import 'package:stealth/services/app_update/app_update_service.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
+import 'package:stealth/ui/screens/app_update/update_prompt_screen.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
 /// Environment keys that can be overridden at build time via
@@ -22,6 +27,7 @@ const List<String> _kDartDefineEnvKeys = <String>[
   'TURNS_URL',
   'TURNS_USERNAME',
   'TURNS_PASSWORD',
+  'APP_UPDATE_MANIFEST_URL',
 ];
 
 void _applyDartDefineOverrides() {
@@ -53,6 +59,8 @@ String _fromEnvironmentByKey(String key) {
       return const String.fromEnvironment('TURNS_USERNAME');
     case 'TURNS_PASSWORD':
       return const String.fromEnvironment('TURNS_PASSWORD');
+    case 'APP_UPDATE_MANIFEST_URL':
+      return const String.fromEnvironment('APP_UPDATE_MANIFEST_URL');
     default:
       return '';
   }
@@ -83,6 +91,12 @@ class _MyAppState extends State<MyApp> {
   LocalAppService? _appService;
   ThemeMode _themeMode = ThemeMode.system;
   String? _startupError;
+  AppUpdateStatus? _startupUpdateStatus;
+  bool _isInstallingUpdate = false;
+  AppMetadata _appMetadata = const AppMetadata(
+    version: 'unknown',
+    buildNumber: 'unknown',
+  );
 
   @override
   void initState() {
@@ -119,6 +133,27 @@ class _MyAppState extends State<MyApp> {
       // file header for the override matrix.
       await dotenv.load(fileName: '.env.defaults');
       _applyDartDefineOverrides();
+      final appMetadata = await const AppMetadataService().load();
+      if (mounted) {
+        setState(() {
+          _appMetadata = appMetadata;
+        });
+      }
+      final updateStatus = await AppUpdateService.fromEnv().checkForUpdate(
+        source: 'startup',
+      );
+      if (mounted && updateStatus.isUpdateAvailable) {
+        Logger.info('[app-update.ui] prompt shown', extras: {
+          'mandatory': updateStatus.isMandatory,
+          'currentVersion': updateStatus.currentVersion?.display ?? 'unknown',
+          'latestVersion': updateStatus.manifest?.latestVersion.display,
+        });
+        setState(() {
+          _startupUpdateStatus = updateStatus;
+          _isLoading = false;
+        });
+        return;
+      }
 
       final pocketbaseUrl = dotenv.env['POCKETBASE_URL']?.trim() ?? '';
       if (pocketbaseUrl.isEmpty || _isPlaceholderPocketbaseUrl(pocketbaseUrl)) {
@@ -141,8 +176,7 @@ class _MyAppState extends State<MyApp> {
       // PlatformException. Recover once by wiping local credentials and any
       // persisted app session, then retrying the startup flow.
       if (!afterReset && _looksLikeCorruptSecureStorage(error)) {
-        Logger.warn(
-            '[bootstrap] corrupted local storage detected, resetting',
+        Logger.warn('[bootstrap] corrupted local storage detected, resetting',
             extras: {'error': error});
         await _resetLocalCredentials();
         await _initializeApp(afterReset: true);
@@ -172,6 +206,42 @@ class _MyAppState extends State<MyApp> {
       _isLoading = false;
       _startupError = null;
     });
+  }
+
+  Future<void> _installStartupUpdate() async {
+    final manifest = _startupUpdateStatus?.manifest;
+    if (manifest == null) {
+      Logger.warn('[app-update.ui] update unavailable or unsupported', extras: {
+        'reason': _startupUpdateStatus?.kind.name ?? 'missingManifest',
+      });
+      return;
+    }
+    setState(() {
+      _isInstallingUpdate = true;
+    });
+    try {
+      Logger.info('[app-update.ui] update button pressed');
+      await AppUpdateInstaller().installUpdate(manifest);
+    } catch (error) {
+      Logger.error('[app-update.ui] update flow failed', extras: {
+        'error': error,
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInstallingUpdate = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _skipStartupUpdate() async {
+    Logger.debug('[app-update.ui] user skipped optional update');
+    setState(() {
+      _startupUpdateStatus = null;
+      _isLoading = true;
+    });
+    await _initializeApp();
   }
 
   /// Returns true for startup failures that look like unrecoverable cipher
@@ -221,17 +291,46 @@ class _MyAppState extends State<MyApp> {
       theme: LiquidTheme.theme,
       darkTheme: LiquidTheme.darkTheme,
       home: _isLoading
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+          ? Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Stealth ${_appMetadata.displayVersion}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
             )
           : _startupError != null
               ? StartupErrorScreen(
                   message: _startupError!,
                   onRetry: _initializeApp,
                 )
-              : _isUserRegistered
-                  ? const MainTabs()
-                  : const RegistrationScreen(),
+              : _startupUpdateStatus != null
+                  ? Stack(
+                      children: [
+                        UpdatePromptScreen(
+                          status: _startupUpdateStatus!,
+                          onUpdateNow: _installStartupUpdate,
+                          onSkip: _skipStartupUpdate,
+                        ),
+                        if (_isInstallingUpdate)
+                          const Positioned.fill(
+                            child: ColoredBox(
+                              color: Color(0x66000000),
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                          ),
+                      ],
+                    )
+                  : _isUserRegistered
+                      ? const MainTabs()
+                      : const RegistrationScreen(),
     );
   }
 }

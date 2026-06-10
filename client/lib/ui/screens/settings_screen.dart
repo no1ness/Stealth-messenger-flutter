@@ -5,18 +5,34 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/services/app_metadata/app_metadata_service.dart';
+import 'package:stealth/services/app_update/app_update_installer.dart';
+import 'package:stealth/services/app_update/app_update_models.dart';
+import 'package:stealth/services/app_update/app_update_service.dart';
 import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/logging/logger.dart';
+import 'package:stealth/ui/screens/app_update/update_status_card.dart';
 import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    this.updateService,
+    this.updateInstaller,
+    this.metadataService = const AppMetadataService(),
+    this.settingsLoader,
+  });
+
+  final AppUpdateService? updateService;
+  final AppUpdateInstaller? updateInstaller;
+  final AppMetadataService metadataService;
+  final Future<SettingsSnapshot> Function()? settingsLoader;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -24,6 +40,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final LocalAppService _appService = LocalAppService();
+  late final AppUpdateService _updateService;
+  late final AppUpdateInstaller _updateInstaller;
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
   bool _contactVerification = true;
@@ -41,10 +59,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _webrtcAudioInputs = 0;
   List<double> _diagnosticBars = const [0.12, 0.12, 0.12, 0.12];
   bool _isLoading = true;
+  bool _isCheckingUpdate = false;
+  bool _isInstallingUpdate = false;
+  AppUpdateStatus? _updateStatus;
+  AppUpdateInstallState? _installState;
+  String _appVersionLabel = 'version unknown';
 
   @override
   void initState() {
     super.initState();
+    _updateService = widget.updateService ?? AppUpdateService.fromEnv();
+    _updateInstaller = widget.updateInstaller ?? AppUpdateInstaller();
     _loadSettings();
     _startPreviewTimer();
   }
@@ -60,29 +85,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isLoading = true;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final dashboard = await _appService.getDashboardSummary();
-    final weeklyActivity = await _appService.getWeeklyActivityBars();
-    final webrtcSupport = await getWebRTCSupport();
+    final snapshot = widget.settingsLoader == null
+        ? await _loadSettingsSnapshot()
+        : await widget.settingsLoader!();
+    final metadata = await widget.metadataService.load();
+    final updateStatus =
+        await _updateService.checkForUpdate(source: 'settings');
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
-      _useP2P = prefs.getBool('useP2P') ?? true;
-      _messageCount = dashboard['messageCount'] as int? ?? 0;
-      _callCount = dashboard['callCount'] as int? ?? 0;
-      _chatCount = dashboard['chatCount'] as int? ?? 0;
-      _bucketReady = dashboard['bucketReady'] as bool? ?? false;
-      _webrtcSummary = webrtcSupport.summary;
-      _webrtcPlatformLabel = webrtcSupport.platformLabel;
-      _webrtcAudioInputs = webrtcSupport.audioInputCount;
+      _themeMode = snapshot.themeMode;
+      _useP2P = snapshot.useP2P;
+      _messageCount = snapshot.messageCount;
+      _callCount = snapshot.callCount;
+      _chatCount = snapshot.chatCount;
+      _bucketReady = snapshot.bucketReady;
+      _webrtcSummary = snapshot.webrtcSummary;
+      _webrtcPlatformLabel = snapshot.webrtcPlatformLabel;
+      _webrtcAudioInputs = snapshot.webrtcAudioInputs;
+      _appVersionLabel = metadata.displayVersion;
+      _updateStatus = updateStatus;
       _diagnosticBars = [
         _chatCount == 0 ? 0.12 : (_chatCount.clamp(1, 10) / 10),
         _messageCount == 0 ? 0.12 : (_messageCount.clamp(1, 40) / 40),
         _callCount == 0 ? 0.12 : (_callCount.clamp(1, 10) / 10),
-        weeklyActivity.fold<double>(0.12, (max, value) => value > max ? value : max),
+        snapshot.weeklyActivity
+            .fold<double>(0.12, (max, value) => value > max ? value : max),
       ];
       _isLoading = false;
     });
@@ -98,6 +128,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _themeMode = mode;
     });
+  }
+
+  Future<SettingsSnapshot> _loadSettingsSnapshot() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dashboard = await _appService.getDashboardSummary();
+    final weeklyActivity = await _appService.getWeeklyActivityBars();
+    final webrtcSupport = await getWebRTCSupport();
+    return SettingsSnapshot(
+      themeMode: ThemeMode.values[prefs.getInt('themeMode') ?? 2],
+      useP2P: prefs.getBool('useP2P') ?? true,
+      messageCount: dashboard['messageCount'] as int? ?? 0,
+      callCount: dashboard['callCount'] as int? ?? 0,
+      chatCount: dashboard['chatCount'] as int? ?? 0,
+      bucketReady: dashboard['bucketReady'] as bool? ?? false,
+      webrtcSummary: webrtcSupport.summary,
+      webrtcPlatformLabel: webrtcSupport.platformLabel,
+      webrtcAudioInputs: webrtcSupport.audioInputCount,
+      weeklyActivity: weeklyActivity,
+    );
   }
 
   void _startPreviewTimer() {
@@ -125,6 +174,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _checkForUpdates() async {
+    Logger.debug('[settings.ui] update check requested');
+    setState(() {
+      _isCheckingUpdate = true;
+    });
+    try {
+      final status = await _updateService.checkForUpdate(source: 'settings');
+      if (!mounted) {
+        return;
+      }
+      Logger.info('[settings.ui] update status displayed', extras: {
+        'status': status.kind.name,
+      });
+      setState(() {
+        _updateStatus = status;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _installUpdateFromSettings() async {
+    final manifest = _updateStatus?.manifest;
+    if (manifest == null || !_updateStatus!.isUpdateAvailable) {
+      Logger.warn('[settings.ui] update unavailable or unsupported', extras: {
+        'reason': _updateStatus?.kind.name ?? 'missingStatus',
+      });
+      return;
+    }
+    Logger.info('[settings.ui] update install requested');
+    setState(() {
+      _isInstallingUpdate = true;
+      _installState = const AppUpdateInstallState(
+        phase: AppUpdateInstallPhase.idle,
+      );
+    });
+    try {
+      await _updateInstaller.installUpdate(
+        manifest,
+        onState: (state) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _installState = state;
+          });
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInstallingUpdate = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cards = [
@@ -132,6 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _buildConnectionCard(),
       _buildNotificationCard(),
       _buildAppearanceCard(),
+      _buildUpdatesCard(),
       _buildDiagnosticsCard(),
     ];
 
@@ -240,7 +351,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _useP2P = value);
             },
             title: const Text('Direct P2P messaging'),
-            subtitle: const Text('Send messages directly to devices when online'),
+            subtitle:
+                const Text('Send messages directly to devices when online'),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -294,7 +406,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Messages', value: '$_messageCount')),
+              Expanded(
+                  child: _MiniStat(label: 'Messages', value: '$_messageCount')),
               SizedBox(width: AppSpacing.sm),
               Expanded(child: _MiniStat(label: 'Calls', value: '$_callCount')),
             ],
@@ -329,6 +442,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpdatesCard() {
+    return UpdateStatusCard(
+      appVersionLabel: _appVersionLabel,
+      status: _updateStatus,
+      installState: _installState,
+      isCheckingUpdate: _isCheckingUpdate,
+      isInstallingUpdate: _isInstallingUpdate,
+      onCheckForUpdates: _checkForUpdates,
+      onInstallUpdate: _installUpdateFromSettings,
     );
   }
 
@@ -420,6 +545,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
+class SettingsSnapshot {
+  const SettingsSnapshot({
+    required this.themeMode,
+    required this.useP2P,
+    required this.messageCount,
+    required this.callCount,
+    required this.chatCount,
+    required this.bucketReady,
+    required this.webrtcSummary,
+    required this.webrtcPlatformLabel,
+    required this.webrtcAudioInputs,
+    required this.weeklyActivity,
+  });
+
+  final ThemeMode themeMode;
+  final bool useP2P;
+  final int messageCount;
+  final int callCount;
+  final int chatCount;
+  final bool bucketReady;
+  final String webrtcSummary;
+  final String webrtcPlatformLabel;
+  final int webrtcAudioInputs;
+  final List<double> weeklyActivity;
+}
+
 class _MiniStat extends StatelessWidget {
   const _MiniStat({required this.label, required this.value});
 
@@ -460,7 +611,7 @@ class _MiniStat extends StatelessWidget {
 class _SignalServerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final url = dotenv.maybeGet('POCKETBASE_URL') ?? '';
+    final url = _safePocketbaseUrl();
     final hasUrl = url.isNotEmpty;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,7 +631,8 @@ class _SignalServerLine extends StatelessWidget {
               Text(
                 hasUrl ? url : 'not configured (set POCKETBASE_URL in .env)',
                 style: AppTypography.body.copyWith(
-                  color: hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
+                  color:
+                      hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -489,5 +641,13 @@ class _SignalServerLine extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _safePocketbaseUrl() {
+    try {
+      return dotenv.maybeGet('POCKETBASE_URL') ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 }

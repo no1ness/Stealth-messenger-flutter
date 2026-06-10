@@ -142,6 +142,7 @@ class NativeCallController extends ChangeNotifier {
       await _signaling!.connect(
         roomId: chatId,
         selfUserId: _selfUserId!,
+        peerUserIds: _targetUserId == null ? const [] : [_targetUserId!],
       );
       _signalingSub = _signaling!.incoming.listen(_onSignalingMessage);
 
@@ -195,9 +196,15 @@ class NativeCallController extends ChangeNotifier {
         state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
       _markConnected();
     } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
-      Logger.warn('[stealth-call] ICE connection failed, triggering restart');
-      onError?.call('Connection failed. Retrying...');
-      hangUp();
+      Logger.warn('[stealth-call] ICE connection failed');
+      if (isCaller) {
+        Logger.info('[stealth-call] triggering ICE restart');
+        onError?.call('Connection lost. Reconnecting...');
+        unawaited(_triggerIceRestart());
+      } else {
+        Logger.info('[stealth-call] callee waiting for ICE restart');
+        onError?.call('Connection lost. Waiting for reconnection...');
+      }
     } else if (state ==
         RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
       Logger.info('[stealth-call] ICE connection disconnected');
@@ -224,6 +231,32 @@ class NativeCallController extends ChangeNotifier {
       sdp: enriched,
     );
   }
+
+  Future<void> _triggerIceRestart() async {
+    try {
+      final payload = await media.createIceRestartOffer(isVideoCall: isVideoCall);
+      final target = _targetUserId;
+      if (payload == null || target == null) return;
+      final nickname = await _appService.getNickname();
+      final enriched = <String, dynamic>{
+        ...payload,
+        'purpose': 'call',
+        'nickname': nickname ?? '',
+        'callType': isVideoCall ? 'video' : 'audio',
+        'iceRestart': true,
+      };
+      await _signaling!.sendOffer(
+        roomId: chatId,
+        targetUserId: target,
+        sdp: enriched,
+      );
+      Logger.info('[stealth-call] ICE restart offer sent');
+    } catch (error) {
+      Logger.error('[stealth-call] ICE restart offer failed', extras: {'error': error});
+      hangUp();
+    }
+  }
+
 
   Future<void> _applyRemoteOffer(RTCSessionDescription offer) async {
     final answer = await media.applyRemoteOffer(offer);

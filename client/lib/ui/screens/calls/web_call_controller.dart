@@ -153,6 +153,7 @@ class WebCallController extends ChangeNotifier {
       await _signaling!.connect(
         roomId: chatId,
         selfUserId: _selfUserId!,
+        peerUserIds: _targetUserId == null ? const [] : [_targetUserId!],
       );
       _signalingSub = _signaling!.incoming.listen(_onSignalingMessage);
 

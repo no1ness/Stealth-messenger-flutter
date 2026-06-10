@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/signaling_transport.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
@@ -36,8 +37,8 @@ void main() {
       expect(h.fakeRecordService.lastCreateBody, isNotNull);
       final body = h.fakeRecordService.lastCreateBody!;
       expect(body['roomId'], 'room-1');
-      expect(body['creator'], 'user-A');
-      expect(body['target'], 'user-B');
+      expect(body['creator'], pbIdFromLocalUuid('user-A'));
+      expect(body['target'], pbIdFromLocalUuid('user-B'));
       expect(body['type'], 'offer');
       expect(body['payload'], isA<Map<String, dynamic>>());
       expect(body['payload']['sdp'], startsWith('v=0'));
@@ -71,7 +72,7 @@ void main() {
       expect(body['payload']['candidate'], startsWith('candidate:'));
     });
 
-    test('sendHangup creates record with empty payload', () async {
+    test('sendHangup creates record with minimal payload', () async {
       await h.service.sendHangup(
         roomId: 'room-1',
         targetUserId: 'user-B',
@@ -79,7 +80,7 @@ void main() {
 
       final body = h.fakeRecordService.lastCreateBody!;
       expect(body['type'], 'hangup');
-      expect(body['payload'], isEmpty);
+      expect(body['payload'], {'type': 'hangup'});
     });
 
     test('rethrows when create() fails', () async {
@@ -295,7 +296,11 @@ class _Harness {
 
   static Future<_Harness> connected({bool captureStates = false}) async {
     final h = _build(captureStates: captureStates);
-    await h.service.connect(roomId: 'room-1', selfUserId: 'user-A');
+    await h.service.connect(
+      roomId: 'room-1',
+      selfUserId: 'user-A',
+      peerUserIds: const ['user-B'],
+    );
     // Drain microtasks so that the initial 'connected' state is observed.
     await Future<void>.delayed(Duration.zero);
     return h;
@@ -306,7 +311,11 @@ class _Harness {
     required FakeAsync async,
   }) {
     final h = _build(captureStates: captureStates);
-    h.service.connect(roomId: 'room-1', selfUserId: 'user-A');
+    h.service.connect(
+      roomId: 'room-1',
+      selfUserId: 'user-A',
+      peerUserIds: const ['user-B'],
+    );
     async.flushMicrotasks();
     return h;
   }
@@ -414,7 +423,7 @@ class _FakeAuthStore extends AuthStore {
   // verbatim, so the value is hardcoded here for the same reason.
   @override
   dynamic get model => RecordModel(
-        id: 'user-A',
+        id: pbIdFromLocalUuid('user-A'),
         collectionId: 'users',
         collectionName: 'users',
       );

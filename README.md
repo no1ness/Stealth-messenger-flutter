@@ -11,8 +11,9 @@ transient signaling relay для `offer / answer / candidate / hangup` —
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — обзор системы
 - [`docs/SECURITY.md`](docs/SECURITY.md) — модель угроз и криптография
-- [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — развёртывание
-  signaling-сервера
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — деплой PocketBase + TURN на VPS
+  (скрипты в `server/docker/`)
+- [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — схема signaling-сервера
 - [`docs/INSTALL_ANDROID.md`](docs/INSTALL_ANDROID.md) — сборка под Android
 - [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — подпись release-сборки и lint
 - [`docs/diagnostics.md`](docs/diagnostics.md) — in-app экран диагностики и экспорт логов

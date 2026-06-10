@@ -52,7 +52,10 @@ class RtcMessage {
     required this.created,
   });
 
-  factory RtcMessage.fromRecord(RecordModel record) {
+  factory RtcMessage.fromRecord(
+    RecordModel record, {
+    Iterable<String> localCandidates = const [],
+  }) {
     final typeRaw = record.getStringValue('type');
     final type = RtcMessageType.fromString(typeRaw);
     final payloadRaw = record.data['payload'];
@@ -60,11 +63,12 @@ class RtcMessage {
         ? Map<String, dynamic>.from(payloadRaw)
         : <String, dynamic>{};
     final roomId = record.getStringValue('roomId');
-    // Wire-level ids are PocketBase record ids (canonical UUID without
-    // dashes). Convert back to the local UUID form so downstream consumers
-    // can match against contacts / chat membership directly.
-    final creator = localUuidFromPbId(record.getStringValue('creator'));
-    final target = localUuidFromPbId(record.getStringValue('target'));
+    // Wire-level ids are PocketBase record ids (15-char derived ids).
+    // Resolve against known local identities when provided.
+    final creatorWire = record.getStringValue('creator');
+    final targetWire = record.getStringValue('target');
+    final creator = wireIdToLocalUuid(creatorWire, localCandidates);
+    final target = wireIdToLocalUuid(targetWire, localCandidates);
     final created =
         DateTime.tryParse(record.created) ?? DateTime.now().toUtc();
 

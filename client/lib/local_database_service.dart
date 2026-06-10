@@ -8,6 +8,7 @@ import 'package:idb_shim/idb_browser.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/helpers/crypto_helper.dart';
+import 'package:stealth/logging/logger.dart';
 
 class LocalDatabaseService {
   static const String dbName = 'stealth_local_v3.db';
@@ -307,9 +308,16 @@ class LocalDatabaseService {
 
   Future<void> saveChat(Map<String, dynamic> chat) async {
     await _ensureInitialized();
+    final chatId = chat['id']?.toString();
+    if (chatId == null) return;
+
+    final encryptedPayload = await CryptoHelper.encryptJson(chat, _dbKey!);
     final txn = _db!.transaction(chatsStore, idbModeReadWrite);
     final store = txn.objectStore(chatsStore);
-    await store.put(chat);
+    await store.put({
+      'id': chatId,
+      'payload': encryptedPayload,
+    });
     await txn.completed;
   }
 
@@ -318,7 +326,24 @@ class LocalDatabaseService {
     final txn = _db!.transaction(chatsStore, idbModeReadOnly);
     final store = txn.objectStore(chatsStore);
     final list = await store.getAll();
-    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final results = <Map<String, dynamic>>[];
+    for (final item in list) {
+      if (item is Map) {
+        final payload = item['payload'] as String?;
+        if (payload != null) {
+          try {
+            final decrypted = await CryptoHelper.decryptJson(payload, _dbKey!);
+            results.add(decrypted);
+          } catch (e) {
+            Logger.error('[db] failed to decrypt chat', extras: {'error': e});
+          }
+        } else {
+          // Обратная совместимость с незашифрованными данными
+          results.add(Map<String, dynamic>.from(item));
+        }
+      }
+    }
+    return results;
   }
 
   Future<Map<String, dynamic>?> getChatById(String chatId) async {
@@ -326,8 +351,17 @@ class LocalDatabaseService {
     final txn = _db!.transaction(chatsStore, idbModeReadOnly);
     final store = txn.objectStore(chatsStore);
     final val = await store.getObject(chatId);
-    if (val != null) {
-      return Map<String, dynamic>.from(val as Map);
+    if (val != null && val is Map) {
+      final payload = val['payload'] as String?;
+      if (payload != null) {
+        try {
+          return await CryptoHelper.decryptJson(payload, _dbKey!);
+        } catch (e) {
+          Logger.error('[db] failed to decrypt chat by id', extras: {'chatId': chatId, 'error': e});
+          return null;
+        }
+      }
+      return Map<String, dynamic>.from(val);
     }
     return null;
   }
@@ -336,9 +370,16 @@ class LocalDatabaseService {
 
   Future<void> saveContact(Map<String, dynamic> contact) async {
     await _ensureInitialized();
+    final userId = contact['contact_user_id']?.toString();
+    if (userId == null) return;
+
+    final encryptedPayload = await CryptoHelper.encryptJson(contact, _dbKey!);
     final txn = _db!.transaction(contactsStore, idbModeReadWrite);
     final store = txn.objectStore(contactsStore);
-    await store.put(contact);
+    await store.put({
+      'contact_user_id': userId,
+      'payload': encryptedPayload,
+    });
     await txn.completed;
   }
 
@@ -347,7 +388,24 @@ class LocalDatabaseService {
     final txn = _db!.transaction(contactsStore, idbModeReadOnly);
     final store = txn.objectStore(contactsStore);
     final list = await store.getAll();
-    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final results = <Map<String, dynamic>>[];
+    for (final item in list) {
+      if (item is Map) {
+        final payload = item['payload'] as String?;
+        if (payload != null) {
+          try {
+            final decrypted = await CryptoHelper.decryptJson(payload, _dbKey!);
+            results.add(decrypted);
+          } catch (e) {
+            Logger.error('[db] failed to decrypt contact', extras: {'error': e});
+          }
+        } else {
+          // Обратная совместимость с незашифрованными данными
+          results.add(Map<String, dynamic>.from(item));
+        }
+      }
+    }
+    return results;
   }
 
   Future<void> deleteContact(String userId) async {

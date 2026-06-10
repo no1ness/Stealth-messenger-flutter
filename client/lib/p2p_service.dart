@@ -161,7 +161,12 @@ class P2PService {
     final selfUserId = await _storage.read('userId');
     if (selfUserId == null || selfUserId.isEmpty) return;
     final service = WebRtcSignalingService();
-    await service.connect(roomId: chatId, selfUserId: selfUserId);
+    final peerUserId = await _resolveTarget(chatId);
+    await service.connect(
+      roomId: chatId,
+      selfUserId: selfUserId,
+      peerUserIds: peerUserId == null ? const [] : [peerUserId],
+    );
     _signaling[chatId] = service;
     _signalingSubs[chatId] = service.incoming.listen((message) async {
       if (message.payload['purpose'] != 'datachannel') return;

@@ -126,10 +126,10 @@ CREATE INDEX idx_rtc_signaling_room
   target = @request.auth.id || creator = @request.auth.id
   ```
 
-- **Create rule**
+- **Create rule** (PocketBase 0.23+ uses `@request.body`; older versions use `@request.data`)
 
   ```
-  @request.auth.id != "" && @request.data.creator = @request.auth.id
+  @request.auth.id != "" && @request.body.creator = @request.auth.id
   ```
 
 - **Update rule**

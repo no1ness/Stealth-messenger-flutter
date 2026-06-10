@@ -34,6 +34,7 @@ abstract class SignalingTransport {
   Future<void> connect({
     required String roomId,
     required String selfUserId,
+    Iterable<String> peerUserIds = const [],
   });
 
   /// Отправляет SDP-offer в адрес [targetUserId].

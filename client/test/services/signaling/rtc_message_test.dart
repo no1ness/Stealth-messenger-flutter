@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 
 void main() {
@@ -170,8 +171,8 @@ void main() {
 
       expect(body.keys, containsAll(['roomId', 'creator', 'target', 'type', 'payload']));
       expect(body['roomId'], 'chat-1');
-      expect(body['creator'], 'user-A');
-      expect(body['target'], 'user-B');
+      expect(body['creator'], pbIdFromLocalUuid('user-A'));
+      expect(body['target'], pbIdFromLocalUuid('user-B'));
       expect(body['type'], 'candidate');
       expect(body['payload'], isA<Map<String, dynamic>>());
       expect(body['payload']['candidate'], startsWith('candidate:'));
@@ -227,11 +228,14 @@ void main() {
       },
     );
 
-    final body = RtcMessage.fromRecord(record).toCreateBody();
+    final body = RtcMessage.fromRecord(
+      record,
+      localCandidates: const ['sender', 'receiver'],
+    ).toCreateBody();
 
     expect(body['roomId'], 'room-X');
-    expect(body['creator'], 'sender');
-    expect(body['target'], 'receiver');
+    expect(body['creator'], pbIdFromLocalUuid('sender'));
+    expect(body['target'], pbIdFromLocalUuid('receiver'));
     expect(body['type'], 'answer');
     expect(body['payload']['sdp'], 'v=0\r\n');
   });
@@ -261,7 +265,7 @@ void main() {
       expect(msg.target, localUuid);
     });
 
-    test('toCreateBody strips dashes when emitting wire payload', () {
+    test('toCreateBody emits deterministic 15-char PocketBase ids', () {
       final msg = RtcMessage(
         id: '',
         roomId: 'room-1',
@@ -274,8 +278,9 @@ void main() {
 
       final body = msg.toCreateBody();
 
-      expect(body['creator'], pbId);
-      expect(body['target'], pbId);
+      expect(body['creator'], pbIdFromLocalUuid(localUuid));
+      expect(body['target'], pbIdFromLocalUuid(localUuid));
+      expect(body['creator'], hasLength(15));
     });
   });
 }

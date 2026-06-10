@@ -65,6 +65,7 @@ class WebRtcSignalingService implements SignalingTransport {
 
   String? _activeRoomId;
   String? _activeSelfUserId;
+  final Set<String> _knownLocalUserIds = {};
   bool _disposed = false;
 
   int _reconnectAttempt = 0;
@@ -90,11 +91,16 @@ class WebRtcSignalingService implements SignalingTransport {
   Future<void> connect({
     required String roomId,
     required String selfUserId,
+    Iterable<String> peerUserIds = const [],
   }) async {
     Logger.info('[signaling] connect',
         extras: {'roomId': roomId, 'selfUserId': selfUserId});
     _activeRoomId = roomId;
     _activeSelfUserId = selfUserId;
+    _knownLocalUserIds
+      ..clear()
+      ..add(selfUserId)
+      ..addAll(peerUserIds.where((id) => id.isNotEmpty));
 
     await _ensureAuth(selfUserId);
     await _subscribe();
@@ -140,7 +146,7 @@ class WebRtcSignalingService implements SignalingTransport {
       RtcMessageType.hangup,
       roomId,
       targetUserId,
-      const <String, dynamic>{},
+      const <String, dynamic>{'type': 'hangup'},
     );
   }
 
@@ -182,6 +188,7 @@ class WebRtcSignalingService implements SignalingTransport {
         'WebRtcSignalingService.connect must be called before sending messages',
       );
     }
+    _knownLocalUserIds.add(targetUserId);
     final pbCreator = pbIdFromLocalUuid(selfUserId);
     final pbTarget = pbIdFromLocalUuid(targetUserId);
     final body = <String, dynamic>{
@@ -207,6 +214,20 @@ class WebRtcSignalingService implements SignalingTransport {
       rethrow;
     }
   }
+
+  /// Удаляет сигнальное сообщение по его ID на PocketBase-сервере.
+  /// Метод оборачивается в try-catch для подавления ошибок прав доступа (например,
+  /// 403 Forbidden, если правила Delete Rule еще не обновлены на стороне сервера).
+  Future<void> deleteMessage(String messageId) async {
+    try {
+      Logger.info('[signaling] delete message', extras: {'messageId': messageId});
+      await _pb.collection(_kSignalingCollection).delete(messageId);
+    } catch (error) {
+      Logger.warn('[signaling] delete message error',
+          extras: {'messageId': messageId, 'error': error});
+    }
+  }
+
 
   Future<void> _subscribe() async {
     final roomId = _activeRoomId;
@@ -250,7 +271,10 @@ class WebRtcSignalingService implements SignalingTransport {
       return;
     }
     try {
-      final message = RtcMessage.fromRecord(record);
+      final message = RtcMessage.fromRecord(
+        record,
+        localCandidates: _knownLocalUserIds,
+      );
       Logger.info('[signaling] recv', extras: {
         'type': message.type.wireValue,
         'roomId': message.roomId,
@@ -259,6 +283,7 @@ class WebRtcSignalingService implements SignalingTransport {
       if (!_incomingController.isClosed) {
         _incomingController.add(message);
       }
+      unawaited(deleteMessage(record.id));
     } catch (error) {
       Logger.warn('[signaling] failed to parse record', extras: {'error': error});
     }

@@ -16,6 +16,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - PocketBase identity: `users.id == pbIdFromLocalUuid(selfUserId)` (локальный UUID без дефисов) — это контракт между клиентом и API rules коллекции `rtc_signaling`, см. `client/lib/services/signaling/pb_user_id.dart` и `docs/POCKETBASE_SETUP.md`.
 - Структурированное логирование через `client/lib/logging/logger.dart` (`Logger.debug/info/warn/error`) с auto-redaction sensitive ids выше DEBUG уровня. Прямые `print()`/`debugPrint()` в `client/lib/` запрещены (project rule + regression test `client/test/security/no_bare_logging_test.dart`; allow-list — только сам `lib/logging/logger.dart`). Уровень переопределяется через `--dart-define=STEALTH_LOG_LEVEL=debug|info|warn|error`. Параллельно с консольным выводом все записи попадают в in-memory ring buffer (`client/lib/logging/log_buffer.dart`, 500 записей) — основа экрана **Diagnostics & logs**, см. `docs/diagnostics.md`. Экспорт логов через share-intent дополнительно прогоняется через inline scrubber (UUID / PB id / base64 pub keys) — `client/lib/services/diagnostics/log_scrubber.dart`.
 - Env-конфиг: committed `.env.defaults` (асет), runtime override через `--dart-define=<KEY>=value`. `.env` остаётся в `.gitignore` и больше не входит в asset bundle.
+- In-app update metadata использует статический HTTPS manifest (`APP_UPDATE_MANIFEST_URL`) для Android APK sideload flow. Это release metadata, не backend для пользовательских данных; установка APK передаётся в системный Android package installer после SHA-256 проверки.
 
 ## Стек
 
@@ -26,6 +27,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `idb_shim`, `sqflite`, `path_provider` для локальной БД
 - `flutter_secure_storage_x` и web storage abstraction для ключей
 - `shared_preferences` и `flutter_dotenv` для локальных настроек
+- `package_info_plus`, `path_provider` и Android platform channel для version metadata и APK update handoff
 
 ## Ключевые файлы
 
@@ -42,6 +44,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `client/lib/services/crypto/group_secret_service.dart` — owner группового секрета (in-memory cache + `flutter_secure_storage_x` persist); экспортирует `resolve()` / `encryptForGroup()` / `decryptForGroup()` / `clearOnLogout()`. Используется MessageService, AttachmentService, ChatManagementService через callback injection из LocalAppService ctor (FIX_PLAN D1)
 - `client/lib/services/webrtc/ice_config.dart` — top-level `buildIceServers()` (STUN + TURN/TURNS from `.env`), используется и `P2PService`, и `NativeCallMediaBindings` (task #8)
 - `client/lib/services/diagnostics/` — health-агрегатор сервисов + composer текстового отчёта + scrubber sensitive ids + share-intent; провайдер-функции в ctor `DiagnosticsService` обеспечивают unit-test без рефакторинга существующих сервисов
+- `client/lib/services/app_update/` — модели update manifest/status, проверка статического HTTPS manifest, Android APK download + SHA-256 verification + package-installer handoff
 - `client/lib/ui/screens/diagnostics/` — экран **Diagnostics & logs** (Services + Recent logs + Share logs); открывается из Settings, lifecycle on-screen (Timer.periodic стопится в state.dispose)
 - `LocalDatabaseService` schema v6: top-level `deliveryStatus` поле + `lastRetryAttemptedAt` (для outgoing 1:1 only) + индекс `deliveryStatus` для pending-queue worker; legacy rows без поля читаются как `sent` (task #8, готовит почву под task #9 retry)
 - `client/lib/local_database_service.dart` — зашифрованное локальное хранилище

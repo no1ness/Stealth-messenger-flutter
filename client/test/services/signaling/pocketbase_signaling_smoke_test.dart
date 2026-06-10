@@ -52,10 +52,12 @@ void main() {
       final adminPassword =
           Platform.environment['POCKETBASE_TEST_ADMIN_PASSWORD'];
 
-      final stamp = DateTime.now().microsecondsSinceEpoch;
-      final userIdA = 'smoke_a_$stamp';
-      final userIdB = 'smoke_b_$stamp';
-      final roomId = 'smoke_room_$stamp';
+      // PocketBase record ids must be exactly 15 lowercase alphanumeric chars.
+      final stamp = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+      final suffix = stamp.padLeft(13, '0').substring(0, 13);
+      final userIdA = 'sa$suffix';
+      final userIdB = 'sb$suffix';
+      final roomId = 'sr$suffix';
 
       final pbA = PocketBase(pbUrl);
       final pbB = PocketBase(pbUrl);
@@ -85,8 +87,16 @@ void main() {
         // `selfUserId` (no dashes ⇒ already a valid PB id). After connect
         // we verify the round-trip succeeded — this is the identity check
         // that strict API rules will enforce server-side.
-        await serviceB.connect(roomId: roomId, selfUserId: userIdB);
-        await serviceA.connect(roomId: roomId, selfUserId: userIdA);
+        await serviceB.connect(
+          roomId: roomId,
+          selfUserId: userIdB,
+          peerUserIds: [userIdA],
+        );
+        await serviceA.connect(
+          roomId: roomId,
+          selfUserId: userIdA,
+          peerUserIds: [userIdB],
+        );
 
         final modelA = pbA.authStore.model;
         final modelB = pbB.authStore.model;
@@ -96,7 +106,7 @@ void main() {
           pbRecIdA,
           userIdA,
           reason: 'WebRtcSignalingService must register users.id == selfUserId '
-              'so that strict createRule (@request.data.creator = @request.auth.id) '
+              'so that strict createRule (@request.body.creator = @request.auth.id) '
               'accepts the writes.',
         );
         expect(pbRecIdB, userIdB);
@@ -178,7 +188,13 @@ Future<void> _safeDeleteUser(
   if (id == null || id.isEmpty) return;
   try {
     final adminPb = PocketBase(baseUrl);
-    await adminPb.admins.authWithPassword(adminEmail, adminPassword);
+    try {
+      await adminPb.admins.authWithPassword(adminEmail, adminPassword);
+    } catch (_) {
+      await adminPb
+          .collection('_superusers')
+          .authWithPassword(adminEmail, adminPassword);
+    }
     await adminPb.collection('users').delete(id);
   } catch (_) {
     // best-effort cleanup
