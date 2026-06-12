@@ -96,15 +96,12 @@ class IncomingCallSignalingService {
   Future<void> start({required String selfUserId}) async {
     _selfUserId = selfUserId;
     await _authService.ensureAuth(selfUserId);
-    final pbSelfId = pbIdFromLocalUuid(selfUserId);
-    final filter = "target='$pbSelfId' && "
-        "(type='offer' || type='hangup')";
     Logger.info('[signaling] incoming-call subscribe',
-        extras: {'pbSelfId': pbSelfId});
+        extras: {'selfUserId': selfUserId});
     try {
       _unsubscribe = await _pb
           .collection('rtc_signaling')
-          .subscribe('*', _onRecord, filter: filter);
+          .subscribe('*', _onRecord);
     } catch (error) {
       Logger.warn('[signaling] incoming-call subscribe error',
           extras: {'error': error});
@@ -167,6 +164,12 @@ class IncomingCallSignalingService {
     final record = event.record;
     if (record == null) return;
     if (_eventsController.isClosed) return;
+    final target = record.getStringValue('target');
+    final selfUserId = _selfUserId;
+    if (selfUserId == null) return;
+    if (target != pbIdFromLocalUuid(selfUserId)) return;
+    final typeRaw = record.getStringValue('type');
+    if (typeRaw != 'offer' && typeRaw != 'hangup') return;
     try {
       final message = RtcMessage.fromRecord(record);
       switch (message.type) {

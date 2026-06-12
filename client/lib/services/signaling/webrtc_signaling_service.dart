@@ -220,16 +220,14 @@ class WebRtcSignalingService implements SignalingTransport {
       } catch (_) {/* ignore stale unsubscribe failure */}
     }
 
-    final pbSelfId = pbIdFromLocalUuid(selfUserId);
-    final filter = "roomId='$roomId' && target='$pbSelfId'";
     Logger.info('[signaling] subscribed', extras: {
       'roomId': roomId,
-      'pbSelfId': pbSelfId,
+      'selfUserId': selfUserId,
     });
     try {
       _unsubscribe = await _pb
           .collection(_kSignalingCollection)
-          .subscribe('*', _onRecord, filter: filter);
+          .subscribe('*', _onRecord);
       _reconnectAttempt = 0;
       _emitState(SignalingConnectionState.connected);
     } catch (error) {
@@ -243,10 +241,13 @@ class WebRtcSignalingService implements SignalingTransport {
     if (_disposed) return;
     final record = event.record;
     if (record == null) return;
-    if (event.action != 'create') {
-      // Сигналинг — append-only; update/delete нас не интересуют.
-      return;
-    }
+    if (event.action != 'create') return;
+    final roomId = record.getStringValue('roomId');
+    if (roomId.isEmpty || roomId != _activeRoomId) return;
+    final target = record.getStringValue('target');
+    final selfUserId = _activeSelfUserId;
+    if (selfUserId == null) return;
+    if (target != pbIdFromLocalUuid(selfUserId)) return;
     try {
       final message = RtcMessage.fromRecord(record);
       Logger.info('[signaling] recv', extras: {
