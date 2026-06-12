@@ -32,7 +32,7 @@ class GlassChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSent = type == MessageType.sent;
-    
+
     return Padding(
       padding: EdgeInsets.only(
         left: isSent ? AppSpacing.huge : AppSpacing.md,
@@ -125,7 +125,9 @@ class GlassChatBubble extends StatelessWidget {
                   Icon(
                     isRead == true
                         ? Icons.done_all
-                        : (isDelivered == true ? Icons.done : Icons.access_time),
+                        : (isDelivered == true
+                            ? Icons.done
+                            : Icons.access_time),
                     size: 12,
                     color: isRead == true
                         ? AppColors.systemBlue
@@ -228,7 +230,8 @@ class _GlassChatInputState extends State<GlassChatInput> {
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusLg),
                             border: Border.all(
-                              color: AppColors.glassMedium.withValues(alpha: 0.3),
+                              color:
+                                  AppColors.glassMedium.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),

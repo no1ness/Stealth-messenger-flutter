@@ -26,7 +26,8 @@ class DashboardService {
     final calls = await _localDb.getCalls();
     var messageCount = 0;
     for (final chat in chats) {
-      messageCount += (await _localDb.getMessages(chat['id'].toString())).length;
+      messageCount +=
+          (await _localDb.getMessages(chat['id'].toString())).length;
     }
     return {
       'chatCount': chats.length,
@@ -43,8 +44,8 @@ class DashboardService {
     final timestamps = <DateTime>[];
     for (final chat in await _localDb.getChats()) {
       for (final message in await _localDb.getMessages(chat['id'].toString())) {
-        final created = DateTime.tryParse(
-            message['created_at']?.toString() ?? '');
+        final created =
+            DateTime.tryParse(message['created_at']?.toString() ?? '');
         if (created != null) timestamps.add(created);
       }
     }
@@ -60,7 +61,8 @@ class DashboardService {
       String chatId, DateTime since, String? myUserId) async {
     final messages = await _localDb.getMessages(chatId);
     return messages.where((message) {
-      final created = DateTime.tryParse(message['created_at']?.toString() ?? '');
+      final created =
+          DateTime.tryParse(message['created_at']?.toString() ?? '');
       return message['sender_id'] != myUserId &&
           created != null &&
           created.isAfter(since);
@@ -86,7 +88,5 @@ List<double> computeWeeklyBars(
   }
   final maxCount =
       counts.fold<int>(1, (max, value) => value > max ? value : max);
-  return counts
-      .map((count) => count == 0 ? 0.12 : count / maxCount)
-      .toList();
+  return counts.map((count) => count == 0 ? 0.12 : count / maxCount).toList();
 }

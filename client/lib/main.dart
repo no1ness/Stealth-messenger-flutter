@@ -93,14 +93,21 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final themeIndex = prefs.getInt('themeMode') ?? ThemeMode.system.index;
+    final themeMode = _themeModeFromIndex(prefs.getInt('themeMode'));
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _themeMode = ThemeMode.values[themeIndex];
+      _themeMode = themeMode;
     });
+  }
+
+  ThemeMode _themeModeFromIndex(int? index) {
+    if (index == null || index < 0 || index >= ThemeMode.values.length) {
+      return ThemeMode.system;
+    }
+    return ThemeMode.values[index];
   }
 
   Future<void> _initializeApp({bool afterReset = false}) async {
@@ -141,8 +148,7 @@ class _MyAppState extends State<MyApp> {
       // PlatformException. Recover once by wiping local credentials and any
       // persisted app session, then retrying the startup flow.
       if (!afterReset && _looksLikeCorruptSecureStorage(error)) {
-        Logger.warn(
-            '[bootstrap] corrupted local storage detected, resetting',
+        Logger.warn('[bootstrap] corrupted local storage detected, resetting',
             extras: {'error': error});
         await _resetLocalCredentials();
         await _initializeApp(afterReset: true);

@@ -82,8 +82,7 @@ void main() {
           reason: 'empty TURN_URL must NOT produce a TURN entry');
     });
 
-    test('TURN entry omits username/credential keys when those are blank',
-        () {
+    test('TURN entry omits username/credential keys when those are blank', () {
       final servers = buildIceServers(envOverride: const {
         'TURN_URL': 'turn:turn.example.com:3478',
       });

@@ -99,9 +99,8 @@ class _CallManagerState extends State<CallManager> {
       return;
     }
 
-    final fromNickname = offer.fromNickname.isEmpty
-        ? 'Unknown'
-        : offer.fromNickname;
+    final fromNickname =
+        offer.fromNickname.isEmpty ? 'Unknown' : offer.fromNickname;
 
     Logger.info('[stealth-call] CallManager recording incoming call');
     await _appService.recordIncomingCall(
@@ -136,7 +135,8 @@ class _CallManagerState extends State<CallManager> {
     // Если для этого roomId открыт диалог — закрываем.
     final closer = _activeDialogClosers.remove(hangup.roomId);
     if (closer != null) {
-      Logger.info('[stealth-call] CallManager closing dialog due to remote hangup');
+      Logger.info(
+          '[stealth-call] CallManager closing dialog due to remote hangup');
       closer();
     }
 
@@ -204,7 +204,9 @@ class _CallManagerState extends State<CallManager> {
                   CircleAvatar(
                     radius: 40,
                     child: Text(
-                      fromNickname.isNotEmpty ? fromNickname[0].toUpperCase() : '?',
+                      fromNickname.isNotEmpty
+                          ? fromNickname[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(fontSize: 32),
                     ),
                   ),
@@ -214,7 +216,8 @@ class _CallManagerState extends State<CallManager> {
                     excludeSemantics: true,
                     child: Text(
                       fromNickname,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -302,7 +305,8 @@ class _CallManagerState extends State<CallManager> {
                               rootNavigator: true,
                             );
                             final dialogNavigator = Navigator.of(dialogContext);
-                            final messenger = ScaffoldMessenger.of(dialogContext);
+                            final messenger =
+                                ScaffoldMessenger.of(dialogContext);
 
                             setDialogState(() => _answeringCall = true);
                             final preflightError =

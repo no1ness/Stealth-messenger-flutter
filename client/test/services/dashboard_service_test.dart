@@ -9,8 +9,7 @@ import 'package:stealth/services/dashboard/dashboard_service.dart';
 /// unit coverage.
 void main() {
   group('computeWeeklyBars (pure aggregator)', () {
-    test('empty list yields 7 buckets of the minimum visible floor (0.12)',
-        () {
+    test('empty list yields 7 buckets of the minimum visible floor (0.12)', () {
       final now = DateTime.utc(2026, 5, 22, 12);
       final bars = computeWeeklyBars(const <DateTime>[], now: now);
       expect(bars.length, 7);
@@ -78,8 +77,7 @@ void main() {
     });
   });
 
-  test('DashboardService() instantiates without throw (factory singleton)',
-      () {
+  test('DashboardService() instantiates without throw (factory singleton)', () {
     final a = DashboardService();
     final b = DashboardService();
     expect(identical(a, b), isTrue,

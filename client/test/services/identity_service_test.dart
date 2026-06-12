@@ -24,8 +24,7 @@ void main() {
       expect(body, isNot(contains('/')));
     });
 
-    test('round-trip through base64url decode yields canonical v: 1 JSON',
-        () {
+    test('round-trip through base64url decode yields canonical v: 1 JSON', () {
       final bundle = IdentityService().encodeOwnContactBundle(
         userId: 'user-1',
         nickname: 'Bob',

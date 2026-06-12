@@ -6,7 +6,7 @@ services:
       - TZ=UTC
     volumes:
       - ./pb_data:/pb_data
-      - ./pb_hooks:/pb_hooks
+      - ${PB_HOOKS_DIR:-../pb_hooks}:/pb_hooks:ro
     ports:
       - "127.0.0.1:8090:8090"
 

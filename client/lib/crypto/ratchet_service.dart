@@ -39,7 +39,8 @@ class RatchetService {
   /// На выходе:
   /// - `messageKey`: Ключ-шифрования для 1 сообщения (AES-256)
   /// - `nextChainKey`: Следующий ключ цепочки
-  Future<Map<String, SecretKey>> advanceSymmetricRatchet(SecretKey currentChainKey) async {
+  Future<Map<String, SecretKey>> advanceSymmetricRatchet(
+      SecretKey currentChainKey) async {
     final mkMac = await _hmac.calculateMac([0x01], secretKey: currentChainKey);
     final ckMac = await _hmac.calculateMac([0x02], secretKey: currentChainKey);
     return {
@@ -50,10 +51,11 @@ class RatchetService {
 
   /// Детерминированно вычисляет Ключ Сообщения N (Stateless Ratchet).
   /// Устраняет необходимость хранить цепочки локально, опираясь на индекс сообщения.
-  Future<SecretKey> getNthMessageKey(SecretKey rootChainKey, int targetIndex) async {
+  Future<SecretKey> getNthMessageKey(
+      SecretKey rootChainKey, int targetIndex) async {
     SecretKey currentChain = rootChainKey;
     SecretKey? messageKey;
-    
+
     // Прокручиваем "храповик" N раз от корня:
     for (int i = 0; i <= targetIndex; i++) {
       final keys = await advanceSymmetricRatchet(currentChain);
@@ -64,13 +66,16 @@ class RatchetService {
   }
 
   /// Инициализирует цепочки для Алисы и Боба на основе единого Shared Secret.
-  Future<Map<String, SecretKey>> initializeChains(SecretKey sharedSecret, String myId, String otherId) async {
+  Future<Map<String, SecretKey>> initializeChains(
+      SecretKey sharedSecret, String myId, String otherId) async {
     // В зависимости от лексикографического порядка определяем кто есть кто для детерминированности
     final isMeFirst = myId.compareTo(otherId) < 0;
-    
-    final ik1 = await _hmac.calculateMac(utf8.encode('CHAIN_1'), secretKey: sharedSecret);
-    final ik2 = await _hmac.calculateMac(utf8.encode('CHAIN_2'), secretKey: sharedSecret);
-    
+
+    final ik1 = await _hmac.calculateMac(utf8.encode('CHAIN_1'),
+        secretKey: sharedSecret);
+    final ik2 = await _hmac.calculateMac(utf8.encode('CHAIN_2'),
+        secretKey: sharedSecret);
+
     return {
       'mySendChain': isMeFirst ? SecretKey(ik1.bytes) : SecretKey(ik2.bytes),
       'theirSendChain': isMeFirst ? SecretKey(ik2.bytes) : SecretKey(ik1.bytes),
@@ -78,7 +83,8 @@ class RatchetService {
   }
 
   /// Шифрует контент, используя эфемерный ключ, полученный от храповика (Ratchet)
-  Future<Map<String, dynamic>> encryptMessage(String plaintext, SecretKey messageKey) async {
+  Future<Map<String, dynamic>> encryptMessage(
+      String plaintext, SecretKey messageKey) async {
     final encoded = utf8.encode(plaintext);
     // AesGcm.encrypt автоматически генерирует случайный nonce, подходящий для GCM.
     // Но мы также можем сгенерировать его вручную (обычно 12 байт).

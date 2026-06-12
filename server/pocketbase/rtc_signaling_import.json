@@ -10,7 +10,7 @@
       {"name": "type", "type": "select", "required": true, "options": {"maxSelect": 1, "values": ["offer", "answer", "candidate", "hangup"]}},
       {"name": "payload", "type": "json", "required": true, "options": {"maxSize": 2000000}}
     ],
-    "indexes": ["CREATE INDEX idx_rtc_signaling_room ON rtc_signaling (roomId)"],
+    "indexes": ["CREATE INDEX idx_rtc_signaling_target_created ON rtc_signaling (target, created)", "CREATE INDEX idx_rtc_signaling_room ON rtc_signaling (roomId)"],
     "listRule": "target = @request.auth.id || creator = @request.auth.id",
     "viewRule": "target = @request.auth.id || creator = @request.auth.id",
     "createRule": "@request.auth.id != \"\" && @request.data.creator = @request.auth.id",

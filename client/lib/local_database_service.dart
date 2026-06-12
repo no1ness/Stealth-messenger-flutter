@@ -10,6 +10,12 @@ import 'package:stealth/storage_service.dart';
 import 'package:stealth/helpers/crypto_helper.dart';
 
 class LocalDatabaseService {
+  factory LocalDatabaseService() => _instance;
+  LocalDatabaseService._internal();
+
+  static final LocalDatabaseService _instance =
+      LocalDatabaseService._internal();
+
   static const String dbName = 'stealth_local_v3.db';
   // v6 (task #8 of client-hardening-followup): `deliveryStatus` index on
   // messagesStore for the pending-message worker. Schema is additive —
@@ -26,8 +32,16 @@ class LocalDatabaseService {
   IdbFactory get _factory => kIsWeb ? idbFactoryBrowser : idbFactorySembastIo;
   Database? _db;
   SecretKey? _dbKey;
+  Future<void>? _initializing;
 
-  Future<void> _ensureInitialized() async {
+  Future<void> _ensureInitialized() {
+    if (_db != null) return Future<void>.value();
+    return _initializing ??= _openDatabase().whenComplete(() {
+      _initializing = null;
+    });
+  }
+
+  Future<void> _openDatabase() async {
     if (_db != null) return;
 
     final factory = _factory;

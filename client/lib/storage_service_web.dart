@@ -13,17 +13,17 @@ external JSPromise _jsEncrypt(JSString data);
 external JSPromise _jsDecrypt(JSString data);
 
 /// Безопасное Web-хранилище (IndexedDB + Web Crypto API).
-/// 
+///
 /// Логика:
 /// 1. Создаётся неэкспортируемый (extractable: false) AES-GCM ключ.
 /// 2. Ключ навсегда сохраняется в браузере через IndexedDB.
 /// 3. Любой XSS-скрипт не сможет украсть (экспортировать) этот ключ.
-/// 4. Приватные E2E-ключи приложения шифруются этим WebCrypto ключом, и в 
+/// 4. Приватные E2E-ключи приложения шифруются этим WebCrypto ключом, и в
 ///    SharedPreferences попадает только нечитаемый шифротекст.
 class StorageService {
   static final StorageService _instance = StorageService._internal();
   factory StorageService() => _instance;
-  
+
   bool _initialized = false;
   SharedPreferences? _prefs;
 
@@ -32,10 +32,11 @@ class StorageService {
   Future<void> init() async {
     if (_initialized) return;
     _prefs ??= await SharedPreferences.getInstance();
-    
+
     // Внедряем JS-скрипт с логикой Web Crypto API, если он ещё не внедрён
     if (_stealthCrypto == null) {
-      final script = web.document.createElement('script') as web.HTMLScriptElement;
+      final script =
+          web.document.createElement('script') as web.HTMLScriptElement;
       script.text = r'''
         window.stealthCrypto = (function() {
           const DB_NAME = 'stealth_crypto_db';
@@ -111,7 +112,7 @@ class StorageService {
     await init();
     final encrypted = _prefs?.getString(key);
     if (encrypted == null || encrypted.isEmpty) return null;
-    
+
     // Пытаемся расшифровать. Если ошибка (например, ключ удалился), возвращаем null
     try {
       final promise = _jsDecrypt(encrypted.toJS);

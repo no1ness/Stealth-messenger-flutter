@@ -20,8 +20,7 @@ class LocalContactsDataSource implements ContactsDataSource {
   Future<List<dynamic>> getContacts() => _service.getContacts();
 
   @override
-  Future<void> deleteContact(String userId) =>
-      _service.deleteContact(userId);
+  Future<void> deleteContact(String userId) => _service.deleteContact(userId);
 
   @override
   Future<String?> getSafetyNumber(String userId) =>

@@ -160,11 +160,9 @@ class ConversationPanel extends StatelessWidget {
                     final isSent = message['isSent'] as bool? ?? false;
                     final isGroupChat =
                         message['isGroupChat'] as bool? ?? false;
-                    final deliveryStatus =
-                        message['deliveryStatus'] as String?;
-                    final showStatusIcon = isSent &&
-                        !isGroupChat &&
-                        deliveryStatus != null;
+                    final deliveryStatus = message['deliveryStatus'] as String?;
+                    final showStatusIcon =
+                        isSent && !isGroupChat && deliveryStatus != null;
                     final messageId = message['id']?.toString();
 
                     final bubble = glass.GlassChatBubble(
@@ -181,8 +179,7 @@ class ConversationPanel extends StatelessWidget {
                       replyPreview: repliedMessage == null
                           ? null
                           : _ReplyPreview(
-                              text:
-                                  repliedMessage['message'] as String? ?? '',
+                              text: repliedMessage['message'] as String? ?? '',
                             ),
                       type: isSent
                           ? glass.MessageType.sent

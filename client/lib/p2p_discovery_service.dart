@@ -9,7 +9,8 @@ class P2PDiscoveryService {
   Registration? _registration;
   Discovery? _discovery;
 
-  final StreamController<Service> _peerController = StreamController<Service>.broadcast();
+  final StreamController<Service> _peerController =
+      StreamController<Service>.broadcast();
   Stream<Service> get onPeerFound => _peerController.stream;
 
   Future<void> start() async {

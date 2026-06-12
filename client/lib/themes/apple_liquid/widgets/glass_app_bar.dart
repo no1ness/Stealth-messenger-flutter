@@ -62,17 +62,18 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                   if (leading != null && !showBackButton) leading!,
                   Expanded(
                     child: titleWidget ??
-                      Text(
-                        title ?? '',
-                        style: AppTypography.headline.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                        Text(
+                          title ?? '',
+                          style: AppTypography.headline.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
                   ),
                   if (actions != null) ...actions!,
-                  if (actions == null && showBackButton) const SizedBox(width: 48), // Balance for back button
+                  if (actions == null && showBackButton)
+                    const SizedBox(width: 48), // Balance for back button
                 ],
               ),
             ),
@@ -133,7 +134,7 @@ class GlassSliverAppBar extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             decoration: BoxDecoration(
-               color: AppColors.darkGray2.withValues(alpha: 0.8),
+              color: AppColors.darkGray2.withValues(alpha: 0.8),
               border: const Border(
                 bottom: BorderSide(
                   color: AppColors.separator,

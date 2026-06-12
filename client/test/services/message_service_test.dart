@@ -29,8 +29,8 @@ void main() {
     test('decryption with the wrong key throws (MAC fails)', () async {
       final key1 = await AesGcm.with256bits().newSecretKey();
       final key2 = await AesGcm.with256bits().newSecretKey();
-      final encrypted = await encryptBytesWithSecret(
-          'hello'.codeUnits.asUint8List(), key1);
+      final encrypted =
+          await encryptBytesWithSecret('hello'.codeUnits.asUint8List(), key1);
       expect(
         () => decryptBytesWithSecret(encrypted, key2),
         throwsA(isA<SecretBoxAuthenticationError>()),
@@ -39,8 +39,7 @@ void main() {
   });
 
   group('MessageService.decryptRawMessage', () {
-    test('returns soft-deleted row unchanged (no decrypt attempted)',
-        () async {
+    test('returns soft-deleted row unchanged (no decrypt attempted)', () async {
       final row = {
         'id': 'm1',
         'content': 'irrelevant-encrypted-blob',

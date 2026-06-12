@@ -41,7 +41,7 @@ class GlassContainer extends StatelessWidget {
     if (gradient != null) {
       return GlassStyles.glassWithGradient(gradient!);
     }
-    
+
     switch (intensity) {
       case GlassIntensity.ultraLight:
         return GlassStyles.ultraLightGlass;
@@ -210,7 +210,7 @@ class _GlassButtonState extends State<GlassButton>
                         BoxShadow(
                           color: (widget.gradient ?? AppColors.liquidGradient1)
                               .first
-                               .withValues(alpha: 0.4),
+                              .withValues(alpha: 0.4),
                           blurRadius: 20,
                           spreadRadius: 0,
                           offset: const Offset(0, 8),

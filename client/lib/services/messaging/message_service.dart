@@ -81,8 +81,8 @@ class MessageService {
       final sharedSecret = await _getSharedSecret(otherUserId);
       final chains =
           await _ratchet.initializeChains(sharedSecret, myId, otherUserId);
-      key = await _ratchet.getNthMessageKey(
-          chains['mySendChain']!, ratchetIndex);
+      key =
+          await _ratchet.getNthMessageKey(chains['mySendChain']!, ratchetIndex);
     } else {
       key = await _getSharedSecret(otherUserId);
     }
@@ -306,14 +306,22 @@ class MessageService {
       'content': localEncryptedContent,
     };
 
+    final prefs = isGroupChat ? null : await SharedPreferences.getInstance();
+    final useP2P = prefs?.getBool('useP2P') ?? true;
+
     // Task #8: outgoing-only delivery status.
     //   - Groups never go over P2P today → write 'sent' immediately (no
     //     retry, no ACK — the group transport is a separate future
     //     workstream tracked in the post-PocketBase hardening plan).
-    //   - 1:1 starts as 'pending'; the post-send block below flips it to
-    //     'sent' on a successful DataChannel handoff. Failed sends stay
-    //     'pending' so the task #9 retry worker can resume them.
-    final initialStatus = isGroupChat ? 'sent' : 'pending';
+    //   - 1:1 with P2P enabled starts as 'pending'; the post-send block below
+    //     flips it to 'sent' on a successful DataChannel handoff.
+    //   - 1:1 with P2P disabled is local-only today, so no delivery marker is
+    //     written; otherwise the retry worker would chase an impossible send.
+    final String? initialStatus = isGroupChat
+        ? 'sent'
+        : useP2P
+            ? 'pending'
+            : null;
     final messageId = messageMap['id'] as String;
     await _localDb.saveMessage(localMessageMap,
         synced: true, deliveryStatus: initialStatus);
@@ -324,29 +332,34 @@ class MessageService {
     }
 
     if (!isGroupChat) {
-      final prefs = await SharedPreferences.getInstance();
-      final useP2P = prefs.getBool('useP2P') ?? true;
       if (useP2P) {
         try {
-          final delivered = await P2PService.instance
-              .sendP2PMessage(chatId, messageMap);
+          final delivered =
+              await P2PService.instance.sendP2PMessage(chatId, messageMap);
           if (delivered) {
             await markSent(messageId);
             // Task #11: if the user-facing content is a v2 attachment
             // descriptor, push the blob bytes to the peer right after
             // the message arrives. Receiver assembles in the background
             // and saves to its own attachments store.
-            await _maybeChunkSendAttachment(chatId, content);
+            await sendAttachmentChunksIfNeeded(chatId, content);
           } else {
-            Logger.debug('[messages] initial send returned false, row '
-                'stays pending for retry worker', extras: {
-              'messageId': messageId,
-            });
+            Logger.debug(
+                '[messages] initial send returned false, row '
+                'stays pending for retry worker',
+                extras: {
+                  'messageId': messageId,
+                });
           }
         } catch (error) {
           Logger.warn('[messages] initial P2P send threw, row stays pending',
               extras: {'messageId': messageId, 'error': error});
         }
+      } else {
+        Logger.debug(
+          '[messages] P2P disabled; outgoing row saved local-only',
+          extras: {'messageId': messageId, 'chatId': chatId},
+        );
       }
     }
   }
@@ -356,7 +369,8 @@ class MessageService {
   /// Fire-and-forget — if the DC closes mid-stream, the receiver's
   /// assembly never completes and the next outgoing send / retry
   /// re-chunks. Legacy v1 descriptors carry the payload inline already.
-  Future<void> _maybeChunkSendAttachment(String chatId, String content) async {
+  Future<void> sendAttachmentChunksIfNeeded(
+      String chatId, String content) async {
     if (!content.startsWith('local-attachment:')) return;
     try {
       final encoded = content.substring('local-attachment:'.length);
@@ -435,6 +449,9 @@ class MessageService {
     if (!isGroupChat && (otherUserId == null || otherUserId.isEmpty)) {
       return;
     }
+    final metadata =
+        (existing['metadata'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final ratchetIndex = metadata['sender_ratchet_index'] as int?;
     final String encrypted;
     if (isGroupChat) {
       final encryptGroup = _encryptGroup;
@@ -444,7 +461,11 @@ class MessageService {
       }
       encrypted = await encryptGroup(chatId, content);
     } else {
-      encrypted = await encryptMessage(content, otherUserId!);
+      encrypted = await encryptMessage(
+        content,
+        otherUserId!,
+        ratchetIndex: ratchetIndex,
+      );
     }
     existing['content'] = encrypted;
     existing['edited_at'] = DateTime.now().toIso8601String();

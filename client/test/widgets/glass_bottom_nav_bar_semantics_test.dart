@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 
 void main() {
-  testWidgets('GlassBottomNavBar exposes Chats, Contacts, Profile semantics labels',
+  testWidgets(
+      'GlassBottomNavBar exposes Chats, Contacts, Profile semantics labels',
       (WidgetTester tester) async {
     // Validates: Requirements 1.1, 1.2, 1.3, 1.4
 

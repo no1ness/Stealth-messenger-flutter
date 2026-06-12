@@ -94,7 +94,8 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       if (audioTracks.isEmpty) throw Exception('No audio track found');
       final track = audioTracks.first;
       setState(() {
-        _status = 'Audio track active: ${track.label}\nEnabled: ${track.enabled}';
+        _status =
+            'Audio track active: ${track.label}\nEnabled: ${track.enabled}';
       });
     } catch (error) {
       setState(() {

@@ -78,6 +78,9 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
+      - name: dart format check
+        run: dart format --output=none --set-exit-if-changed lib test
+
       - name: flutter analyze
         run: flutter analyze
 
@@ -204,8 +207,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     if: >-
-      (github.event_name == 'workflow_dispatch' ||
-       github.event_name == 'schedule')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
     steps:
       - uses: actions/checkout@v4
 
@@ -221,14 +224,22 @@ jobs:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      - name: Decode keystore (skip job if secret absent)
+      - name: Decode keystore (skip job if signing secrets absent)
         id: keystore
         working-directory: ${{ github.workspace }}
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::notice::ANDROID_KEYSTORE_BASE64 secret not configured — skipping signed release build"
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ] || missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -n "$STORE_PASSWORD" ] || missing="$missing ANDROID_STORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ] || missing="$missing ANDROID_KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ] || missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::notice::Android signing secret(s) not configured:$missing — skipping signed release build"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -244,12 +255,12 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          cat > client/android/key.properties <<EOF
-          storeFile=${{ steps.keystore.outputs.keystore_path }}
-          storePassword=${STORE_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          keyPassword=${KEY_PASSWORD}
-          EOF
+          printf '%s\n' \
+            'storeFile=${{ steps.keystore.outputs.keystore_path }}' \
+            "storePassword=${STORE_PASSWORD}" \
+            "keyAlias=${KEY_ALIAS}" \
+            "keyPassword=${KEY_PASSWORD}" \
+            > client/android/key.properties
 
       - name: flutter pub get
         if: steps.keystore.outputs.skip != 'true'
@@ -281,8 +292,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     if: >-
-      (github.event_name == 'workflow_dispatch' ||
-       github.event_name == 'schedule')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 4 * * *')
     steps:
       - uses: actions/checkout@v4
 

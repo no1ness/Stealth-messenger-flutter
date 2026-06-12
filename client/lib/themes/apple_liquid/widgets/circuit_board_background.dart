@@ -110,17 +110,20 @@ class CircuitBoardPainter extends CustomPainter {
     final random = math.Random(42); // Фиксированный seed для консистентности
 
     // Цвета для circuit lines
-    final lineColor = const Color(0xFF1E3A8A).withValues(alpha: 0.3); // Темно-синий
-    final accentColor = const Color(0xFF3B82F6).withValues(alpha: 0.15); // Синий
-    final glowColor = const Color(0xFF60A5FA).withValues(alpha: 0.1); // Светло-синий
+    final lineColor =
+        const Color(0xFF1E3A8A).withValues(alpha: 0.3); // Темно-синий
+    final accentColor =
+        const Color(0xFF3B82F6).withValues(alpha: 0.15); // Синий
+    final glowColor =
+        const Color(0xFF60A5FA).withValues(alpha: 0.1); // Светло-синий
 
     // Рисуем горизонтальные линии
     for (int i = 0; i < 20; i++) {
       final y = (size.height / 20) * i;
       final offset = math.sin(animation * math.pi * 2 + i * 0.5) * 10;
-      
+
       paint.color = i % 3 == 0 ? accentColor : lineColor;
-      
+
       // Главная линия
       canvas.drawLine(
         Offset(0, y + offset),
@@ -143,9 +146,9 @@ class CircuitBoardPainter extends CustomPainter {
     for (int i = 0; i < 30; i++) {
       final x = (size.width / 30) * i;
       final offset = math.cos(animation * math.pi * 2 + i * 0.3) * 15;
-      
+
       paint.color = i % 4 == 0 ? accentColor : lineColor;
-      
+
       canvas.drawLine(
         Offset(x + offset, 0),
         Offset(x + offset, size.height),
@@ -161,7 +164,7 @@ class CircuitBoardPainter extends CustomPainter {
       final height = 20 + random.nextDouble() * 30;
 
       final chipRect = Rect.fromLTWH(x, y, width, height);
-      
+
       // Корпус чипа
       paint.color = const Color(0xFF1E3A8A).withValues(alpha: 0.2);
       paint.style = PaintingStyle.fill;
@@ -202,7 +205,7 @@ class CircuitBoardPainter extends CustomPainter {
     for (int i = 0; i < 50; i++) {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
-      
+
       // Анимированное свечение
       final pulsePhase = (animation + (i * 0.02)) % 1.0;
       final pulseOpacity = 0.2 + (math.sin(pulsePhase * math.pi * 2) * 0.1);
@@ -216,7 +219,8 @@ class CircuitBoardPainter extends CustomPainter {
       canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
 
       // Внутренний яркий центр
-      dotPaint.color = const Color(0xFF60A5FA).withValues(alpha: pulseOpacity * 1.5);
+      dotPaint.color =
+          const Color(0xFF60A5FA).withValues(alpha: pulseOpacity * 1.5);
       canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
     }
 

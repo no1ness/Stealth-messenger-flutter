@@ -1,4 +1,3 @@
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
@@ -78,7 +77,8 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
 
       // Prepare path
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
       // Start recording
       await _recorder.start(
@@ -221,7 +221,8 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.fiber_manual_record, color: AppColors.systemRed, size: 12),
+          const Icon(Icons.fiber_manual_record,
+              color: AppColors.systemRed, size: 12),
           const SizedBox(width: 8),
           Text(
             'Recording...',

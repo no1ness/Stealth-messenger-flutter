@@ -21,6 +21,7 @@ class ProfileScreen extends StatefulWidget {
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
+
 class _ProfileScreenState extends State<ProfileScreen> {
   final LocalAppService _appService = LocalAppService();
   final TextEditingController _nicknameController = TextEditingController();
@@ -185,7 +186,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 'User ID is missing. Check logs or retry.',
-                style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+                style:
+                    AppTypography.body.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -325,11 +327,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildSecurityCard() {
     final readinessScore = [
-      _userId != null && _userId!.isNotEmpty,
-      _secureStorageReady,
-      _bucketReady,
-      _messageCount > 0,
-    ].where((value) => value).length / 4;
+          _userId != null && _userId!.isNotEmpty,
+          _secureStorageReady,
+          _bucketReady,
+          _messageCount > 0,
+        ].where((value) => value).length /
+        4;
 
     return GlassContainer(
       child: Column(
@@ -348,9 +351,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.md),
-          _buildMetricRow('E2E keypair', _secureStorageReady ? 'Ready' : 'Missing'),
-          _buildMetricRow('Secure storage', _secureStorageReady ? 'Enabled' : 'Check device'),
-          _buildMetricRow('Local media store', _bucketReady ? 'Ready' : 'Missing'),
+          _buildMetricRow(
+              'E2E keypair', _secureStorageReady ? 'Ready' : 'Missing'),
+          _buildMetricRow('Secure storage',
+              _secureStorageReady ? 'Enabled' : 'Check device'),
+          _buildMetricRow(
+              'Local media store', _bucketReady ? 'Ready' : 'Missing'),
           _buildMetricRow(
             'Contact bundle',
             _contactBundle?.isNotEmpty == true ? 'Available' : 'Missing',
@@ -447,13 +453,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSpacing.md),
           _buildMetricRow('Local media', _bucketReady ? 'Ready' : 'Missing'),
           _buildMetricRow('Files', _storageFileCount.toString()),
-          _buildMetricRow('Platform', kIsWeb ? 'web' : Platform.operatingSystem),
+          _buildMetricRow(
+              'Platform', kIsWeb ? 'web' : Platform.operatingSystem),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: _bucketReady ? 1 : 0.25,
             minHeight: 10,
             borderRadius: BorderRadius.circular(999),
-            color: _bucketReady ? AppColors.systemGreen : AppColors.systemOrange,
+            color:
+                _bucketReady ? AppColors.systemGreen : AppColors.systemOrange,
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -504,11 +512,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   final startedAt = DateTime.tryParse(
                     call['started_at'] as String? ?? '',
                   );
-                  final durationSeconds =
-                      call['duration_seconds'] as int? ?? 0;
+                  final durationSeconds = call['duration_seconds'] as int? ?? 0;
                   final isOutgoing = call['is_outgoing'] as bool? ?? false;
-                  final peerName =
-                      call['peer_name'] as String? ?? 'Unknown';
+                  final peerName = call['peer_name'] as String? ?? 'Unknown';
                   final status = call['status'] as String? ?? 'unknown';
 
                   // Compact call history tile for both web and mobile layouts.
@@ -596,7 +602,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(value, style: AppTypography.body.copyWith(fontWeight: FontWeight.w700)),
+          Text(value,
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
           Text(
             label,

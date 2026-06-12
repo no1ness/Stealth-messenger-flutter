@@ -16,7 +16,8 @@ NativeCallController _buildController({bool isCaller = true}) {
 
 void main() {
   group('NativeCallController state flags', () {
-    test('default state: initializing=true, connected=false, mic/speaker/camera on',
+    test(
+        'default state: initializing=true, connected=false, mic/speaker/camera on',
         () {
       final controller = _buildController();
       addTearDown(controller.dispose);

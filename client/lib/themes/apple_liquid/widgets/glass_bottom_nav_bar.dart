@@ -21,7 +21,8 @@ class GlassBottomNavBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          height: AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
+          height:
+              AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
           decoration: BoxDecoration(
             color: AppColors.darkGray2.withValues(alpha: 0.8),
             border: const Border(
@@ -123,47 +124,46 @@ class _GlassBottomNavBarItemWidgetState
       button: true,
       excludeSemantics: true,
       child: GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      onTap: widget.onTap,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                widget.isSelected
-                    ? (widget.item.selectedIcon ?? widget.item.icon)
-                    : widget.item.icon,
-                color: widget.isSelected
-                    ? AppColors.systemBlue
-                    : AppColors.textSecondary,
-                size: AppSpacing.iconMd,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                widget.item.label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: widget.isSelected
-                      ? FontWeight.w600
-                      : FontWeight.w400,
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        onTap: widget.onTap,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  widget.isSelected
+                      ? (widget.item.selectedIcon ?? widget.item.icon)
+                      : widget.item.icon,
                   color: widget.isSelected
                       ? AppColors.systemBlue
                       : AppColors.textSecondary,
+                  size: AppSpacing.iconMd,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  widget.item.label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight:
+                        widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: widget.isSelected
+                        ? AppColors.systemBlue
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }

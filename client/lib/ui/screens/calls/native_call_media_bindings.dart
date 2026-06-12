@@ -78,8 +78,7 @@ class NativeCallMediaBindings {
       'iceTransportPolicy': 'all',
     };
 
-    final pc =
-        await createPeerConnectionFactory(configuration);
+    final pc = await createPeerConnectionFactory(configuration);
     _peerConnection = pc;
 
     pc.onIceCandidate = (candidate) {
@@ -114,12 +113,14 @@ class NativeCallMediaBindings {
     };
 
     pc.onIceConnectionState = (state) {
-      Logger.info('[stealth-call] iceState', extras: {'state': state.toString()});
+      Logger.info('[stealth-call] iceState',
+          extras: {'state': state.toString()});
       onIceConnectionState(state);
     };
 
     pc.onConnectionState = (state) {
-      Logger.info('[stealth-call] peerState', extras: {'state': state.toString()});
+      Logger.info('[stealth-call] peerState',
+          extras: {'state': state.toString()});
     };
   }
 

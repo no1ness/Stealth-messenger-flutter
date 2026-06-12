@@ -61,7 +61,8 @@ class CallHistoryService {
   }
 
   Future<void> markCurrentUserCallEnded({required String chatId}) async {
-    Logger.debug('[calls] markCurrentUserCallEnded', extras: {'chatId': chatId});
+    Logger.debug('[calls] markCurrentUserCallEnded',
+        extras: {'chatId': chatId});
     await _localDb.saveCall({
       'id': _uuid.v4(),
       'chat_id': chatId,
@@ -71,7 +72,8 @@ class CallHistoryService {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getRecentCallHistory({int limit = 5}) async {
+  Future<List<Map<String, dynamic>>> getRecentCallHistory(
+      {int limit = 5}) async {
     final calls = await _localDb.getCalls();
     calls.sort(
       (a, b) => (b['started_at']?.toString() ?? '')

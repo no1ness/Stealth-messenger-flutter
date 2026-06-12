@@ -158,13 +158,18 @@ void main() {
 
       final body = msg.toCreateBody();
 
-      expect(body.keys, containsAll(['roomId', 'creator', 'target', 'type', 'payload']));
+      expect(
+        body.keys,
+        containsAll(['roomId', 'creator', 'target', 'type', 'payload']),
+      );
       expect(body['roomId'], 'chat-1');
       expect(body['creator'], 'user-A');
       expect(body['target'], 'user-B');
       expect(body['type'], 'candidate');
       expect(body['payload'], isA<Map<String, dynamic>>());
       expect(body['payload']['candidate'], startsWith('candidate:'));
+      expect(body['payload']['creatorLocalId'], 'user-A');
+      expect(body['payload']['targetLocalId'], 'user-B');
     });
 
     test('does not include id, created, or updated fields', () {
@@ -204,16 +209,16 @@ void main() {
 
   test('round-trip: fromRecord(record).toCreateBody() preserves wire fields',
       () {
-      final record = RecordModel({
-        'id': 'rt',
-        'created': '2026-04-29 12:00:00.000Z',
-        'collectionName': 'rtc_signaling',
-        'roomId': 'room-X',
-        'creator': 'sender',
-        'target': 'receiver',
-        'type': 'answer',
-        'payload': {'sdp': 'v=0\r\n', 'type': 'answer'},
-      });
+    final record = RecordModel({
+      'id': 'rt',
+      'created': '2026-04-29 12:00:00.000Z',
+      'collectionName': 'rtc_signaling',
+      'roomId': 'room-X',
+      'creator': 'sender',
+      'target': 'receiver',
+      'type': 'answer',
+      'payload': {'sdp': 'v=0\r\n', 'type': 'answer'},
+    });
 
     final body = RtcMessage.fromRecord(record).toCreateBody();
 
@@ -228,7 +233,7 @@ void main() {
     const localUuid = '550e8400-e29b-41d4-a716-446655440000';
     const pbId = '550e8400e29b41d';
 
-    test('fromRecord passes 15-char pb-id through unchanged', () {
+    test('fromRecord prefers full local ids carried in payload', () {
       final record = RecordModel({
         'id': 'rec_uuid',
         'created': '2026-05-14 00:00:00.000Z',
@@ -238,13 +243,32 @@ void main() {
         'creator': pbId,
         'target': pbId,
         'type': 'offer',
+        'payload': const <String, dynamic>{
+          'creatorLocalId': localUuid,
+          'targetLocalId': localUuid,
+        },
+      });
+
+      final msg = RtcMessage.fromRecord(record);
+
+      expect(msg.creator, localUuid);
+      expect(msg.target, localUuid);
+    });
+
+    test('fromRecord falls back to PB id for legacy records', () {
+      final record = RecordModel({
+        'id': 'rec_legacy',
+        'created': '2026-05-14 00:00:00.000Z',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'room-1',
+        'creator': pbId,
+        'target': pbId,
+        'type': 'offer',
         'payload': const <String, dynamic>{},
       });
 
       final msg = RtcMessage.fromRecord(record);
 
-      // PB 0.23 truncates to 15 chars; localUuidFromPbId cannot reconstruct
-      // the full canonical UUID from a 15-char hex string, so passes through.
       expect(msg.creator, pbId);
       expect(msg.target, pbId);
     });

@@ -15,8 +15,7 @@ import 'package:stealth/webrtc_support.dart';
 
 class ContactsScreen extends StatefulWidget {
   ContactsScreen({super.key, ContactsDataSource? dataSource})
-      : _dataSource = dataSource ??
-            LocalContactsDataSource(LocalAppService());
+      : _dataSource = dataSource ?? LocalContactsDataSource(LocalAppService());
 
   final ContactsDataSource _dataSource;
 
@@ -182,7 +181,8 @@ class _ContactsScreenState extends State<ContactsScreen>
             children: [
               Text(
                 'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
-                style: AppTypography.caption1.copyWith(color: AppColors.textSecondary),
+                style: AppTypography.caption1
+                    .copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
@@ -251,7 +251,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                 left: AppSpacing.md,
                 right: AppSpacing.md,
                 top: AppSpacing.md,
-                bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+                bottom:
+                    MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -299,7 +300,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                                     _initials(result['name'] as String?),
                                   ),
                                 ),
-                                title: Text(result['name'] as String? ?? 'Unknown'),
+                                title: Text(
+                                    result['name'] as String? ?? 'Unknown'),
                                 subtitle: Text(
                                   result['user_id'] as String? ?? '',
                                   maxLines: 1,
@@ -491,8 +493,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                             ? ListView(
                                 children: [
                                   SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height * 0.4,
+                                    height: MediaQuery.of(context).size.height *
+                                        0.4,
                                   ),
                                   Center(
                                     child: Semantics(
@@ -515,145 +517,154 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       : (constraints.maxWidth >= 700 ? 2 : 1),
                                   crossAxisSpacing: AppSpacing.md,
                                   mainAxisSpacing: AppSpacing.md,
-                                  childAspectRatio: constraints.maxWidth >= 700
-                                      ? 2.3
-                                      : 2.8,
+                                  childAspectRatio:
+                                      constraints.maxWidth >= 700 ? 2.3 : 2.8,
                                 ),
                                 itemCount: filtered.length,
-                                padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 80),
+                                padding: EdgeInsets.only(
+                                    bottom:
+                                        MediaQuery.of(context).padding.bottom +
+                                            80),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
-                                  final name = (contact['name'] as String?) ?? 'Unknown';
+                                  final name =
+                                      (contact['name'] as String?) ?? 'Unknown';
                                   return Semantics(
                                     label: AccessibilityIds.contact(name),
                                     button: true,
                                     child: InkWell(
-                                    borderRadius: BorderRadius.circular(18),
-                                    onLongPress: () => _showContactActions(contact),
-                                    child: GlassContainer(
-                                      child: Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 24,
-                                            backgroundColor:
-                                                AppColors.systemBlue,
-                                            child: Text(
-                                              _initials(
-                                                contact['name'] as String?,
+                                      borderRadius: BorderRadius.circular(18),
+                                      onLongPress: () =>
+                                          _showContactActions(contact),
+                                      child: GlassContainer(
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 24,
+                                              backgroundColor:
+                                                  AppColors.systemBlue,
+                                              child: Text(
+                                                _initials(
+                                                  contact['name'] as String?,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                               ),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w700,
-                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: AppSpacing.md),
-                                          Expanded(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  (contact['name'] as String?) ??
-                                                      'Unknown',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style:
-                                                      AppTypography.body.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: AppSpacing.xs,
-                                                ),
-                                                Text(
-                                                  (contact['user_id']
-                                                          as String?) ??
-                                                      '',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: AppTypography.caption1
-                                                      .copyWith(
-                                                    color:
-                                                        AppColors.textSecondary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Open chat',
-                                            onPressed: _startingCall
-                                                ? null
-                                                : () => _openChat(contact),
-                                            icon: const Icon(
-                                              Icons.chat_bubble_outline,
-                                              color: AppColors.systemBlue,
-                                            ),
-                                          ),
-                                          Semantics(
-                                            label: AccessibilityIds.startCall,
-                                            button: true,
-                                            excludeSemantics: true,
-                                            child: IconButton(
-                                              tooltip: 'Start call',
-                                              onPressed: _startingCall
-                                                  ? null
-                                                  : () => _startCall(
-                                                        contact,
-                                                        isVideoCall: false,
-                                                      ),
-                                              icon: _startingCall
-                                                  ? const SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.call_outlined,
-                                                      color:
-                                                          AppColors.systemGreen,
+                                            const SizedBox(
+                                                width: AppSpacing.md),
+                                            Expanded(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    (contact['name']
+                                                            as String?) ??
+                                                        'Unknown',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: AppTypography.body
+                                                        .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
+                                                  ),
+                                                  const SizedBox(
+                                                    height: AppSpacing.xs,
+                                                  ),
+                                                  Text(
+                                                    (contact['user_id']
+                                                            as String?) ??
+                                                        '',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: AppTypography
+                                                        .caption1
+                                                        .copyWith(
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          Semantics(
-                                            label: AccessibilityIds.startVideoCall,
-                                            button: true,
-                                            excludeSemantics: true,
-                                            child: IconButton(
-                                              tooltip: 'Start video call',
+                                            IconButton(
+                                              tooltip: 'Open chat',
                                               onPressed: _startingCall
                                                   ? null
-                                                  : () => _startCall(
-                                                        contact,
-                                                        isVideoCall: true,
-                                                      ),
+                                                  : () => _openChat(contact),
                                               icon: const Icon(
-                                                Icons.videocam_outlined,
+                                                Icons.chat_bubble_outline,
                                                 color: AppColors.systemBlue,
                                               ),
                                             ),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'More options',
-                                            onPressed: () =>
-                                                _showContactActions(contact),
-                                            icon: const Icon(
-                                              Icons.more_horiz,
-                                              color: AppColors.textSecondary,
+                                            Semantics(
+                                              label: AccessibilityIds.startCall,
+                                              button: true,
+                                              excludeSemantics: true,
+                                              child: IconButton(
+                                                tooltip: 'Start call',
+                                                onPressed: _startingCall
+                                                    ? null
+                                                    : () => _startCall(
+                                                          contact,
+                                                          isVideoCall: false,
+                                                        ),
+                                                icon: _startingCall
+                                                    ? const SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.call_outlined,
+                                                        color: AppColors
+                                                            .systemGreen,
+                                                      ),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                            Semantics(
+                                              label: AccessibilityIds
+                                                  .startVideoCall,
+                                              button: true,
+                                              excludeSemantics: true,
+                                              child: IconButton(
+                                                tooltip: 'Start video call',
+                                                onPressed: _startingCall
+                                                    ? null
+                                                    : () => _startCall(
+                                                          contact,
+                                                          isVideoCall: true,
+                                                        ),
+                                                icon: const Icon(
+                                                  Icons.videocam_outlined,
+                                                  color: AppColors.systemBlue,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'More options',
+                                              onPressed: () =>
+                                                  _showContactActions(contact),
+                                              icon: const Icon(
+                                                Icons.more_horiz,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
                                   );
                                 },
                               ),

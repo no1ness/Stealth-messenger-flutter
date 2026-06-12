@@ -201,8 +201,7 @@ class ContactService {
     for (final contact in await getContacts()) {
       final id = contact['user_id']?.toString() ?? '';
       final name = contact['name']?.toString() ?? '';
-      if (id == trimmed ||
-          name.toLowerCase().contains(trimmed.toLowerCase())) {
+      if (id == trimmed || name.toLowerCase().contains(trimmed.toLowerCase())) {
         final row = Map<String, dynamic>.from(contact as Map);
         _lastSearchResults[id] = row;
         results.add(row);

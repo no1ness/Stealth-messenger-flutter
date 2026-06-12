@@ -176,7 +176,9 @@ Future<void> _safeDeleteUser(
   if (id == null || id.isEmpty) return;
   try {
     final adminPb = PocketBase(baseUrl);
-    await adminPb.collection('_superusers').authWithPassword(adminEmail, adminPassword);
+    await adminPb
+        .collection('_superusers')
+        .authWithPassword(adminEmail, adminPassword);
     await adminPb.collection('users').delete(id);
   } catch (_) {
     // best-effort cleanup

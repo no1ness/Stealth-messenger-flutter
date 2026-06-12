@@ -77,18 +77,19 @@ debug-keystore из Android SDK.
 ## Lint baseline
 
 `app/build.gradle.kts` ставит `checkReleaseBuilds = true`, поэтому lint
-гоняется при каждой release-сборке. `abortOnError` сейчас выставлен в
-`false`, потому что в репо ещё нет закоммиченного `lint-baseline.xml`.
-Сгенерируй baseline один раз и закомить, чтобы зафиксировать текущий
-lint-surface:
+гоняется при каждой release-сборке. В репозитории уже есть
+`client/android/app/lint-baseline.xml`, а `abortOnError = true` блокирует
+новые Android lint-регрессии поверх baseline.
+
+Если намеренно обновляешь baseline после исправления/пересмотра lint-surface:
 
 ```bash
 cd client/android
 ./gradlew :app:updateLintBaseline
 ```
 
-После коммита baseline переключи `abortOnError = true` в
-`app/build.gradle.kts`, чтобы будущие регрессии блокировали сборку.
+Коммить обновлённый baseline нужно вместе с изменением, которое объясняет
+новую lint-поверхность.
 
 ## Проверка release-сборки
 

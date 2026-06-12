@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
+import 'package:stealth/services/signaling/pocketbase_auth_service.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/signaling_transport.dart';
@@ -12,11 +13,6 @@ import 'package:stealth/storage_service.dart';
 
 /// Имя коллекции PocketBase, в которой хранятся сигнальные сообщения.
 const String _kSignalingCollection = 'rtc_signaling';
-
-/// Ключи `StorageService` для персистентной аутентификации PocketBase.
-const String _kPbTokenKey = 'pb_token';
-const String _kPbUserIdKey = 'pb_user_id';
-const String _kPbPasswordKey = 'pb_password';
 
 /// PocketBase-имплементация [SignalingTransport].
 ///
@@ -47,13 +43,18 @@ class WebRtcSignalingService implements SignalingTransport {
     PocketBase? pocketBase,
     StorageService? storage,
     Connectivity? connectivity,
+    PocketBaseAuthService? authService,
   })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
-        _storage = storage ?? StorageService(),
-        _connectivity = connectivity ?? Connectivity();
+        _connectivity = connectivity ?? Connectivity(),
+        _authService = authService ??
+            PocketBaseAuthService(
+              pocketBase: pocketBase ?? PocketBaseClient.instance.pb,
+              storage: storage ?? StorageService(),
+            );
 
   final PocketBase _pb;
-  final StorageService _storage;
   final Connectivity _connectivity;
+  final PocketBaseAuthService _authService;
 
   final StreamController<RtcMessage> _incomingController =
       StreamController<RtcMessage>.broadcast();
@@ -69,13 +70,6 @@ class WebRtcSignalingService implements SignalingTransport {
 
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
-
-  // Guards `_ensureAuth` against concurrent re-entry. The global
-  // PocketBaseClient.instance can be shared between
-  // WebRtcSignalingService and IncomingCallSignalingService, and a
-  // fast `connect()` + reconnect race could otherwise issue two parallel
-  // `users.create` calls under the same email.
-  Future<void>? _authInFlight;
 
   static const int _maxBackoffSeconds = 30;
 
@@ -96,7 +90,7 @@ class WebRtcSignalingService implements SignalingTransport {
     _activeRoomId = roomId;
     _activeSelfUserId = selfUserId;
 
-    await _ensureAuth(selfUserId);
+    await _authService.ensureAuth(selfUserId);
     await _subscribe();
 
     _connectivitySub ??= _connectivity.onConnectivityChanged.listen(
@@ -189,7 +183,11 @@ class WebRtcSignalingService implements SignalingTransport {
       'creator': pbCreator,
       'target': pbTarget,
       'type': type.wireValue,
-      'payload': payload,
+      'payload': <String, dynamic>{
+        ...payload,
+        'creatorLocalId': selfUserId,
+        'targetLocalId': targetUserId,
+      },
     };
     final payloadSize = payload.toString().length;
     Logger.info('[signaling] send', extras: {
@@ -260,7 +258,8 @@ class WebRtcSignalingService implements SignalingTransport {
         _incomingController.add(message);
       }
     } catch (error) {
-      Logger.warn('[signaling] failed to parse record', extras: {'error': error});
+      Logger.warn('[signaling] failed to parse record',
+          extras: {'error': error});
     }
   }
 
@@ -298,131 +297,5 @@ class WebRtcSignalingService implements SignalingTransport {
   void _emitState(SignalingConnectionState state) {
     if (_stateController.isClosed) return;
     _stateController.add(state);
-  }
-
-  /// Восстанавливает либо создаёт PocketBase-аккаунт для текущего юзера.
-  ///
-  /// Контракт идентичности: запись в коллекции `users` имеет
-  /// `id == pbIdFromLocalUuid(selfUserId)`. Это требуется строгими API
-  /// rules (`@request.data.creator = @request.auth.id`) и достигается
-  /// явной передачей `id` в `create()` body. Email строится из того же
-  /// PB-id (`<pbId>@stealth.local`), чтобы устаревшие email от прежних
-  /// сборок (с дефисами в адресе) не блокировали повторную регистрацию.
-  ///
-  /// Migration path: если в secure_storage сохранён `pb_user_id`, который
-  /// не совпадает с ожидаемым PB-id (legacy auto-generated id), локальные
-  /// PB-credentials стираются. Прежняя запись на сервере остаётся
-  /// orphan — она недоступна под новой identity, а истечёт через
-  /// signaling TTL hook (см. `docs/POCKETBASE_SETUP.md`).
-  Future<void> _ensureAuth(String selfUserId) {
-    return _authInFlight ??=
-        _doEnsureAuth(selfUserId).whenComplete(() => _authInFlight = null);
-  }
-
-  Future<void> _doEnsureAuth(String selfUserId) async {
-    final expectedPbId = pbIdFromLocalUuid(selfUserId);
-
-    await _migrateLegacyAuthIfNeeded(expectedPbId);
-
-    if (_pb.authStore.isValid) {
-      final record = _pb.authStore.record;
-      final modelId = record?.id;
-      if (modelId == expectedPbId) {
-        Logger.debug('[signaling] auth already valid',
-            extras: {'pbId': expectedPbId});
-        return;
-      }
-      Logger.warn(
-        '[signaling] authStore identity mismatch — clearing',
-        extras: {'modelId': modelId, 'expectedPbId': expectedPbId},
-      );
-      _pb.authStore.clear();
-    }
-
-    final storedToken = await _storage.read(_kPbTokenKey);
-    final storedPbUserId = await _storage.read(_kPbUserIdKey);
-    if (storedToken != null &&
-        storedToken.isNotEmpty &&
-        storedPbUserId == expectedPbId) {
-      _pb.authStore.save(
-        storedToken,
-        RecordModel({
-          'id': storedPbUserId!,
-          'collectionId': 'users',
-          'collectionName': 'users',
-        }),
-      );
-      Logger.info('[signaling] auth restored from storage',
-          extras: {'pbId': storedPbUserId});
-      return;
-    }
-
-    final email = '$expectedPbId@stealth.local';
-    String? password = await _storage.read(_kPbPasswordKey);
-    if (password == null || password.isEmpty) {
-      password = _generatePassword();
-      await _storage.write(_kPbPasswordKey, password);
-    }
-
-    RecordAuth auth;
-    try {
-      auth = await _pb.collection('users').authWithPassword(email, password);
-      Logger.info('[signaling] auth restored via password',
-          extras: {'pbId': auth.record.id});
-    } catch (loginError) {
-      Logger.info('[signaling] login failed, creating new account',
-          extras: {'error': loginError});
-      await _pb.collection('users').create(body: <String, dynamic>{
-        'id': expectedPbId,
-        'email': email,
-        'password': password,
-        'passwordConfirm': password,
-        'name': selfUserId,
-      });
-      auth = await _pb.collection('users').authWithPassword(email, password);
-      Logger.info('[signaling] auth created new user', extras: {
-        'pbId': auth.record.id,
-        'expectedPbId': expectedPbId,
-      });
-    }
-
-    final actualPbId = auth.record.id;
-    if (actualPbId.isEmpty || actualPbId != expectedPbId) {
-      throw StateError(
-        '[signaling] auth id mismatch: expected=$expectedPbId, '
-        'got=$actualPbId. The PocketBase users collection rejected '
-        'the custom id or a legacy account is shadowing the email. '
-        'Reset local credentials to recover.',
-      );
-    }
-    await _storage.write(_kPbTokenKey, auth.token);
-    await _storage.write(_kPbUserIdKey, actualPbId);
-  }
-
-  /// Wipes locally cached PocketBase auth if the stored id no longer matches
-  /// the deterministic id derived from the current local UUID. This handles
-  /// upgrades from builds that used an auto-generated PB record id.
-  Future<void> _migrateLegacyAuthIfNeeded(String expectedPbId) async {
-    final storedPbUserId = await _storage.read(_kPbUserIdKey);
-    if (storedPbUserId == null || storedPbUserId.isEmpty) return;
-    if (storedPbUserId == expectedPbId) return;
-    Logger.info('[signaling] legacy auth detected, migrating', extras: {
-      'storedPbUserId': storedPbUserId,
-      'expectedPbId': expectedPbId,
-    });
-    await _storage.delete(_kPbTokenKey);
-    await _storage.delete(_kPbUserIdKey);
-    await _storage.delete(_kPbPasswordKey);
-    _pb.authStore.clear();
-  }
-
-  String _generatePassword() {
-    final rand = math.Random.secure();
-    const alphabet =
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    return List<String>.generate(
-      24,
-      (_) => alphabet[rand.nextInt(alphabet.length)],
-    ).join();
   }
 }

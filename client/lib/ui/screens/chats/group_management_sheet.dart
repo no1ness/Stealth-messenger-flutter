@@ -129,15 +129,13 @@ Future<void> showManageGroupSheet({
                                         userId: userId,
                                       );
                                     } else if (action == 'promote') {
-                                      await appService
-                                          .updateGroupMemberRole(
+                                      await appService.updateGroupMemberRole(
                                         chatId: chatId,
                                         userId: userId,
                                         role: 'admin',
                                       );
                                     } else if (action == 'demote') {
-                                      await appService
-                                          .updateGroupMemberRole(
+                                      await appService.updateGroupMemberRole(
                                         chatId: chatId,
                                         userId: userId,
                                         role: 'member',
@@ -148,8 +146,7 @@ Future<void> showManageGroupSheet({
                                     if (!context.mounted) {
                                       return;
                                     }
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text('$error')),
                                     );
                                   }
@@ -214,8 +211,7 @@ Future<void> showManageGroupSheet({
                                   trailing: FilledButton(
                                     onPressed: () async {
                                       try {
-                                        await appService
-                                            .addMembersToGroupChat(
+                                        await appService.addMembersToGroupChat(
                                           chatId: chatId,
                                           memberIds: [userId],
                                         );

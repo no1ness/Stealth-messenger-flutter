@@ -46,7 +46,9 @@ class _MessageInputState extends State<MessageInput> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          border: Border(top: BorderSide(color: Theme.of(context).dividerColor, width: 0.5)),
+          border: Border(
+              top: BorderSide(
+                  color: Theme.of(context).dividerColor, width: 0.5)),
         ),
         child: Row(
           children: [
@@ -68,19 +70,22 @@ class _MessageInputState extends State<MessageInput> {
                     ),
                     filled: true,
                     fillColor: Theme.of(context).scaffoldBackgroundColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                   maxLines: 1,
                   textInputAction: TextInputAction.send,
                   keyboardType: TextInputType.text,
                   onSubmitted: (_) => _handleSendMessage(),
-                  onChanged: (_) => widget.onTyping?.call(_controller.text.trim().isNotEmpty),
+                  onChanged: (_) =>
+                      widget.onTyping?.call(_controller.text.trim().isNotEmpty),
                 ),
               ),
             // Кнопка записи голоса (минимальная реализация)
             IconButton(
               icon: Icon(_isRecording ? Icons.stop_circle : Icons.mic),
-              tooltip: _isRecording ? 'Остановить запись' : 'Записать голосовое',
+              tooltip:
+                  _isRecording ? 'Остановить запись' : 'Записать голосовое',
               onPressed: () async {
                 if (widget.onVoiceRecorded == null) return;
                 if (!_isRecording) {
@@ -90,7 +95,8 @@ class _MessageInputState extends State<MessageInput> {
                   if (!hasPermission) return;
                   // Путь для файла
                   final dir = await getTemporaryDirectory();
-                  final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+                  final path =
+                      '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
                   // Запуск записи
                   await _recorder.start(
                     const RecordConfig(

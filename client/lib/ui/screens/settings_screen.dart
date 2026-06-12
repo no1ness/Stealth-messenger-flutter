@@ -67,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     setState(() {
-      _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 2];
+      _themeMode = _themeModeFromIndex(prefs.getInt('themeMode'));
       _useP2P = prefs.getBool('useP2P') ?? true;
       _messageCount = dashboard['messageCount'] as int? ?? 0;
       _callCount = dashboard['callCount'] as int? ?? 0;
@@ -80,10 +80,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _chatCount == 0 ? 0.12 : (_chatCount.clamp(1, 10) / 10),
         _messageCount == 0 ? 0.12 : (_messageCount.clamp(1, 40) / 40),
         _callCount == 0 ? 0.12 : (_callCount.clamp(1, 10) / 10),
-        weeklyActivity.fold<double>(0.12, (max, value) => value > max ? value : max),
+        weeklyActivity.fold<double>(
+            0.12, (max, value) => value > max ? value : max),
       ];
       _isLoading = false;
     });
+  }
+
+  ThemeMode _themeModeFromIndex(int? index) {
+    if (index == null || index < 0 || index >= ThemeMode.values.length) {
+      return ThemeMode.system;
+    }
+    return ThemeMode.values[index];
   }
 
   Future<void> _changeTheme(ThemeMode mode) async {
@@ -238,7 +246,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _useP2P = value);
             },
             title: const Text('Direct P2P messaging'),
-            subtitle: const Text('Send messages directly to devices when online'),
+            subtitle:
+                const Text('Send messages directly to devices when online'),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -292,7 +301,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Messages', value: '$_messageCount')),
+              Expanded(
+                  child: _MiniStat(label: 'Messages', value: '$_messageCount')),
               SizedBox(width: AppSpacing.sm),
               Expanded(child: _MiniStat(label: 'Calls', value: '$_callCount')),
             ],
@@ -463,7 +473,8 @@ class _SignalServerLine extends StatelessWidget {
               Text(
                 hasUrl ? url : 'not configured (set POCKETBASE_URL in .env)',
                 style: AppTypography.body.copyWith(
-                  color: hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
+                  color:
+                      hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
                   fontWeight: FontWeight.w500,
                 ),
               ),

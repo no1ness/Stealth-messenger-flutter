@@ -56,10 +56,8 @@ Future<WebRTCSupport> getWebRTCSupport() async {
   if (hasMediaDevices) {
     try {
       final devices = await mediaDevices.enumerateDevices().toDart;
-      audioInputCount = devices
-          .toDart
-          .where((device) => device.kind == 'audioinput')
-          .length;
+      audioInputCount =
+          devices.toDart.where((device) => device.kind == 'audioinput').length;
       if (audioInputCount == 0) {
         issues.add('No audio input device is visible to the browser.');
       }

@@ -11,8 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// off `debugPrint`, REMOVE them from the set. The set must only ever
 /// shrink. Task #4 of the hardening-followup plan lifts it to empty.
 void main() {
-  test('client/lib has no bare debugPrint/print outside allow-list',
-      () async {
+  test('client/lib has no bare debugPrint/print outside allow-list', () async {
     // Paths relative to `client/`. These files are tolerated until
     // their migration tasks land. Never grow this set without a
     // corresponding entry in the active plan to migrate the file off.

@@ -96,12 +96,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     controller: _nicknameController,
                     labelText: 'Choose a Nickname',
                     hintText: 'Enter your alias...',
-                    prefixIcon: const Icon(Icons.person_outline, color: AppColors.systemBlue),
+                    prefixIcon: const Icon(Icons.person_outline,
+                        color: AppColors.systemBlue),
                     onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   ElevatedButton(
-                    onPressed: !_isLoading && _nicknameController.text.trim().isNotEmpty ? _register : null,
+                    onPressed: !_isLoading &&
+                            _nicknameController.text.trim().isNotEmpty
+                        ? _register
+                        : null,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,

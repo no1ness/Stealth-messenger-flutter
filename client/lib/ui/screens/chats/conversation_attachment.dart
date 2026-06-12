@@ -16,14 +16,12 @@ Widget? buildConversationAttachment({
   if (content == null || content.isEmpty) return null;
   if (type != 'image' && type != 'file' && type != 'audio') return null;
 
-  final isEncrypted =
-      (message['metadata'] as Map?)?['file_encrypted'] == true;
+  final isEncrypted = (message['metadata'] as Map?)?['file_encrypted'] == true;
 
   if (type == 'image') {
     if (isEncrypted) {
       return FutureBuilder<Uint8List?>(
-        future:
-            appService.downloadAttachment(content, chatId, encrypted: true),
+        future: appService.downloadAttachment(content, chatId, encrypted: true),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SizedBox(
@@ -54,8 +52,7 @@ Widget? buildConversationAttachment({
         width: 200,
         height: 200,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.broken_image, size: 48),
+        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 48),
       ),
     );
   }

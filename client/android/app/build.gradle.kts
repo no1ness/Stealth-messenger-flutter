@@ -78,7 +78,7 @@ android {
     // blocked. Promote `abortOnError = true` once the baseline lands.
     lint {
         checkReleaseBuilds = true
-        abortOnError = false
+        abortOnError = true
         baseline = file("lint-baseline.xml")
     }
 }

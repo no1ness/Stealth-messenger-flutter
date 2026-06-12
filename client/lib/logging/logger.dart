@@ -93,9 +93,8 @@ class Logger {
   ///   1. `--dart-define=STEALTH_LOG_LEVEL=debug|info|warn|error` (highest)
   ///   2. `kDebugMode` — debug builds keep DEBUG, release/profile fall to INFO.
   /// Still mutable from tests / runtime toggles.
-  static LogLevel currentLevel =
-      parseLogLevel(_logLevelOverride) ??
-          (kDebugMode ? LogLevel.debug : LogLevel.info);
+  static LogLevel currentLevel = parseLogLevel(_logLevelOverride) ??
+      (kDebugMode ? LogLevel.debug : LogLevel.info);
 
   /// Emits a one-shot banner with the resolved level + whether the
   /// dart-define override was set. Call once from `main.dart` after

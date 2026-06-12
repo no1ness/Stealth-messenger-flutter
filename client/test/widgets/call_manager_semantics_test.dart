@@ -118,7 +118,8 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('Decline')), findsAtLeastNWidgets(1));
 
       // Requirement 4.5 — Caller name label
-      expect(find.bySemanticsLabel(RegExp('Caller name')), findsAtLeastNWidgets(1));
+      expect(find.bySemanticsLabel(RegExp('Caller name')),
+          findsAtLeastNWidgets(1));
 
       handle.dispose();
     },

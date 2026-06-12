@@ -97,10 +97,10 @@ production убедись что URL — HTTPS, и cert доверен устр�
 | Поле       | Тип          | Required | Заметки                                                     |
 | ---------- | ------------ | -------- | ----------------------------------------------------------- |
 | `roomId`   | text         | yes      | indexed; равен chatId для 1-к-1 звонков                     |
-| `creator`  | text         | yes      | локальный user UUID отправителя (не relation: см. §4)       |
-| `target`   | text         | yes      | indexed; локальный user UUID получателя                     |
+| `creator`  | text         | yes      | PocketBase `users.id` отправителя (не relation: см. §4)     |
+| `target`   | text         | yes      | indexed; PocketBase `users.id` получателя                   |
 | `type`     | select       | yes      | значения: `offer`, `answer`, `candidate`, `hangup`          |
-| `payload`  | json         | yes      | сырой SDP / candidate-объект, передаётся как есть           |
+| `payload`  | json         | yes      | сырой SDP / candidate + `creatorLocalId` / `targetLocalId`  |
 
 Рекомендуемые индексы (Settings → Indexes):
 
@@ -146,10 +146,11 @@ CREATE INDEX idx_rtc_signaling_room
 
 Эти rules предполагают что поле `creator` хранит PocketBase user id
 (аутентифицированный `users.id`). Lazy auth-флоу Stealth регистрирует
-per-device PocketBase аккаунт, чей id совпадает с локальным user UUID,
-записанным в `creator`/`target` (см.
-`client/lib/services/signaling/webrtc_signaling_service.dart`, метод
-`_ensureAuth`).
+per-device PocketBase аккаунт с детерминированным PB-id, полученным из
+локального UUID через `pbIdFromLocalUuid`. Так как PB-id может быть короче
+и необратимым, полные локальные UUID дополнительно передаются в
+`payload.creatorLocalId` / `payload.targetLocalId` для UI, истории звонков
+и сопоставления с локальными контактами.
 
 Если предпочитаешь, чтобы `creator`/`target` были `relation` вместо
 `text` — поменяй тип и обнови rules использовать `creator.id` /
@@ -159,9 +160,9 @@ per-device PocketBase аккаунт, чей id совпадает с локал
 
 PocketBase из коробки даёт auth-коллекцию `users`; ничего дополнительно
 не нужно. Клиент использует `email + password` auth с синтетическими
-кредами вида `<localUuid>@stealth.local`. Разреши публичную регистрацию
-(дефолт) или вызывай `pb.collection('users').create()` из своих
-admin-тулов — клиент логинится по паролю как только запись существует.
+кредами вида `<pbIdFromLocalUuid(localUuid)>@stealth.local`. Разреши
+публичную регистрацию (дефолт) или вызывай `pb.collection('users').create()`
+из своих admin-тулов — клиент логинится по паролю как только запись существует.
 
 ## 5. Scheduled cleanup (TTL)
 

@@ -7,7 +7,7 @@ class LiquidTheme {
   static ThemeData get theme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        
+
         // Color Scheme
         colorScheme: const ColorScheme.light(
           primary: AppColors.systemBlue,
@@ -19,10 +19,10 @@ class LiquidTheme {
           onSurface: Colors.black,
           onError: Colors.white,
         ),
-        
+
         // Scaffold
         scaffoldBackgroundColor: AppColors.systemGray6,
-        
+
         // App Bar Theme
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.systemGray6,
@@ -37,7 +37,7 @@ class LiquidTheme {
             color: Colors.black,
           ),
         ),
-        
+
         // Text Theme
         textTheme: const TextTheme(
           displayLarge: AppTypography.largeTitle,
@@ -55,13 +55,13 @@ class LiquidTheme {
           bodyColor: Colors.black,
           displayColor: Colors.black,
         ),
-        
+
         // Icon Theme
         iconTheme: const IconThemeData(
           color: AppColors.systemGray,
           size: AppSpacing.iconMd,
         ),
-        
+
         // Card Theme
         cardTheme: CardThemeData(
           color: Colors.white,
@@ -70,7 +70,7 @@ class LiquidTheme {
             borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           ),
         ),
-        
+
         // Input Decoration Theme
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -94,7 +94,7 @@ class LiquidTheme {
             color: AppColors.systemGray,
           ),
         ),
-        
+
         // Button Theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -110,14 +110,14 @@ class LiquidTheme {
             ),
           ),
         ),
-        
+
         // Divider Theme
         dividerTheme: const DividerThemeData(
           color: AppColors.systemGray4,
           thickness: 0.5,
           space: 1,
         ),
-        
+
         // Bottom Navigation Bar Theme
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
@@ -133,7 +133,7 @@ class LiquidTheme {
   static ThemeData get darkTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        
+
         // Color Scheme
         colorScheme: const ColorScheme.dark(
           primary: AppColors.systemBlueDark,
@@ -145,10 +145,10 @@ class LiquidTheme {
           onSurface: Colors.white,
           onError: Colors.white,
         ),
-        
+
         // Scaffold
         scaffoldBackgroundColor: AppColors.backgroundPrimary,
-        
+
         // App Bar Theme
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -163,7 +163,7 @@ class LiquidTheme {
             color: AppColors.textPrimary,
           ),
         ),
-        
+
         // Text Theme
         textTheme: const TextTheme(
           displayLarge: AppTypography.largeTitle,
@@ -181,13 +181,13 @@ class LiquidTheme {
           bodyColor: AppColors.textPrimary,
           displayColor: AppColors.textPrimary,
         ),
-        
+
         // Icon Theme
         iconTheme: const IconThemeData(
           color: AppColors.textSecondary,
           size: AppSpacing.iconMd,
         ),
-        
+
         // Card Theme
         cardTheme: CardThemeData(
           color: AppColors.darkGray2,
@@ -196,7 +196,7 @@ class LiquidTheme {
             borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           ),
         ),
-        
+
         // Input Decoration Theme
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -220,7 +220,7 @@ class LiquidTheme {
             color: AppColors.systemGray,
           ),
         ),
-        
+
         // Button Theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -236,14 +236,14 @@ class LiquidTheme {
             ),
           ),
         ),
-        
+
         // Divider Theme
         dividerTheme: const DividerThemeData(
           color: AppColors.darkGray4,
           thickness: 0.5,
           space: 1,
         ),
-        
+
         // Bottom Navigation Bar Theme
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: AppColors.darkGray,

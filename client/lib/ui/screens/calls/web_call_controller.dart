@@ -173,7 +173,8 @@ class WebCallController extends ChangeNotifier {
           Logger.debug('[stealth-call] web callee applying initialOffer');
           await _applyRemoteOffer(offerMap);
         } else {
-          Logger.debug('[stealth-call] web callee waiting for offer via signaling');
+          Logger.debug(
+              '[stealth-call] web callee waiting for offer via signaling');
         }
       }
 
@@ -181,7 +182,8 @@ class WebCallController extends ChangeNotifier {
       _setupError = null;
       notifyListeners();
     } catch (error) {
-      Logger.error('[stealth-call] web call init error', extras: {'error': error});
+      Logger.error('[stealth-call] web call init error',
+          extras: {'error': error});
       _initializing = false;
       _setupError = 'Call setup failed: $error';
       notifyListeners();

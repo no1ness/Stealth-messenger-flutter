@@ -171,7 +171,8 @@ class NativeCallController extends ChangeNotifier {
       _initializing = false;
       notifyListeners();
     } catch (error) {
-      Logger.error('[stealth-call] WebRTC init error', extras: {'error': error});
+      Logger.error('[stealth-call] WebRTC init error',
+          extras: {'error': error});
       _initializing = false;
       notifyListeners();
       onError?.call('Call setup failed: $error');
@@ -242,7 +243,8 @@ class NativeCallController extends ChangeNotifier {
     switch (message.type) {
       case RtcMessageType.offer:
         if (isCaller) {
-          Logger.warn('[stealth-call] caller received unexpected offer; ignored');
+          Logger.warn(
+              '[stealth-call] caller received unexpected offer; ignored');
           return;
         }
         final sdp = RTCSessionDescription(
@@ -356,7 +358,8 @@ class NativeCallController extends ChangeNotifier {
           targetUserId: target,
         );
       } catch (error) {
-        Logger.warn('[stealth-call] sendHangup error', extras: {'error': error});
+        Logger.warn('[stealth-call] sendHangup error',
+            extras: {'error': error});
       }
     }
     onClose?.call();

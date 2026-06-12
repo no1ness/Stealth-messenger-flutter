@@ -1,16 +1,14 @@
-// Bidirectional mapping between the local user UUID (canonical 36-char form
-// with four dashes) and the PocketBase record id used in `rtc_signaling`.
+// Mapping between the local user UUID (canonical 36-char form with dashes)
+// and the PocketBase record id used in `rtc_signaling`.
 //
-// PocketBase rejects record ids that contain dashes; custom ids must match
-// `^[a-zA-Z0-9_]{15,}$`. A canonical UUID v4 with dashes does not satisfy
-// the pattern, but the same UUID with dashes removed (32 hex chars) does.
-// Both peers can therefore derive each other's PocketBase id deterministically
-// from the local UUID exchanged via the contact bundle, without any extra
-// directory lookup.
+// PocketBase record ids are shorter than canonical UUIDs in the deployment
+// version this project targets, so `pbIdFromLocalUuid` is intentionally lossy
+// for UUID-shaped input. Signaling records therefore carry full local ids in
+// their JSON payload (`creatorLocalId` / `targetLocalId`) while wire-level
+// `creator` / `target` remain PB ids for API-rule enforcement.
 //
-// The helpers are intentionally idempotent for non-UUID inputs (test fixtures
-// like `smoke_a_<stamp>` and `user-A` pass through unchanged in both
-// directions). This keeps the existing unit-test surface stable.
+// The helpers are intentionally idempotent for short non-UUID inputs (test
+// fixtures like `smoke_a_<stamp>` and `user-A` pass through unchanged).
 
 final RegExp _canonicalUuidRegex = RegExp(
   r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -30,7 +28,7 @@ String pbIdFromLocalUuid(String localUuid) {
   return id.length > 15 ? id.substring(0, 15) : id;
 }
 
-/// Returns the canonical UUID corresponding to [pbId].
+/// Best-effort legacy converter for pre-truncation 32-hex ids.
 ///
 /// Inserts dashes back into the 32-hex form. Any input that is not a
 /// 32-hex string is returned unchanged.

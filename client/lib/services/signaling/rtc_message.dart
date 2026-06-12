@@ -60,11 +60,15 @@ class RtcMessage {
         ? Map<String, dynamic>.from(payloadRaw)
         : <String, dynamic>{};
     final roomId = record.getStringValue('roomId');
-    // Wire-level ids are PocketBase record ids (canonical UUID without
-    // dashes). Convert back to the local UUID form so downstream consumers
-    // can match against contacts / chat membership directly.
-    final creator = localUuidFromPbId(record.getStringValue('creator'));
-    final target = localUuidFromPbId(record.getStringValue('target'));
+    // Wire-level `creator` / `target` are PocketBase record ids and may be
+    // truncated to satisfy PocketBase id limits. New clients therefore carry
+    // full local ids inside payload; legacy records fall back to best-effort
+    // PB-id conversion.
+    final creator = payload['creatorLocalId']?.toString() ??
+        payload['fromUserId']?.toString() ??
+        localUuidFromPbId(record.getStringValue('creator'));
+    final target = payload['targetLocalId']?.toString() ??
+        localUuidFromPbId(record.getStringValue('target'));
     final created = DateTime.tryParse(record.get<String>('created')) ??
         DateTime.now().toUtc();
 
@@ -88,15 +92,19 @@ class RtcMessage {
 
   /// Тело для `pb.collection('rtc_signaling').create(body: ...)`.
   ///
-  /// Wire-level `creator`/`target` are PocketBase record ids; the helpers
-  /// strip dashes from canonical UUIDs and pass non-UUID inputs through.
+  /// Wire-level `creator`/`target` are PocketBase record ids. Full local ids
+  /// are duplicated into payload because PB ids may be lossy/truncated.
   Map<String, dynamic> toCreateBody() {
     return <String, dynamic>{
       'roomId': roomId,
       'creator': pbIdFromLocalUuid(creator),
       'target': pbIdFromLocalUuid(target),
       'type': type.wireValue,
-      'payload': payload,
+      'payload': <String, dynamic>{
+        ...payload,
+        'creatorLocalId': creator,
+        'targetLocalId': target,
+      },
     };
   }
 }

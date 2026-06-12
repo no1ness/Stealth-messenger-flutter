@@ -191,8 +191,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                 Center(
                   child: Text(
                     'Waiting for video...',
-                    style:
-                        AppTypography.body.copyWith(color: Colors.white70),
+                    style: AppTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
               Positioned(
@@ -240,9 +239,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       ),
       child: Center(
         child: Text(
-          widget.peerName.isNotEmpty
-              ? widget.peerName[0].toUpperCase()
-              : '?',
+          widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
           style: const TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.bold,
@@ -364,14 +361,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             onPressed: _controller.hangUp,
           ),
           _buildControlButton(
-            icon: _controller.speakerEnabled
-                ? Icons.volume_up
-                : Icons.volume_off,
+            icon:
+                _controller.speakerEnabled ? Icons.volume_up : Icons.volume_off,
             color: _controller.speakerEnabled
                 ? Colors.white.withValues(alpha: 0.2)
                 : Colors.white,
-            iconColor:
-                _controller.speakerEnabled ? Colors.white : Colors.black,
+            iconColor: _controller.speakerEnabled ? Colors.white : Colors.black,
             onPressed: _controller.toggleSpeaker,
           ),
         ],

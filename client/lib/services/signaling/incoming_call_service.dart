@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
+import 'package:stealth/services/signaling/pocketbase_auth_service.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/services/signaling/rtc_message.dart';
+import 'package:stealth/storage_service.dart';
 
 /// Базовое событие, эмитимое [IncomingCallSignalingService].
 sealed class IncomingCallEvent {
@@ -70,10 +72,19 @@ class IncomingCallHangup extends IncomingCallEvent {
 /// — поэтому именно он отвечает за приём `offer` (= новый звонок) и
 /// `hangup` от ещё не отвеченных звонков.
 class IncomingCallSignalingService {
-  IncomingCallSignalingService({PocketBase? pocketBase})
-      : _pb = pocketBase ?? PocketBaseClient.instance.pb;
+  IncomingCallSignalingService({
+    PocketBase? pocketBase,
+    StorageService? storage,
+    PocketBaseAuthService? authService,
+  })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
+        _authService = authService ??
+            PocketBaseAuthService(
+              pocketBase: pocketBase ?? PocketBaseClient.instance.pb,
+              storage: storage ?? StorageService(),
+            );
 
   final PocketBase _pb;
+  final PocketBaseAuthService _authService;
   final StreamController<IncomingCallEvent> _eventsController =
       StreamController<IncomingCallEvent>.broadcast();
 
@@ -84,6 +95,7 @@ class IncomingCallSignalingService {
 
   Future<void> start({required String selfUserId}) async {
     _selfUserId = selfUserId;
+    await _authService.ensureAuth(selfUserId);
     final pbSelfId = pbIdFromLocalUuid(selfUserId);
     final filter = "target='$pbSelfId' && "
         "(type='offer' || type='hangup')";
@@ -126,6 +138,7 @@ class IncomingCallSignalingService {
     required String callerUserId,
     required String selfUserId,
   }) async {
+    await _authService.ensureAuth(selfUserId);
     final pbCreator = pbIdFromLocalUuid(selfUserId);
     final pbTarget = pbIdFromLocalUuid(callerUserId);
     Logger.info('[signaling] decline call', extras: {
@@ -139,7 +152,10 @@ class IncomingCallSignalingService {
         'creator': pbCreator,
         'target': pbTarget,
         'type': RtcMessageType.hangup.wireValue,
-        'payload': const <String, dynamic>{},
+        'payload': <String, dynamic>{
+          'creatorLocalId': selfUserId,
+          'targetLocalId': callerUserId,
+        },
       });
     } catch (error) {
       Logger.warn('[signaling] decline error', extras: {'error': error});

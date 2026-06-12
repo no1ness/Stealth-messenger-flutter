@@ -9,7 +9,13 @@ DEPLOY_DIR="${DEPLOY_DIR:-$HOME/stealth-server}"
 mkdir -p "$DEPLOY_DIR"/{pb_data,pb_hooks,coturn/certs}
 cp "$DOCKER_DIR/docker-compose.yml" "$DEPLOY_DIR/"
 cp -a "$REPO_ROOT/server/pb_hooks/." "$DEPLOY_DIR/pb_hooks/"
-export SIGNAL_DOMAIN TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD
+PB_HOOKS_DIR="${PB_HOOKS_DIR:-$DEPLOY_DIR/pb_hooks}"
+if [[ -f "$DEPLOY_DIR/.env" ]]; then
+  grep -q '^PB_HOOKS_DIR=' "$DEPLOY_DIR/.env" || printf 'PB_HOOKS_DIR=%s\n' "$PB_HOOKS_DIR" >> "$DEPLOY_DIR/.env"
+else
+  printf 'PB_HOOKS_DIR=%s\n' "$PB_HOOKS_DIR" > "$DEPLOY_DIR/.env"
+fi
+export SIGNAL_DOMAIN TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD PB_HOOKS_DIR
 envsubst <"$DOCKER_DIR/Caddyfile.template" >"$DEPLOY_DIR/Caddyfile"
 envsubst <"$DOCKER_DIR/coturn/turnserver.conf.template" >"$DEPLOY_DIR/coturn/turnserver.conf"
 cd "$DEPLOY_DIR" && docker compose pull && docker compose up -d

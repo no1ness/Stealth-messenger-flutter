@@ -171,9 +171,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   spacing: AppSpacing.sm,
                   children: [
                     _buildStatusChip(
-                        label: _controller.connected
-                            ? 'Connected'
-                            : 'Negotiating',
+                        label:
+                            _controller.connected ? 'Connected' : 'Negotiating',
                         active: _controller.connected),
                     _buildStatusChip(
                         label: _controller.microphoneEnabled
@@ -214,15 +213,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   remoteStream.getVideoTracks().isNotEmpty)
                 RTCVideoView(
                   _controller.media.remoteRenderer,
-                  objectFit:
-                      RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                 )
               else
                 Center(
                   child: Text(
                     'Waiting for video...',
-                    style:
-                        AppTypography.body.copyWith(color: Colors.white70),
+                    style: AppTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
               Positioned(
@@ -278,9 +275,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         child: Text(
           widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
           style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: Colors.white),
+              fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
     );
@@ -312,9 +307,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               color: _controller.microphoneEnabled
                   ? Colors.white.withValues(alpha: 0.2)
                   : Colors.white,
-              iconColor: _controller.microphoneEnabled
-                  ? Colors.white
-                  : Colors.black,
+              iconColor:
+                  _controller.microphoneEnabled ? Colors.white : Colors.black,
               onPressed: _controller.toggleMicrophone,
             ),
           ),

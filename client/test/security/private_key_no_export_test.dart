@@ -13,8 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// private key is being written to disk, copied to the clipboard,
 /// shared via the share sheet, or otherwise serialised.
 void main() {
-  test('client/lib never re-introduces private key export paths',
-      () async {
+  test('client/lib never re-introduces private key export paths', () async {
     // Forbidden substring patterns. Each entry is a tuple of
     // (humanReadableLabel, RegExp). The regex is case-insensitive so
     // accidental variants like `StealthPrivateKey` also trip it.
@@ -66,7 +65,8 @@ void main() {
         // legacy export at stealth_private_key.txt is forbidden")
         // do not trip the guard.
         final trimmed = line.trimLeft();
-        if (trimmed.startsWith('//') || trimmed.startsWith('///') ||
+        if (trimmed.startsWith('//') ||
+            trimmed.startsWith('///') ||
             trimmed.startsWith('*')) {
           continue;
         }

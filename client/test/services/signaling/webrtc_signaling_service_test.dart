@@ -41,6 +41,8 @@ void main() {
       expect(body['type'], 'offer');
       expect(body['payload'], isA<Map<String, dynamic>>());
       expect(body['payload']['sdp'], startsWith('v=0'));
+      expect(body['payload']['creatorLocalId'], 'user-A');
+      expect(body['payload']['targetLocalId'], 'user-B');
     });
 
     test('sendAnswer creates record with type=answer', () async {
@@ -79,7 +81,9 @@ void main() {
 
       final body = h.fakeRecordService.lastCreateBody!;
       expect(body['type'], 'hangup');
-      expect(body['payload'], {'reason': 'hangup'});
+      expect(body['payload']['reason'], 'hangup');
+      expect(body['payload']['creatorLocalId'], 'user-A');
+      expect(body['payload']['targetLocalId'], 'user-B');
     });
 
     test('rethrows when create() fails', () async {
@@ -145,7 +149,11 @@ void main() {
           creator: 'user-B',
           target: 'user-A',
           type: 'offer',
-          payload: {'sdp': 'v=0\r\n'},
+          payload: {
+            'sdp': 'v=0\r\n',
+            'creatorLocalId': 'user-B',
+            'targetLocalId': 'user-A',
+          },
         ),
       );
 
@@ -234,8 +242,8 @@ void main() {
         async.flushMicrotasks();
         async.elapse(const Duration(seconds: 1));
 
-        expect(h.observedStates,
-            contains(SignalingConnectionState.reconnecting));
+        expect(
+            h.observedStates, contains(SignalingConnectionState.reconnecting));
         expect(h.observedStates, contains(SignalingConnectionState.connected));
 
         h.disposeSync(async);

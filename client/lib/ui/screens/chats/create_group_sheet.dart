@@ -88,8 +88,8 @@ Future<void> showCreateGroupSheet({
                                   }
                                 });
                               },
-                              title: Text(
-                                  contact['name'] as String? ?? 'Unknown'),
+                              title:
+                                  Text(contact['name'] as String? ?? 'Unknown'),
                               subtitle: Text(
                                 userId,
                                 maxLines: 1,

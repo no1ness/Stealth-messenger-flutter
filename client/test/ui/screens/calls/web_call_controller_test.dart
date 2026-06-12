@@ -20,7 +20,8 @@ WebCallController _buildController({bool isCaller = true}) {
 
 void main() {
   group('WebCallController state flags', () {
-    test('default state: initializing=true, connected=false, mic/speaker/camera on',
+    test(
+        'default state: initializing=true, connected=false, mic/speaker/camera on',
         () {
       final controller = _buildController();
       addTearDown(controller.dispose);

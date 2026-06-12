@@ -54,8 +54,7 @@ void main() {
     });
 
     test('returns null for malformed envelope', () {
-      expect(
-          parseLocalAttachmentId('local-attachment:not-base64!!!'), isNull);
+      expect(parseLocalAttachmentId('local-attachment:not-base64!!!'), isNull);
       // Valid base64, but body isn't JSON.
       expect(
         parseLocalAttachmentId(

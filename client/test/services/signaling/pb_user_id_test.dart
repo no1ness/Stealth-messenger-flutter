@@ -19,8 +19,7 @@ void main() {
 
     test('truncates long non-UUID input, keeps short unchanged', () {
       expect(pbIdFromLocalUuid('user-A'), 'user-A');
-      expect(pbIdFromLocalUuid('smoke_a_1234567890123456'),
-          'smoke_a_1234567');
+      expect(pbIdFromLocalUuid('smoke_a_1234567890123456'), 'smoke_a_1234567');
       expect(pbIdFromLocalUuid(''), '');
     });
 

@@ -30,7 +30,8 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
   }
 
   void _startMonitoring() {
-    _monitorTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkStatus());
+    _monitorTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _checkStatus());
     _checkStatus();
   }
 
@@ -78,11 +79,15 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _isLocalReady ? AppColors.systemGreen : AppColors.systemRed,
+                        color: _isLocalReady
+                            ? AppColors.systemGreen
+                            : AppColors.systemRed,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (_isLocalReady ? AppColors.systemGreen : AppColors.systemRed)
+                            color: (_isLocalReady
+                                    ? AppColors.systemGreen
+                                    : AppColors.systemRed)
                                 .withValues(alpha: 0.5),
                             blurRadius: 4,
                             spreadRadius: 1,
@@ -104,8 +109,11 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
                 Text(
                   '${_latencyMs}ms',
                   style: AppTypography.caption2.copyWith(
-                    color: _latencyMs < 200 ? AppColors.systemGreen :
-                           _latencyMs < 500 ? AppColors.systemOrange : AppColors.systemRed,
+                    color: _latencyMs < 200
+                        ? AppColors.systemGreen
+                        : _latencyMs < 500
+                            ? AppColors.systemOrange
+                            : AppColors.systemRed,
                     fontFamily: 'monospace',
                   ),
                 ),

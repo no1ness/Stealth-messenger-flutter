@@ -152,26 +152,24 @@ class _ChatsScreenState extends State<ChatsScreen>
         var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
 
         if (members.length == 1) {
-          title = (await _appService.getNicknameForUser(members.first)) ??
-              'Chat';
+          title =
+              (await _appService.getNicknameForUser(members.first)) ?? 'Chat';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
             (memberId) => memberId != me,
             orElse: () => members.first,
           );
-          title =
-              (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
+          title = (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
         }
 
         final lastMessage =
             await _appService.fetchLastMessage(row['id'] as String);
         final createdAt =
             DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
-        final lastSeen =
-            await _appService.getLastSeen(row['id'] as String) ??
-                DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread = await _appService.countUnreadSince(
-            row['id'] as String, lastSeen);
+        final lastSeen = await _appService.getLastSeen(row['id'] as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final unread =
+            await _appService.countUnreadSince(row['id'] as String, lastSeen);
 
         return {
           'id': row['id'],
@@ -214,7 +212,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
   }
 
-
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
       await _appService.setTypingStatus(
@@ -241,8 +238,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
     }
 
-    final rows =
-        await _appService.getMessages(chatId, limit: 40, offset: 0);
+    final rows = await _appService.getMessages(chatId, limit: 40, offset: 0);
     final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
     final pinnedMessage = await _appService.getPinnedMessage(chatId);
     if (!mounted) {
@@ -431,8 +427,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Delete'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _appService.softDeleteMessage(
-                        messageId: messageId);
+                    await _appService.softDeleteMessage(messageId: messageId);
                     await _loadMessages(chatId);
                   },
                 ),
@@ -546,15 +541,18 @@ class _ChatsScreenState extends State<ChatsScreen>
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: P2PService.instance.isP2PReady(_selectedChatId!)
-                                ? AppColors.systemGreen
-                                : AppColors.systemBlue,
+                            color:
+                                P2PService.instance.isP2PReady(_selectedChatId!)
+                                    ? AppColors.systemGreen
+                                    : AppColors.systemBlue,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
+                          P2PService.instance.isP2PReady(_selectedChatId!)
+                              ? 'Direct'
+                              : 'Local',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -653,8 +651,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       messageSearchController: _messageSearchController,
       searchInConversation: _searchInConversation,
       onSearchChanged: () => setState(() {
-        _searchInConversation =
-            _messageSearchController.text.trim().isNotEmpty;
+        _searchInConversation = _messageSearchController.text.trim().isNotEmpty;
       }),
       onSearchCleared: () {
         _messageSearchController.clear();

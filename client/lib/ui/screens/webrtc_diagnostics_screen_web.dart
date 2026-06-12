@@ -158,7 +158,8 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       }
 
       setState(() {
-        _status = 'Audio track active: ${track.label}\nEnabled: ${track.enabled}';
+        _status =
+            'Audio track active: ${track.label}\nEnabled: ${track.enabled}';
       });
     } catch (error) {
       if (!mounted) {
@@ -186,9 +187,8 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
   }
 
   String _buildDiagnosticsSummary() {
-    final issues = _blockingIssues.isEmpty
-        ? 'none'
-        : _blockingIssues.join(' | ');
+    final issues =
+        _blockingIssues.isEmpty ? 'none' : _blockingIssues.join(' | ');
     return [
       'support=$_supportSummary',
       'secure_context=$_isSecureContext',

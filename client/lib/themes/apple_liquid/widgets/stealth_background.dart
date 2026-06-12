@@ -35,7 +35,8 @@ class StealthAnimatedBackground extends StatefulWidget {
   });
 
   @override
-  State<StealthAnimatedBackground> createState() => _StealthAnimatedBackgroundState();
+  State<StealthAnimatedBackground> createState() =>
+      _StealthAnimatedBackgroundState();
 }
 
 class _StealthAnimatedBackgroundState extends State<StealthAnimatedBackground>
@@ -72,7 +73,7 @@ class _StealthAnimatedBackgroundState extends State<StealthAnimatedBackground>
             ),
           ),
         ),
-        
+
         // Анимированные blur-пятна для глубины
         AnimatedBuilder(
           animation: _controller,
@@ -85,7 +86,7 @@ class _StealthAnimatedBackgroundState extends State<StealthAnimatedBackground>
             );
           },
         ),
-        
+
         // Контент поверх
         widget.child,
       ],

@@ -67,7 +67,8 @@ class ChatListPanel extends StatelessWidget {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search chats',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                  hintStyle:
+                      TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                   prefixIcon: const Icon(Icons.search, color: Colors.white70),
                   filled: true,
                   fillColor: Colors.white.withValues(alpha: 0.1),

@@ -26,7 +26,8 @@ class CryptoHelper {
     return base64Encode(secretBox.concatenation());
   }
 
-  static Future<String> decryptData(String encryptedBase64, SecretKey key) async {
+  static Future<String> decryptData(
+      String encryptedBase64, SecretKey key) async {
     final concatenation = base64Decode(encryptedBase64);
     final secretBox = SecretBox.fromConcatenation(
       concatenation,
@@ -40,11 +41,13 @@ class CryptoHelper {
     return utf8.decode(clearBytes);
   }
 
-  static Future<String> encryptJson(Map<String, dynamic> data, SecretKey key) async {
+  static Future<String> encryptJson(
+      Map<String, dynamic> data, SecretKey key) async {
     return encryptData(jsonEncode(data), key);
   }
 
-  static Future<Map<String, dynamic>> decryptJson(String encryptedBase64, SecretKey key) async {
+  static Future<Map<String, dynamic>> decryptJson(
+      String encryptedBase64, SecretKey key) async {
     final decrypted = await decryptData(encryptedBase64, key);
     return jsonDecode(decrypted) as Map<String, dynamic>;
   }

@@ -40,7 +40,8 @@ class WebCallMediaBindings {
   bool get hasLocalVideo =>
       _localStream != null && _localStream!.getVideoTracks().toDart.isNotEmpty;
   bool get hasRemoteVideo =>
-      _remoteStream != null && _remoteStream!.getVideoTracks().toDart.isNotEmpty;
+      _remoteStream != null &&
+      _remoteStream!.getVideoTracks().toDart.isNotEmpty;
 
   void initVideoElements({
     required String remoteViewType,
@@ -295,8 +296,7 @@ class WebCallMediaBindings {
     }
   }
 
-  Future<void> addOrBufferRemoteCandidate(
-      Map<String, dynamic> payload) async {
+  Future<void> addOrBufferRemoteCandidate(Map<String, dynamic> payload) async {
     final connection = _peerConnection;
     if (connection == null) return;
     try {
