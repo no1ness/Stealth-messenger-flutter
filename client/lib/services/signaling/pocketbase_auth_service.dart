@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:pocketbase/pocketbase.dart';
@@ -36,11 +37,21 @@ class PocketBaseAuthService {
     final inFlight = _authInFlightByClient[clientKey];
     if (inFlight != null) return inFlight;
 
-    final future = _doEnsureAuth(selfUserId).whenComplete(
-      () => _authInFlightByClient.remove(clientKey),
+    final completer = Completer<void>();
+    _authInFlightByClient[clientKey] = completer.future;
+
+    _doEnsureAuth(selfUserId).then(
+      (_) {
+        _authInFlightByClient.remove(clientKey);
+        completer.complete();
+      },
+      onError: (Object e, StackTrace s) {
+        _authInFlightByClient.remove(clientKey);
+        completer.completeError(e, s);
+      },
     );
-    _authInFlightByClient[clientKey] = future;
-    return future;
+
+    return completer.future;
   }
 
   Future<void> _doEnsureAuth(String selfUserId) async {

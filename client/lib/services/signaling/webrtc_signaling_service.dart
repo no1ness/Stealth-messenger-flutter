@@ -227,9 +227,14 @@ class WebRtcSignalingService implements SignalingTransport {
     try {
       _unsubscribe = await _pb
           .collection(_kSignalingCollection)
-          .subscribe('*', _onRecord);
+          .subscribe('*', _onRecord)
+          .timeout(const Duration(seconds: 8));
       _reconnectAttempt = 0;
       _emitState(SignalingConnectionState.connected);
+    } on TimeoutException catch (error) {
+      Logger.warn('[signaling] subscribe timeout', extras: {'error': error});
+      _emitState(SignalingConnectionState.error);
+      _scheduleReconnect();
     } catch (error) {
       Logger.warn('[signaling] subscribe error', extras: {'error': error});
       _emitState(SignalingConnectionState.error);
