@@ -3,31 +3,31 @@ import 'package:stealth/services/signaling/pb_user_id.dart';
 
 void main() {
   group('pbIdFromLocalUuid', () {
-    test('strips dashes from a canonical UUID v4', () {
+    test('strips dashes and truncates canonical UUID to 15 chars', () {
       expect(
         pbIdFromLocalUuid('550e8400-e29b-41d4-a716-446655440000'),
-        '550e8400e29b41d4a716446655440000',
+        '550e8400e29b41d',
       );
     });
 
-    test('handles uppercase hex digits', () {
+    test('handles uppercase hex digits with truncation', () {
       expect(
         pbIdFromLocalUuid('AABBCCDD-1122-3344-5566-778899AABBCC'),
-        'AABBCCDD112233445566778899AABBCC',
+        'AABBCCDD1122334',
       );
     });
 
-    test('passes non-UUID input through unchanged (test fixture id)', () {
+    test('truncates long non-UUID input, keeps short unchanged', () {
       expect(pbIdFromLocalUuid('user-A'), 'user-A');
       expect(pbIdFromLocalUuid('smoke_a_1234567890123456'),
-          'smoke_a_1234567890123456');
+          'smoke_a_1234567');
       expect(pbIdFromLocalUuid(''), '');
     });
 
-    test('passes already-stripped UUIDs through unchanged', () {
+    test('truncates already-stripped UUID to 15 chars', () {
       expect(
         pbIdFromLocalUuid('550e8400e29b41d4a716446655440000'),
-        '550e8400e29b41d4a716446655440000',
+        '550e8400e29b41d',
       );
     });
   });
@@ -56,15 +56,15 @@ void main() {
   });
 
   group('round-trip', () {
-    test('canonical UUID survives strip→insert', () {
+    test('canonical UUID truncated to 15 chars — no longer reversible', () {
       const uuid = '550e8400-e29b-41d4-a716-446655440000';
-      expect(localUuidFromPbId(pbIdFromLocalUuid(uuid)), uuid);
+      expect(localUuidFromPbId(pbIdFromLocalUuid(uuid)), '550e8400e29b41d');
     });
 
-    test('non-UUID survives both directions', () {
+    test('long non-UUID truncated in pb→local direction', () {
       const id = 'smoke_a_1234567890123456';
-      expect(pbIdFromLocalUuid(id), id);
-      expect(localUuidFromPbId(id), id);
+      expect(pbIdFromLocalUuid(id), 'smoke_a_1234567');
+      expect(localUuidFromPbId('smoke_a_1234567'), 'smoke_a_1234567');
     });
   });
 }

@@ -226,9 +226,9 @@ void main() {
 
   group('PocketBase id translation', () {
     const localUuid = '550e8400-e29b-41d4-a716-446655440000';
-    const pbId = '550e8400e29b41d4a716446655440000';
+    const pbId = '550e8400e29b41d';
 
-    test('fromRecord rehydrates pb-id back into canonical UUID form', () {
+    test('fromRecord passes 15-char pb-id through unchanged', () {
       final record = RecordModel({
         'id': 'rec_uuid',
         'created': '2026-05-14 00:00:00.000Z',
@@ -243,8 +243,10 @@ void main() {
 
       final msg = RtcMessage.fromRecord(record);
 
-      expect(msg.creator, localUuid);
-      expect(msg.target, localUuid);
+      // PB 0.23 truncates to 15 chars; localUuidFromPbId cannot reconstruct
+      // the full canonical UUID from a 15-char hex string, so passes through.
+      expect(msg.creator, pbId);
+      expect(msg.target, pbId);
     });
 
     test('toCreateBody strips dashes when emitting wire payload', () {
