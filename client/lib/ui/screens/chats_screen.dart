@@ -710,7 +710,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: false,
       withData: true,
       type: FileType.any,

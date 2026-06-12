@@ -31,23 +31,21 @@ void main() {
 
   group('RtcMessage.fromRecord', () {
     test('parses all required fields from a RecordModel', () {
-      final record = RecordModel(
-        id: 'rec_123',
-        created: '2026-04-29 12:00:00.000Z',
-        updated: '2026-04-29 12:00:00.000Z',
-        collectionId: 'col_rtc',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'chat-uuid-001',
-          'creator': 'user-A',
-          'target': 'user-B',
+      final record = RecordModel({
+        'id': 'rec_123',
+        'created': '2026-04-29 12:00:00.000Z',
+        'updated': '2026-04-29 12:00:00.000Z',
+        'collectionId': 'col_rtc',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'chat-uuid-001',
+        'creator': 'user-A',
+        'target': 'user-B',
+        'type': 'offer',
+        'payload': {
+          'sdp': 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n',
           'type': 'offer',
-          'payload': {
-            'sdp': 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n',
-            'type': 'offer',
-          },
         },
-      );
+      });
 
       final msg = RtcMessage.fromRecord(record);
 
@@ -62,18 +60,16 @@ void main() {
     });
 
     test('parses created timestamp into DateTime', () {
-      final record = RecordModel(
-        id: 'r1',
-        created: '2026-01-15 10:30:00.000Z',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'r',
-          'creator': 'a',
-          'target': 'b',
-          'type': 'answer',
-          'payload': <String, dynamic>{},
-        },
-      );
+      final record = RecordModel({
+        'id': 'r1',
+        'created': '2026-01-15 10:30:00.000Z',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'r',
+        'creator': 'a',
+        'target': 'b',
+        'type': 'answer',
+        'payload': <String, dynamic>{},
+      });
 
       final msg = RtcMessage.fromRecord(record);
 
@@ -84,18 +80,16 @@ void main() {
 
     test('falls back to DateTime.now() when created is unparseable', () {
       final before = DateTime.now().toUtc();
-      final record = RecordModel(
-        id: 'r2',
-        created: 'not-a-date',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'r',
-          'creator': 'a',
-          'target': 'b',
-          'type': 'hangup',
-          'payload': <String, dynamic>{},
-        },
-      );
+      final record = RecordModel({
+        'id': 'r2',
+        'created': 'not-a-date',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'r',
+        'creator': 'a',
+        'target': 'b',
+        'type': 'hangup',
+        'payload': <String, dynamic>{},
+      });
 
       final msg = RtcMessage.fromRecord(record);
       final after = DateTime.now().toUtc();
@@ -111,17 +105,15 @@ void main() {
     });
 
     test('treats missing payload as empty map', () {
-      final record = RecordModel(
-        id: 'r3',
-        created: '2026-04-29 12:00:00.000Z',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'r',
-          'creator': 'a',
-          'target': 'b',
-          'type': 'hangup',
-        },
-      );
+      final record = RecordModel({
+        'id': 'r3',
+        'created': '2026-04-29 12:00:00.000Z',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'r',
+        'creator': 'a',
+        'target': 'b',
+        'type': 'hangup',
+      });
 
       final msg = RtcMessage.fromRecord(record);
 
@@ -130,18 +122,16 @@ void main() {
     });
 
     test('throws ArgumentError on unknown type field', () {
-      final record = RecordModel(
-        id: 'r4',
-        created: '2026-04-29 12:00:00.000Z',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'r',
-          'creator': 'a',
-          'target': 'b',
-          'type': 'wat',
-          'payload': <String, dynamic>{},
-        },
-      );
+      final record = RecordModel({
+        'id': 'r4',
+        'created': '2026-04-29 12:00:00.000Z',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'r',
+        'creator': 'a',
+        'target': 'b',
+        'type': 'wat',
+        'payload': <String, dynamic>{},
+      });
 
       expect(
         () => RtcMessage.fromRecord(record),
@@ -214,18 +204,16 @@ void main() {
 
   test('round-trip: fromRecord(record).toCreateBody() preserves wire fields',
       () {
-    final record = RecordModel(
-      id: 'rt',
-      created: '2026-04-29 12:00:00.000Z',
-      collectionName: 'rtc_signaling',
-      data: <String, dynamic>{
+      final record = RecordModel({
+        'id': 'rt',
+        'created': '2026-04-29 12:00:00.000Z',
+        'collectionName': 'rtc_signaling',
         'roomId': 'room-X',
         'creator': 'sender',
         'target': 'receiver',
         'type': 'answer',
         'payload': {'sdp': 'v=0\r\n', 'type': 'answer'},
-      },
-    );
+      });
 
     final body = RtcMessage.fromRecord(record).toCreateBody();
 
@@ -241,19 +229,17 @@ void main() {
     const pbId = '550e8400e29b41d4a716446655440000';
 
     test('fromRecord rehydrates pb-id back into canonical UUID form', () {
-      final record = RecordModel(
-        id: 'rec_uuid',
-        created: '2026-05-14 00:00:00.000Z',
-        collectionName: 'rtc_signaling',
-        data: <String, dynamic>{
-          'roomId': 'room-1',
-          // Wire-level ids do NOT contain dashes (PocketBase record ids).
-          'creator': pbId,
-          'target': pbId,
-          'type': 'offer',
-          'payload': const <String, dynamic>{},
-        },
-      );
+      final record = RecordModel({
+        'id': 'rec_uuid',
+        'created': '2026-05-14 00:00:00.000Z',
+        'collectionName': 'rtc_signaling',
+        'roomId': 'room-1',
+        // Wire-level ids do NOT contain dashes (PocketBase record ids).
+        'creator': pbId,
+        'target': pbId,
+        'type': 'offer',
+        'payload': const <String, dynamic>{},
+      });
 
       final msg = RtcMessage.fromRecord(record);
 

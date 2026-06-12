@@ -1,0 +1,20 @@
+[
+  {
+    "name": "rtc_signaling",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {"name": "roomId", "type": "text", "required": true},
+      {"name": "creator", "type": "text", "required": true},
+      {"name": "target", "type": "text", "required": true},
+      {"name": "type", "type": "select", "required": true, "options": {"maxSelect": 1, "values": ["offer", "answer", "candidate", "hangup"]}},
+      {"name": "payload", "type": "json", "required": true, "options": {"maxSize": 2000000}}
+    ],
+    "indexes": ["CREATE INDEX idx_rtc_signaling_room ON rtc_signaling (roomId)"],
+    "listRule": "target = @request.auth.id || creator = @request.auth.id",
+    "viewRule": "target = @request.auth.id || creator = @request.auth.id",
+    "createRule": "@request.auth.id != \"\" && @request.data.creator = @request.auth.id",
+    "updateRule": null,
+    "deleteRule": "creator = @request.auth.id"
+  }
+]

@@ -71,7 +71,7 @@ void main() {
       expect(body['payload']['candidate'], startsWith('candidate:'));
     });
 
-    test('sendHangup creates record with empty payload', () async {
+    test('sendHangup creates record with reason payload', () async {
       await h.service.sendHangup(
         roomId: 'room-1',
         targetUserId: 'user-B',
@@ -79,7 +79,7 @@ void main() {
 
       final body = h.fakeRecordService.lastCreateBody!;
       expect(body['type'], 'hangup');
-      expect(body['payload'], isEmpty);
+      expect(body['payload'], {'reason': 'hangup'});
     });
 
     test('rethrows when create() fails', () async {
@@ -413,11 +413,11 @@ class _FakeAuthStore extends AuthStore {
   // attempt to the fake users collection). The harness wires selfUserId
   // verbatim, so the value is hardcoded here for the same reason.
   @override
-  dynamic get model => RecordModel(
-        id: 'user-A',
-        collectionId: 'users',
-        collectionName: 'users',
-      );
+  RecordModel? get record => RecordModel({
+        'id': 'user-A',
+        'collectionId': 'users',
+        'collectionName': 'users',
+      });
 }
 
 class _FakeRecordService extends RecordService {
@@ -446,11 +446,11 @@ class _FakeRecordService extends RecordService {
       throw err;
     }
     lastCreateBody = Map<String, dynamic>.from(body);
-    return RecordModel(
-      id: 'fake-${DateTime.now().microsecondsSinceEpoch}',
-      collectionName: 'rtc_signaling',
-      data: Map<String, dynamic>.from(body),
-    );
+    return RecordModel({
+      'id': 'fake-${DateTime.now().microsecondsSinceEpoch}',
+      'collectionName': 'rtc_signaling',
+      ...Map<String, dynamic>.from(body),
+    });
   }
 
   @override
@@ -536,17 +536,15 @@ RecordModel _buildRecord({
   required String type,
   required Map<String, dynamic> payload,
 }) {
-  return RecordModel(
-    id: id,
-    created: DateTime.now().toUtc().toIso8601String(),
-    collectionId: 'col_rtc',
-    collectionName: 'rtc_signaling',
-    data: <String, dynamic>{
-      'roomId': roomId,
-      'creator': creator,
-      'target': target,
-      'type': type,
-      'payload': payload,
-    },
-  );
+  return RecordModel({
+    'id': id,
+    'created': DateTime.now().toUtc().toIso8601String(),
+    'collectionId': 'col_rtc',
+    'collectionName': 'rtc_signaling',
+    'roomId': roomId,
+    'creator': creator,
+    'target': target,
+    'type': type,
+    'payload': payload,
+  });
 }

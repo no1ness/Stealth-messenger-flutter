@@ -1,0 +1,12 @@
+# Local smoke-test stack (no Caddy/coturn). PocketBase on :8090.
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:0.22.21
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./pb_data:/pb_data
+      - ../pb_hooks:/pb_hooks
+    ports:
+      - "127.0.0.1:8090:8090"

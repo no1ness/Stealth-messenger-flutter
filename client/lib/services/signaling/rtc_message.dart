@@ -65,8 +65,8 @@ class RtcMessage {
     // can match against contacts / chat membership directly.
     final creator = localUuidFromPbId(record.getStringValue('creator'));
     final target = localUuidFromPbId(record.getStringValue('target'));
-    final created =
-        DateTime.tryParse(record.created) ?? DateTime.now().toUtc();
+    final created = DateTime.tryParse(record.get<String>('created')) ??
+        DateTime.now().toUtc();
 
     Logger.debug('[signaling] RtcMessage parsed', extras: {
       'type': type.wireValue,

@@ -140,7 +140,7 @@ class WebRtcSignalingService implements SignalingTransport {
       RtcMessageType.hangup,
       roomId,
       targetUserId,
-      const <String, dynamic>{},
+      const <String, dynamic>{'reason': 'hangup'},
     );
   }
 
@@ -325,8 +325,8 @@ class WebRtcSignalingService implements SignalingTransport {
     await _migrateLegacyAuthIfNeeded(expectedPbId);
 
     if (_pb.authStore.isValid) {
-      final model = _pb.authStore.model;
-      final modelId = (model is RecordModel) ? model.id : null;
+      final record = _pb.authStore.record;
+      final modelId = record?.id;
       if (modelId == expectedPbId) {
         Logger.debug('[signaling] auth already valid',
             extras: {'pbId': expectedPbId});
@@ -346,11 +346,11 @@ class WebRtcSignalingService implements SignalingTransport {
         storedPbUserId == expectedPbId) {
       _pb.authStore.save(
         storedToken,
-        RecordModel(
-          id: storedPbUserId!,
-          collectionId: 'users',
-          collectionName: 'users',
-        ),
+        RecordModel({
+          'id': storedPbUserId!,
+          'collectionId': 'users',
+          'collectionName': 'users',
+        }),
       );
       Logger.info('[signaling] auth restored from storage',
           extras: {'pbId': storedPbUserId});
@@ -368,7 +368,7 @@ class WebRtcSignalingService implements SignalingTransport {
     try {
       auth = await _pb.collection('users').authWithPassword(email, password);
       Logger.info('[signaling] auth restored via password',
-          extras: {'pbId': auth.record?.id});
+          extras: {'pbId': auth.record.id});
     } catch (loginError) {
       Logger.info('[signaling] login failed, creating new account',
           extras: {'error': loginError});
@@ -381,18 +381,18 @@ class WebRtcSignalingService implements SignalingTransport {
       });
       auth = await _pb.collection('users').authWithPassword(email, password);
       Logger.info('[signaling] auth created new user', extras: {
-        'pbId': auth.record?.id,
+        'pbId': auth.record.id,
         'expectedPbId': expectedPbId,
       });
     }
 
-    final actualPbId = auth.record?.id;
-    if (actualPbId == null || actualPbId != expectedPbId) {
+    final actualPbId = auth.record.id;
+    if (actualPbId.isEmpty || actualPbId != expectedPbId) {
       throw StateError(
         '[signaling] auth id mismatch: expected=$expectedPbId, '
-        'got=${actualPbId ?? "null"}. The PocketBase users collection '
-        'rejected the custom id or a legacy account is shadowing the '
-        'email. Reset local credentials to recover.',
+        'got=$actualPbId. The PocketBase users collection rejected '
+        'the custom id or a legacy account is shadowing the email. '
+        'Reset local credentials to recover.',
       );
     }
     await _storage.write(_kPbTokenKey, auth.token);

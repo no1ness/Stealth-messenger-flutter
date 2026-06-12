@@ -35,19 +35,19 @@ Rationale: "Skipped by user — dependency maintenance is a recurring chore, not
 
 ### Phase 1: Flutter/Dart Dependencies
 
-- [ ] **Task 1: Audit current Flutter dependency versions**
+- [x] **Task 1: Audit current Flutter dependency versions**
   - Deliverable: run `cd client && flutter pub outdated` and record all outdated packages with current → latest version mapping
   - Expected behavior: report lists each dependency with its current constraint, current resolved version, and latest available version
   - Files: `client/pubspec.yaml` (read-only for audit)
   - Logging: N/A — audit output goes to stdout
 
-- [ ] **Task 2: Update Flutter dependencies to latest compatible versions**
+- [x] **Task 2: Update Flutter dependencies to latest compatible versions**
   - Deliverable: run `cd client && flutter pub upgrade --major-versions` to upgrade all pubspec dependencies to latest compatible versions; review and accept each major version change
   - Expected behavior: pubspec.yaml constraints updated, pubspec.lock regenerated, all packages resolve without conflicts
   - Files: `client/pubspec.yaml`, `client/pubspec.lock`
   - Dependencies: Task 1
 
-- [ ] **Task 3: Verify Flutter build and tests pass after upgrade**
+- [x] **Task 3: Verify Flutter build and tests pass after upgrade**
   - Deliverable: run `cd client && flutter pub get && flutter analyze && flutter test`
   - Expected behavior: zero analyze errors, all existing tests pass
   - Files: potentially modified source files if API breakages need fixing
@@ -55,7 +55,7 @@ Rationale: "Skipped by user — dependency maintenance is a recurring chore, not
 
 ### Phase 2: Gradle/Android Plugins
 
-- [ ] **Task 4: Update Gradle plugin versions**
+- [x] **Task 4: Update Gradle plugin versions**
   - Deliverable: update versions in `client/android/settings.gradle.kts`:
     - `com.android.application`: check latest available
     - `org.jetbrains.kotlin.android`: check latest compatible with Flutter
@@ -85,7 +85,7 @@ Rationale: "Skipped by user — dependency maintenance is a recurring chore, not
 
 ### Phase 5: Verification
 
-- [ ] **Task 7: Run full regression suite and document changes**
+- [x] **Task 7: Run full regression suite and document changes**
   - Deliverable:
     1. Run `cd client && flutter analyze && flutter test` (full pass)
     2. Run `cd pw-test && npm test` (if applicable)

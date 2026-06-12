@@ -52,7 +52,7 @@ void main() {
       final adminPassword =
           Platform.environment['POCKETBASE_TEST_ADMIN_PASSWORD'];
 
-      final stamp = DateTime.now().microsecondsSinceEpoch;
+      final stamp = DateTime.now().microsecondsSinceEpoch % 100000;
       final userIdA = 'smoke_a_$stamp';
       final userIdB = 'smoke_b_$stamp';
       final roomId = 'smoke_room_$stamp';
@@ -88,10 +88,8 @@ void main() {
         await serviceB.connect(roomId: roomId, selfUserId: userIdB);
         await serviceA.connect(roomId: roomId, selfUserId: userIdA);
 
-        final modelA = pbA.authStore.model;
-        final modelB = pbB.authStore.model;
-        pbRecIdA = (modelA is RecordModel) ? modelA.id : null;
-        pbRecIdB = (modelB is RecordModel) ? modelB.id : null;
+        pbRecIdA = pbA.authStore.record?.id;
+        pbRecIdB = pbB.authStore.record?.id;
         expect(
           pbRecIdA,
           userIdA,
@@ -178,7 +176,7 @@ Future<void> _safeDeleteUser(
   if (id == null || id.isEmpty) return;
   try {
     final adminPb = PocketBase(baseUrl);
-    await adminPb.admins.authWithPassword(adminEmail, adminPassword);
+    await adminPb.collection('_superusers').authWithPassword(adminEmail, adminPassword);
     await adminPb.collection('users').delete(id);
   } catch (_) {
     // best-effort cleanup

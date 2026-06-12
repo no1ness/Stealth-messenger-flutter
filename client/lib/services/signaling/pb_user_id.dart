@@ -20,13 +20,14 @@ final RegExp _strippedUuidRegex = RegExp(r'^[0-9a-fA-F]{32}$');
 
 /// Returns the PocketBase record id corresponding to [localUuid].
 ///
-/// Strips dashes from a canonical UUID. Any non-UUID input is returned
-/// unchanged.
+/// PocketBase 0.23+ limits record `id` to 15 chars. Strips dashes from a
+/// canonical UUID (32 hex), then truncates to 15. Non-UUID inputs are also
+/// truncated if longer.
 String pbIdFromLocalUuid(String localUuid) {
-  if (_canonicalUuidRegex.hasMatch(localUuid)) {
-    return localUuid.replaceAll('-', '');
-  }
-  return localUuid;
+  final id = _canonicalUuidRegex.hasMatch(localUuid)
+      ? localUuid.replaceAll('-', '')
+      : localUuid;
+  return id.length > 15 ? id.substring(0, 15) : id;
 }
 
 /// Returns the canonical UUID corresponding to [pbId].
