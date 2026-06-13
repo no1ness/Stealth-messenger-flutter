@@ -61,6 +61,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Logger.debug('[Profile] loading storageSummary');
       final storageSummary = await _appService.getStorageDebugSummary();
       Logger.debug('[Profile] storageSummary loaded', extras: storageSummary);
+      if (contactBundle != null && contactBundle.isNotEmpty) {
+        Logger.info('[Profile] CONTACT_BUNDLE for E2E test', extras: {'bundle': contactBundle});
+        print('E2E_TEST_CONTACT_BUNDLE=$contactBundle');
+      }
 
       Logger.debug('[Profile] loading recentCalls');
       final recentCalls = await _appService.getRecentCallHistory();
@@ -253,13 +257,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     AppSpacing.bottomBarOverlap,
                   ),
                   children: [
-                    _buildIdentityCard(),
+                    RepaintBoundary(child: _buildIdentityCard()),
                     const SizedBox(height: AppSpacing.md),
-                    securityActivityRow,
+                    RepaintBoundary(child: securityActivityRow),
                     const SizedBox(height: AppSpacing.md),
-                    _buildStorageCard(),
+                    RepaintBoundary(child: _buildStorageCard()),
                     const SizedBox(height: AppSpacing.md),
-                    _buildCallHistoryCard(),
+                    RepaintBoundary(child: _buildCallHistoryCard()),
                   ],
                 );
               },

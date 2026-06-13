@@ -38,6 +38,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   final LocalAppService _appService = LocalAppService();
   final ScrollController _messagesScrollController = ScrollController();
   final Map<String, StreamSubscription> _activeSubscriptions = {};
+  Timer? _searchDebounce;
 
   bool _loading = true;
   bool _loadingMessages = false;
@@ -99,6 +100,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     if (selectedChatId != null) {
       _appService.setTypingStatus(chatId: selectedChatId, isTyping: false);
     }
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _groupNameController.dispose();
     _messageSearchController.dispose();
@@ -644,7 +646,13 @@ class _ChatsScreenState extends State<ChatsScreen>
             children: [
               TextField(
                 controller: _searchController,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(
+                    const Duration(milliseconds: 200),
+                    () { if (mounted) setState(() {}); },
+                  );
+                },
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search chats',

@@ -24,7 +24,7 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
   final LocalAppService _appService = LocalAppService();
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
@@ -47,14 +47,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
     _startPreviewTimer();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _previewTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _previewTimer?.cancel();
+    } else if (state == AppLifecycleState.resumed && _previewTimer == null) {
+      _startPreviewTimer();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -143,11 +154,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      _buildSecurityCard(),
-      _buildConnectionCard(),
-      _buildNotificationCard(),
-      _buildAppearanceCard(),
-      _buildDiagnosticsCard(),
+      RepaintBoundary(child: _buildSecurityCard()),
+      RepaintBoundary(child: _buildConnectionCard()),
+      RepaintBoundary(child: _buildNotificationCard()),
+      RepaintBoundary(child: _buildAppearanceCard()),
+      RepaintBoundary(child: _buildDiagnosticsCard()),
     ];
 
     return Scaffold(

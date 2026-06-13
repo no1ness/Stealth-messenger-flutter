@@ -34,47 +34,49 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.glassUltraDark,
-            border: Border(
-              bottom: BorderSide(
-                color: AppColors.glassLight.withValues(alpha: 0.1),
-                width: 0.5,
+      child: RepaintBoundary(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.glassUltraDark,
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.glassLight.withValues(alpha: 0.1),
+                  width: 0.5,
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: SizedBox(
-              height: 56,
-              child: Row(
-                children: [
-                  if (showBackButton)
-                    IconButton(
-                      tooltip: 'Back',
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                      color: AppColors.systemBlue,
-                      onPressed: onBack ?? () => Navigator.of(context).pop(),
-                    ),
-                  if (leading != null && !showBackButton) leading!,
-                  Expanded(
-                    child: titleWidget ??
-                        Text(
-                          title ?? '',
-                          style: AppTypography.headline.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+            child: SafeArea(
+              bottom: false,
+              child: SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    if (showBackButton)
+                      IconButton(
+                        tooltip: 'Back',
+                        icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                        color: AppColors.systemBlue,
+                        onPressed: onBack ?? () => Navigator.of(context).pop(),
+                      ),
+                    if (leading != null && !showBackButton) leading!,
+                    Expanded(
+                      child: titleWidget ??
+                          Text(
+                            title ?? '',
+                            style: AppTypography.headline.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                  ),
-                  if (actions != null) ...actions!,
-                  if (actions == null && showBackButton)
-                    const SizedBox(width: 48), // Balance for back button
-                ],
+                    ),
+                    if (actions != null) ...actions!,
+                    if (actions == null && showBackButton)
+                      const SizedBox(width: 48), // Balance for back button
+                  ],
+                ),
               ),
             ),
           ),
@@ -130,32 +132,34 @@ class GlassSliverAppBar extends StatelessWidget {
       backgroundColor: Colors.transparent,
       elevation: 0,
       flexibleSpace: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.darkGray2.withValues(alpha: 0.8),
-              border: const Border(
-                bottom: BorderSide(
-                  color: AppColors.separator,
-                  width: 0.5,
+        child: RepaintBoundary(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.darkGray2.withValues(alpha: 0.8),
+                border: const Border(
+                  bottom: BorderSide(
+                    color: AppColors.separator,
+                    width: 0.5,
+                  ),
                 ),
               ),
-            ),
-            child: FlexibleSpaceBar(
-              title: titleWidget ??
-                  Text(
-                    title ?? '',
-                    style: AppTypography.headline.copyWith(
-                      color: AppColors.textPrimary,
+              child: FlexibleSpaceBar(
+                title: titleWidget ??
+                    Text(
+                      title ?? '',
+                      style: AppTypography.headline.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-              centerTitle: false,
-              titlePadding: const EdgeInsets.only(
-                left: AppSpacing.md,
-                bottom: AppSpacing.md,
+                centerTitle: false,
+                titlePadding: const EdgeInsets.only(
+                  left: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                ),
+                background: flexibleSpace,
               ),
-              background: flexibleSpace,
             ),
           ),
         ),

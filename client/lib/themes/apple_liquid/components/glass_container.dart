@@ -34,7 +34,7 @@ class GlassContainer extends StatelessWidget {
     this.borderRadius,
     this.onTap,
     this.gradient,
-    this.blur = 15.0, // Увеличен blur с 10 до 15
+    this.blur = 8.0,
   });
 
   /// Per design-system.md (Dual identity): in light mode every glass
@@ -72,15 +72,17 @@ class GlassContainer extends StatelessWidget {
       borderRadius: BorderRadius.circular(
         borderRadius ?? AppSpacing.radiusLg,
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
-        child: Container(
-          width: width,
-          height: height,
-          padding: padding ?? const EdgeInsets.all(AppSpacing.md),
-          margin: margin,
-          decoration: _getDecoration(brightness),
-          child: child,
+      child: RepaintBoundary(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
+          child: Container(
+            width: width,
+            height: height,
+            padding: padding ?? const EdgeInsets.all(AppSpacing.md),
+            margin: margin,
+            decoration: _getDecoration(brightness),
+            child: child,
+          ),
         ),
       ),
     );
@@ -196,8 +198,9 @@ class _GlassButtonState extends State<GlassButton>
         scale: _scaleAnimation,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: RepaintBoundary(
+            child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
             child: Container(
               width: widget.width,
               height: widget.height ?? AppSpacing.buttonHeightMedium,
@@ -244,6 +247,8 @@ class _GlassButtonState extends State<GlassButton>
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
+

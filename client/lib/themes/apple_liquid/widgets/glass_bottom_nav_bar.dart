@@ -18,8 +18,9 @@ class GlassBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+      child: RepaintBoundary(
+        child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           height:
               AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
@@ -49,7 +50,8 @@ class GlassBottomNavBar extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

@@ -6,6 +6,7 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Stealth Messenger - Secure encrypted messaging">
+  <meta name="theme-color" content="#1a1a1a">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -16,6 +17,10 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- Preconnect to signal server -->
+  <link rel="preconnect" href="https://signal.stealthpro.ru">
+  <link rel="dns-prefetch" href="https://signal.stealthpro.ru">
 
   <title>Stealth Messenger</title>
   <link rel="manifest" href="manifest.json">
@@ -58,6 +63,12 @@
   <div id="loading_indicator" class="loading">
     <div class="loader"></div>
   </div>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Performant default: render via SkWasm (CanvasKit) which is ~2x faster than HTML renderer -->
+  <script>
+    window.flutterConfiguration = {
+      renderer: 'canvaskit',
+    };
+  </script>
+  <script src="flutter_bootstrap.js"></script>
 </body>
 </html>

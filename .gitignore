@@ -75,3 +75,6 @@ pw-test/*.png
 pw-test/*.html
 pw-test/diag-*.json
 pw-test/*-report.json
+
+# PocketBase backups
+server/pb_backup_*.zip

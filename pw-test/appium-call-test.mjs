@@ -188,7 +188,7 @@ async function addContact(driver, contactBundle, contactName) {
   // Переходим на вкладку Contacts
   const contactsTab = await findElementWithRetry(
     driver,
-    '//android.widget.Button[@content-desc="Contacts"]'
+    '//*[@content-desc="Contacts"]'
   );
   await contactsTab.click();
   await delay(1000);
@@ -226,7 +226,7 @@ async function initiateCall(driver, contactName) {
   // Убедимся что мы на вкладке Contacts
   const contactsTab = await findElementWithRetry(
     driver,
-    '//android.widget.Button[@content-desc="Contacts"]'
+    '//*[@content-desc="Contacts"]'
   );
   await contactsTab.click();
   await delay(1000);
@@ -279,7 +279,7 @@ async function main() {
   const emulator = await remote({
     protocol: 'http',
     hostname: '127.0.0.1',
-    port: 4723,
+    port: 4725,
     path: '/',
     capabilities: emulatorCaps,
   });
@@ -288,7 +288,7 @@ async function main() {
   const phone = await remote({
     protocol: 'http',
     hostname: '127.0.0.1',
-    port: 4723,
+    port: 4725,
     path: '/',
     capabilities: phoneCaps,
   });
