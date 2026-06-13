@@ -58,7 +58,7 @@ flowchart LR
 
 ## Предварительные требования
 
-- VPS с Docker и Docker Compose (или нативная установка через `deploy-native.sh`)
+- VPS с Caddy (native установка через `deploy-native.sh`)
 - Три DNS A-записи на IP сервера: `signal.your.tld`, `turn.your.tld`, `app.your.tld`
 - Открытые порты: `22`, `80`, `443`, `3478` (tcp+udp), `5349` (tcp), `49152–65535/udp`
 - На машине разработки: Flutter SDK (для сборки APK и smoke-теста)
