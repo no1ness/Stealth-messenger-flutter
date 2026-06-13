@@ -89,72 +89,88 @@ Stealth-клиент отказывается стартовать когда `P
 production убедись что URL — HTTPS, и cert доверен устройству. Caddy
 с дефолтным ACME-флоу — достаточно.
 
-## 2. Схема `rtc_signaling`
+## 2. Схема `rtc_signaling` (актуальная)
 
-Создай коллекцию из admin UI (Collections → New collection → `base`),
-либо импортируй JSON через Settings → Import collections.
+### Быстрый старт (через Admin UI)
 
-| Поле       | Тип          | Required | Заметки                                                     |
-| ---------- | ------------ | -------- | ----------------------------------------------------------- |
-| `roomId`   | text         | yes      | indexed; равен chatId для 1-к-1 звонков                     |
-| `creator`  | text         | yes      | PocketBase `users.id` отправителя (не relation: см. §4)     |
-| `target`   | text         | yes      | indexed; PocketBase `users.id` получателя                   |
-| `type`     | select       | yes      | значения: `offer`, `answer`, `candidate`, `hangup`          |
-| `payload`  | json         | yes      | сырой SDP / candidate + `creatorLocalId` / `targetLocalId`  |
+1. Открой `https://signal.stealthpro.ru/_/#/settings/collections` (или свой домен)
+2. Нажми **"+ New collection"**
+3. Name: `rtc_signaling`, Type: `Base`
+4. Добавь поля:
 
-Рекомендуемые индексы (Settings → Indexes):
+   | Поле | Тип | Required |
+   |------|-----|----------|
+   | `roomId` | text | да |
+   | `sender` | text | да |
+   | `target` | text | да |
+   | `payload` | json | нет |
+   | `type` | text | да |
 
+5. API Rules (вкладка после полей):
+
+   - **List rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
+   - **View rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
+   - **Create rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
+   - **Update rule**: оставь пустым
+   - **Delete rule**: оставь пустым
+
+6. Нажми **Save**
+
+### Импорт через JSON (Settings → Import collections)
+
+```json
+[{"name":"rtc_signaling","type":"base","schema":[
+  {"name":"roomId","type":"text","required":true,"id":"room"},
+  {"name":"sender","type":"text","required":true,"id":"sender"},
+  {"name":"target","type":"text","required":true,"id":"target"},
+  {"name":"payload","type":"json"},
+  {"name":"type","type":"text","required":true,"id":"type"}
+],"listRule":"(target = @request.auth.id) || (sender = @request.auth.id)","viewRule":"(target = @request.auth.id) || (sender = @request.auth.id)","createRule":"(target = @request.auth.id) || (sender = @request.auth.id)"}]
 ```
+
+### Схема полей
+
+| Поле | Тип | Required | Заметки |
+|------|-----|----------|---------|
+| `roomId` | text | да | равен chatId для 1-к-1 звонков |
+| `sender` | text | да | PocketBase `users.id` отправителя |
+| `target` | text | да | PocketBase `users.id` получателя |
+| `type` | text | да | значения: `offer`, `answer`, `candidate`, `hangup` |
+| `payload` | json | нет | сырой SDP / candidate + `creatorLocalId` / `targetLocalId` |
+
+### Индексы (опционально, Settings → Indexes)
+
+```sql
 CREATE INDEX idx_rtc_signaling_target_created
   ON rtc_signaling (target, created);
 CREATE INDEX idx_rtc_signaling_room
   ON rtc_signaling (roomId);
 ```
 
-Индекс по `created` делает cleanup-запрос (§5) дешёвым; индекс по
-`roomId` — для ad-hoc дебага в admin UI.
-
 ## 3. API rules
 
-Выстави rules на коллекции `rtc_signaling` так, чтобы каждый
-пользователь видел только сообщения, адресованные ему, и мог постить
-только сообщения, подписанные своим identity:
+Rules на коллекции `rtc_signaling` (текущие для схемы с `sender`):
 
 - **List / View rule**
 
   ```
-  target = @request.auth.id || creator = @request.auth.id
+  (target = @request.auth.id) || (sender = @request.auth.id)
   ```
 
 - **Create rule**
 
   ```
-  @request.auth.id != "" && @request.data.creator = @request.auth.id
+  (target = @request.auth.id) || (sender = @request.auth.id)
   ```
 
-- **Update rule**
+- **Update rule**: пусто (никто не может менять)
+- **Delete rule**: пусто (никто не может удалять)
 
-  ```
-  null
-  ```
-
-- **Delete rule**
-
-  ```
-  creator = @request.auth.id
-  ```
-
-Эти rules предполагают что поле `creator` хранит PocketBase user id
-(аутентифицированный `users.id`). Lazy auth-флоу Stealth регистрирует
-per-device PocketBase аккаунт с детерминированным PB-id, полученным из
-локального UUID через `pbIdFromLocalUuid`. Так как PB-id может быть короче
-и необратимым, полные локальные UUID дополнительно передаются в
+Lazy auth-флоу Stealth регистрирует per-device PocketBase аккаунт с
+детерминированным PB-id, полученным из локального UUID через
+`pbIdFromLocalUuid`. Полные локальные UUID передаются в
 `payload.creatorLocalId` / `payload.targetLocalId` для UI, истории звонков
 и сопоставления с локальными контактами.
-
-Если предпочитаешь, чтобы `creator`/`target` были `relation` вместо
-`text` — поменяй тип и обнови rules использовать `creator.id` /
-`target.id`. Stealth-клиент обращается с полем как с opaque id в любом случае.
 
 ## 4. Коллекция `users`
 
