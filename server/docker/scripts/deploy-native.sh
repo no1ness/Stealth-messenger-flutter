@@ -6,8 +6,9 @@ REPO_ROOT="$(cd "$DOCKER_DIR/../.." && pwd)"
 
 if [[ -f "$DOCKER_DIR/.env" ]]; then source "$DOCKER_DIR/.env"; fi
 : "${SIGNAL_DOMAIN:?}" : "${TURN_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}" : "${TURN_USERNAME:?}" : "${TURN_PASSWORD:?}"
+: "${WEB_DOMAIN:=app.${SIGNAL_DOMAIN#signal.}}"
 
-export SIGNAL_DOMAIN TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD
+export SIGNAL_DOMAIN TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD WEB_DOMAIN
 
 # --- install system packages ---
 apt-get update -qq
@@ -45,11 +46,20 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 
+# --- web app directory ---
+mkdir -p /var/www/stealth-web
+
 # --- Caddy config ---
 mkdir -p /etc/caddy
 cat > /etc/caddy/Caddyfile <<CADDY
 ${SIGNAL_DOMAIN} {
     reverse_proxy localhost:8090
+}
+
+${WEB_DOMAIN} {
+    root * /var/www/stealth-web
+    file_server
+    encode gzip
 }
 CADDY
 
@@ -96,6 +106,9 @@ UNIT
 systemctl daemon-reload
 systemctl enable --now pocketbase
 systemctl enable --now coturn
+
+echo "=== Web app dir ==="
+ls -la /var/www/stealth-web 2>/dev/null || echo "(empty — deploy web build later)"
 
 echo "=== All services started ==="
 systemctl status pocketbase caddy coturn --no-pager

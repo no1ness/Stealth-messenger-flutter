@@ -49,14 +49,17 @@ flowchart LR
 | `install.sh` | Разворачивает стек в `~/stealth-server` (или `DEPLOY_DIR`) |
 | `import-rtc-signaling.sh` | Импорт коллекции `rtc_signaling` через Admin API |
 | `build-client-apk.sh` | Release APK с `--dart-define` для PocketBase и TURN |
+| `build-client-web.sh` | Release Flutter web с `--dart-define` для PocketBase и TURN |
+| `deploy-web.sh` | build + rsync на VPS + Caddy reload + verify |
+| `verify-web.sh` | Smoke-тест веб-деплоя (HTTP 200, Content-Type, flutter_bootstrap.js) |
 | `verify-signaling.sh` | Smoke-тест signaling (`pocketbase_signaling_smoke_test.dart`) |
 
 Подробная схема PocketBase и rules — в [POCKETBASE_SETUP.md](POCKETBASE_SETUP.md). Сборка и установка APK — в [INSTALL_ANDROID.md](../INSTALL_ANDROID.md) и [ANDROID_RELEASE.md](ANDROID_RELEASE.md).
 
 ## Предварительные требования
 
-- VPS с Docker и Docker Compose
-- Два DNS A-записи на IP сервера: `signal.your.tld`, `turn.your.tld`
+- VPS с Docker и Docker Compose (или нативная установка через `deploy-native.sh`)
+- Три DNS A-записи на IP сервера: `signal.your.tld`, `turn.your.tld`, `app.your.tld`
 - Открытые порты: `22`, `80`, `443`, `3478` (tcp+udp), `5349` (tcp), `49152–65535/udp`
 - На машине разработки: Flutter SDK (для сборки APK и smoke-теста)
 
@@ -106,6 +109,49 @@ APK: `client/build/app/outputs/flutter-apk/app-release.apk`
 - `POCKETBASE_URL=https://signal.your.tld`
 - `TURN_URL`, `TURNS_URL`, `TURN_USERNAME`, `TURN_PASSWORD`
 
+## Web deploy
+
+Caddy обслуживает статический билд Flutter web на поддомене `app.your.tld`. TLS-сертификат выпускается автоматически (Let's Encrypt) при первом запросе.
+
+### Предварительно
+
+Добавьте DNS A-запись `app.your.tld → IP VPS`.
+
+### Сборка
+
+```bash
+cd server/docker
+./scripts/build-client-web.sh
+```
+
+Билд: `client/build/web/`
+
+### Деплой
+
+```bash
+cd server/docker
+./scripts/deploy-web.sh
+```
+
+Скрипт:
+1. Вызывает `build-client-web.sh`
+2. Синхронизирует `build/web/` на VPS через rsync
+3. Обновляет Caddyfile на VPS (если нужно)
+4. Перезагружает Caddy
+5. Проверяет, что `https://app.your.tld/` отвечает 200
+
+### Проверка
+
+```bash
+cd server/docker
+./scripts/verify-web.sh
+```
+
+Проверяет:
+- HTTP 200 на корневом URL
+- `Content-Type: text/html`
+- `flutter_bootstrap.js` доступен (200)
+
 ## Проверка
 
 **Signaling (с машины разработки):**
@@ -142,7 +188,6 @@ cd ../../client && flutter test test/services/signaling/pocketbase_signaling_smo
 
 - CI/CD автодеплой на VPS
 - Хостинг APK и автообновления (`APP_UPDATE_MANIFEST_URL`)
-- Flutter web на nginx
 - Полный bootstrap VPS (`ufw`, `certbot`) — выполняется вручную или доп. скриптами
 
 ## Эксплуатация
