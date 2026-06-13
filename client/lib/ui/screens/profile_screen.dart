@@ -12,6 +12,8 @@ import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
@@ -120,8 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contact bundle copied')),
+    showStealthSnackBar(
+      context,
+      'Contact bundle copied',
+      kind: SnackKind.success,
     );
   }
 
@@ -151,8 +155,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _nickname = value;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Nickname updated')),
+    showStealthSnackBar(
+      context,
+      'Nickname updated',
+      kind: SnackKind.success,
     );
   }
 
@@ -164,11 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.systemBlue,
-        ),
-      );
+      return const Center(child: StealthLoadingIndicator());
     }
 
     if (_userId == null || _userId!.isEmpty) {
@@ -202,47 +204,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final cards = [
-      _buildIdentityCard(),
-      _buildSecurityCard(),
-      _buildActivityCard(),
-      _buildStorageCard(),
-      _buildCallHistoryCard(),
-    ];
-
-    return Stack(
-      children: [
-        Column(
-          children: [
-            const GlassAppBar(title: 'Profile'),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: cards.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: AppSpacing.md),
-                itemBuilder: (context, index) => cards[index],
-              ),
-            ),
-            const SizedBox(height: 80), // Space for bottom bar
-          ],
+    // Design-system v2: asymmetric card grid. Hero IdentityCard
+    // spans full width; Security+Activity sit side-by-side in a
+    // 2-column row below; Storage + CallHistory return to full
+    // width. Narrow viewports (< 600 px) collapse the 2-col row
+    // back to a vertical stack so the layout still reads.
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: Semantics(
+        label: AccessibilityIds.logout,
+        button: true,
+        child: FloatingActionButton.extended(
+          onPressed: _logout,
+          backgroundColor: AppColors.statusDanger,
+          foregroundColor: AppColors.textOnGlass,
+          icon: const Icon(Icons.logout),
+          label: const Text('Logout'),
         ),
-        Positioned(
-          right: AppSpacing.md,
-          bottom: 100,
-          child: Semantics(
-            label: AccessibilityIds.logout,
-            button: true,
-            child: FloatingActionButton.extended(
-              onPressed: _logout,
-              backgroundColor: AppColors.systemRed,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
+      ),
+      body: Column(
+        children: [
+          const GlassAppBar(title: 'Profile'),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 600;
+                final securityActivityRow = isWide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildSecurityCard()),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: _buildActivityCard()),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _buildSecurityCard(),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildActivityCard(),
+                        ],
+                      );
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.bottomBarOverlap,
+                  ),
+                  children: [
+                    _buildIdentityCard(),
+                    const SizedBox(height: AppSpacing.md),
+                    securityActivityRow,
+                    const SizedBox(height: AppSpacing.md),
+                    _buildStorageCard(),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildCallHistoryCard(),
+                  ],
+                );
+              },
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/logging/logger.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   final String audioUrl;
@@ -139,33 +140,32 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final progress = _totalDuration.inMilliseconds > 0
         ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
         : 0.0;
+
+    final accent =
+        widget.isSent ? AppColors.systemBlue : AppColors.systemTeal;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 280, minWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isSent
-            ? theme.colorScheme.primary.withValues(alpha: 0.1)
-            : theme.colorScheme.surface,
+            ? AppColors.systemBlue.withValues(alpha: 0.1)
+            : AppColors.backgroundSecondary,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Play/Pause кнопка
           GestureDetector(
             onTap: _togglePlayback,
             child: Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: widget.isSent
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.secondary,
+                color: accent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -177,28 +177,23 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           ),
           const SizedBox(width: 8),
 
-          // Визуализация волны + прогресс
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Упрощенная визуализация волны
                 SizedBox(
                   height: 24,
                   child: CustomPaint(
                     painter: WaveformPainter(
                       progress: progress,
-                      color: widget.isSent
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.secondary,
-                      backgroundColor: theme.dividerColor,
+                      color: accent,
+                      backgroundColor: AppColors.separator,
                     ),
                     size: const Size(double.infinity, 24),
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Таймер
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -206,16 +201,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                       _isPlaying || _currentPosition.inSeconds > 0
                           ? _formatDuration(_currentPosition)
                           : _formatDuration(_totalDuration),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: theme.hintColor,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     Text(
                       _formatDuration(_totalDuration),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: theme.hintColor,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -225,21 +220,20 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           ),
           const SizedBox(width: 8),
 
-          // Кнопка скорости
           GestureDetector(
             onTap: _changeSpeed,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: theme.dividerColor.withValues(alpha: 0.3),
+                color: AppColors.separator.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${_playbackSpeed.toStringAsFixed(1)}x',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
+                  color: AppColors.systemBlue,
                 ),
               ),
             ),

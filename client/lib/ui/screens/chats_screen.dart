@@ -1,21 +1,22 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:stealth/helpers/attachment_type_resolver.dart';
-import 'package:stealth/helpers/chat_stats.dart';
-import 'package:stealth/helpers/date_formatting.dart';
 import 'package:stealth/helpers/file_bytes.dart';
-import 'package:stealth/helpers/name_initials.dart';
+import 'package:intl/intl.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/ui/screens/chats/chat_list_panel.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_skeleton.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/chats/chat_tile.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
-import 'package:stealth/ui/screens/chats/insight_panel.dart';
-import 'package:stealth/ui/utils/scroll_helpers.dart';
+import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
+import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
 
@@ -83,7 +84,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
-            scheduleScrollToBottom(_messagesScrollController);
+            _scheduleScrollToBottom();
           }
         });
       }
@@ -152,31 +153,33 @@ class _ChatsScreenState extends State<ChatsScreen>
         var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
 
         if (members.length == 1) {
-          title =
-              (await _appService.getNicknameForUser(members.first)) ?? 'Chat';
+          title = (await _appService.getNicknameForUser(members.first)) ??
+              'Chat';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
             (memberId) => memberId != me,
             orElse: () => members.first,
           );
-          title = (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
+          title =
+              (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
         }
 
         final lastMessage =
             await _appService.fetchLastMessage(row['id'] as String);
         final createdAt =
             DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
-        final lastSeen = await _appService.getLastSeen(row['id'] as String) ??
-            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread =
-            await _appService.countUnreadSince(row['id'] as String, lastSeen);
+        final lastSeen =
+            await _appService.getLastSeen(row['id'] as String) ??
+                DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final unread = await _appService.countUnreadSince(
+            row['id'] as String, lastSeen);
 
         return {
           'id': row['id'],
           'name': title,
           'memberCount': members.length,
           'isPrivate': isPrivate,
-          'timestamp': createdAt == null ? '' : formatTimestamp(createdAt),
+          'timestamp': createdAt == null ? '' : _formatTimestamp(createdAt),
           'lastMessage': (lastMessage?['content'] as String? ?? '').trim(),
           'unreadCount': unread,
         };
@@ -206,11 +209,16 @@ class _ChatsScreenState extends State<ChatsScreen>
       setState(() {
         _loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load chats: $error')),
-      );
+      if (mounted) {
+        showStealthSnackBar(
+          context,
+          'Failed to load chats: $error',
+          kind: SnackKind.danger,
+        );
+      }
     }
   }
+
 
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
@@ -238,7 +246,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
     }
 
-    final rows = await _appService.getMessages(chatId, limit: 40, offset: 0);
+    final rows =
+        await _appService.getMessages(chatId, limit: 40, offset: 0);
     final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
     final pinnedMessage = await _appService.getPinnedMessage(chatId);
     if (!mounted) {
@@ -259,7 +268,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     await _appService.markChatRead(chatId);
     _subscribeToChatP2P(chatId);
-    scheduleScrollToBottom(_messagesScrollController);
+    _scheduleScrollToBottom();
   }
 
   Future<void> _loadOlderMessages() async {
@@ -336,7 +345,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
-            scheduleScrollToBottom(_messagesScrollController);
+            _scheduleScrollToBottom();
           }
         });
       }
@@ -427,7 +436,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Delete'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _appService.softDeleteMessage(messageId: messageId);
+                    await _appService.softDeleteMessage(
+                        messageId: messageId);
                     await _loadMessages(chatId);
                   },
                 ),
@@ -445,9 +455,37 @@ class _ChatsScreenState extends State<ChatsScreen>
     _appService.subscribeP2PSignaling(chatId);
   }
 
-  // Pure helpers (`_scheduleScrollToBottom`, `_formatTimestamp`,
-  // `_formatMessageTime`) extracted to `lib/ui/utils/scroll_helpers.dart`
-  // and `lib/helpers/date_formatting.dart` (FIX_PLAN Phase B).
+  void _scheduleScrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_messagesScrollController.hasClients) {
+        _messagesScrollController.animateTo(
+          _messagesScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _formatTimestamp(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final thatDay = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final diffDays = today.difference(thatDay).inDays;
+
+    if (diffDays == 0) {
+      return DateFormat('HH:mm').format(dateTime);
+    }
+    if (diffDays == 1) {
+      return 'Yesterday';
+    }
+    return DateFormat('dd.MM.yyyy').format(dateTime);
+  }
+
+  String _formatMessageTime(String? value) {
+    final parsed = DateTime.tryParse(value ?? '')?.toLocal();
+    return parsed == null ? '' : DateFormat('HH:mm').format(parsed);
+  }
 
   Map<String, dynamic> _toUiMessage(Map<String, dynamic> row) {
     final createdAt = row['created_at'] as String? ?? '';
@@ -458,9 +496,6 @@ class _ChatsScreenState extends State<ChatsScreen>
         _otherLastReadAt != null &&
         !createdAtValue.isAfter(_otherLastReadAt!);
 
-    final metadata =
-        (row['metadata'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
-    final isGroupEncryption = metadata['encryption'] == 'group_e2e';
     return {
       'id': row['id'],
       'sender_id': row['sender_id'],
@@ -469,21 +504,13 @@ class _ChatsScreenState extends State<ChatsScreen>
       'reply_to_id': row['reply_to_id']?.toString(),
       'edited_at': row['edited_at'],
       'created_at': createdAt,
-      'timestamp': formatMessageTime(createdAt),
+      'timestamp': _formatMessageTime(createdAt),
       'isSent': isSent,
       'isDelivered': isSent,
       'isRead': isRead,
-      'metadata': metadata,
-      // Task #8/#10: deliveryStatus is OUTGOING-only; absent for incoming.
-      // `isGroupChat` gates the icon so groups (which don't go over P2P
-      // today) don't show a false-positive `pending` state.
-      'deliveryStatus': row['deliveryStatus'] as String?,
-      'isGroupChat': isGroupEncryption,
+      'metadata': row['metadata'],
     };
   }
-
-  // `_initials` extracted to `lib/helpers/name_initials.dart`
-  // (FIX_PLAN Phase B).
 
   @override
   Widget build(BuildContext context) {
@@ -541,18 +568,15 @@ class _ChatsScreenState extends State<ChatsScreen>
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color:
-                                P2PService.instance.isP2PReady(_selectedChatId!)
-                                    ? AppColors.systemGreen
-                                    : AppColors.systemBlue,
+                            color: P2PService.instance.isP2PReady(_selectedChatId!)
+                                ? AppColors.systemGreen
+                                : AppColors.systemBlue,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!)
-                              ? 'Direct'
-                              : 'Local',
+                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -580,29 +604,25 @@ class _ChatsScreenState extends State<ChatsScreen>
               children: [
                 SizedBox(
                   width: 360,
-                  child: _chatListPanel(filteredChats, showStats: true),
+                  child: _buildChatListPanel(filteredChats, showStats: true),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: _selectedChatId == null
-                      ? const EmptyState(type: 'chats')
+                      ? const StealthEmptyState.chats()
                       : _buildConversationPanel(visibleMessages),
                 ),
                 const VerticalDivider(width: 1),
                 SizedBox(
                   width: 280,
-                  child: InsightPanel(
-                    messageCount: _messages.length,
-                    visibleChatCount: filteredChats.length,
-                    myUserId: _myUserId,
-                  ),
+                  child: _buildInsightPanel(filteredChats.length),
                 ),
               ],
             );
           }
 
           if (_selectedChatId == null) {
-            return _chatListPanel(filteredChats, showStats: false);
+            return _buildChatListPanel(filteredChats, showStats: false);
           }
 
           return _buildConversationPanel(visibleMessages);
@@ -611,36 +631,129 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  // Chat list rendering moved to `ChatListPanel` (task #14). This thin
-  // helper wires the parent's state into the widget's props/callbacks.
-  Widget _chatListPanel(
+  Widget _buildChatListPanel(
     List<Map<String, dynamic>> chats, {
     required bool showStats,
-  }) =>
-      ChatListPanel(
-        chats: chats,
-        showStats: showStats,
-        loading: _loading,
-        selectedChatId: _selectedChatId,
-        totalChatsCount: _chats.length,
-        unreadCount: totalUnreadCount(_chats),
-        searchController: _searchController,
-        groupNameController: _groupNameController,
-        appService: _appService,
-        myUserId: _myUserId,
-        onSearchChanged: () => setState(() {}),
-        onSelectChat: (chatId) {
-          if (!mounted) return;
-          _selectChat(chatId);
-        },
-        onChatsReloadNeeded: _loadChats,
-        onMessagesReloadNeeded: (chatId) async {
-          if (_selectedChatId == chatId) {
-            await _loadMessages(chatId);
-          }
-        },
-        initials: nameInitials,
-      );
+  }) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search chats',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.1),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              if (showStats) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Chats',
+                        value: '${_chats.length}',
+                        accent: AppColors.systemBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _StatCard(
+                        label: 'Unread',
+                        value: '${_totalUnreadCount()}',
+                        accent: AppColors.systemOrange,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => showCreateGroupSheet(
+                      context: context,
+                      appService: _appService,
+                      nameController: _groupNameController,
+                      onGroupCreated: (chatId) async {
+                        await _loadChats();
+                        if (mounted) {
+                          await _selectChat(chatId);
+                        }
+                      },
+                    ),
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('New group'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const StealthSkeletonList(count: 6)
+              : chats.isEmpty
+                  ? Semantics(
+                      label: 'No chats',
+                      child: const StealthEmptyState.chats(),
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.fromLTRB(
+                        0,
+                        0,
+                        0,
+                        MediaQuery.of(context).padding.bottom +
+                            AppSpacing.bottomBarOverlap,
+                      ),
+                      itemCount: chats.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.xs),
+                      itemBuilder: (context, index) {
+                        final chat = chats[index];
+                        final isSelected = chat['id'] == _selectedChatId;
+                        return _buildChatTile(chat, isSelected);
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatTile(Map<String, dynamic> chat, bool isSelected) {
+    final isPrivate = chat['isPrivate'] as bool? ?? true;
+    return ChatTile(
+      chat: chat,
+      isSelected: isSelected,
+      onTap: () => _selectChat(chat['id'] as String),
+      onLongPress: isPrivate
+          ? null
+          : () => showManageGroupSheet(
+                context: context,
+                chat: chat,
+                appService: _appService,
+                myUserId: _myUserId,
+                onMembersChanged: () async {
+                  await _loadChats();
+                  if (_selectedChatId == chat['id']) {
+                    await _loadMessages(chat['id'] as String);
+                  }
+                },
+              ),
+    );
+  }
 
   Widget _buildConversationPanel(List<Map<String, dynamic>> visibleMessages) {
     return ConversationPanel(
@@ -651,7 +764,8 @@ class _ChatsScreenState extends State<ChatsScreen>
       messageSearchController: _messageSearchController,
       searchInConversation: _searchInConversation,
       onSearchChanged: () => setState(() {
-        _searchInConversation = _messageSearchController.text.trim().isNotEmpty;
+        _searchInConversation =
+            _messageSearchController.text.trim().isNotEmpty;
       }),
       onSearchCleared: () {
         _messageSearchController.clear();
@@ -696,10 +810,75 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  // _buildInsightPanel moved to InsightPanel widget (task #14).
+  Widget _buildInsightPanel(int visibleChats) {
+    final theme = Theme.of(context);
+    final values = [
+      _messages.isEmpty ? 0.18 : 0.68,
+      visibleChats == 0 ? 0.12 : 0.54,
+      kIsWeb ? 0.74 : 0.49,
+    ];
 
-  // `_totalUnreadCount` extracted to `lib/helpers/chat_stats.dart`
-  // (FIX_PLAN Phase B).
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Session insight', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          _InsightTile(
+            label: 'Realtime sync',
+            value: 'Active',
+            accent: AppColors.systemGreen,
+          ),
+          const SizedBox(height: 10),
+          _InsightTile(
+            label: 'Platform',
+            value: kIsWeb ? 'Web' : 'Mobile',
+            accent: AppColors.systemBlue,
+          ),
+          const SizedBox(height: 10),
+          _InsightTile(
+            label: 'Current user',
+            value: _myUserId == null ? 'Unknown' : _myUserId!.substring(0, 8),
+            accent: AppColors.systemOrange,
+          ),
+          const SizedBox(height: 22),
+          Text('Load profile', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 130,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: values
+                  .map(
+                    (value) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 240),
+                          height: 110 * value,
+                          decoration: BoxDecoration(
+                            color: AppColors.systemBlue.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _totalUnreadCount() {
+    return _chats.fold<int>(
+      0,
+      (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
+    );
+  }
 
   Future<void> _handleAttachment() async {
     final chatId = _selectedChatId;
@@ -707,7 +886,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return;
     }
 
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       allowMultiple: false,
       withData: true,
       type: FileType.any,
@@ -722,8 +901,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selected file is not readable')),
+      showStealthSnackBar(
+        context,
+        'Selected file is not readable',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -739,8 +920,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload attachment')),
+      showStealthSnackBar(
+        context,
+        'Failed to upload attachment',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -748,7 +931,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     await _appService.sendMessage(
       chatId: chatId,
       content: publicUrl,
-      type: resolveAttachmentType(file.name),
+      type: _resolveAttachmentType(file.name),
       metadataOverride: {'file_encrypted': true},
     );
     await _loadMessages(chatId);
@@ -767,8 +950,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Voice file is not readable')),
+      showStealthSnackBar(
+        context,
+        'Voice file is not readable',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -783,8 +968,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload voice message')),
+      showStealthSnackBar(
+        context,
+        'Failed to upload voice message',
+        kind: SnackKind.danger,
       );
       return;
     }
@@ -798,6 +985,102 @@ class _ChatsScreenState extends State<ChatsScreen>
     await _loadMessages(chatId);
   }
 
-  // `_resolveAttachmentType` extracted to
-  // `lib/helpers/attachment_type_resolver.dart` (FIX_PLAN Phase B).
+  String _resolveAttachmentType(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp')) {
+      return 'image';
+    }
+    if (lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.ogg')) {
+      return 'audio';
+    }
+    return 'file';
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightTile extends StatelessWidget {
+  const _InsightTile({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(label)),
+            Text(
+              value,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

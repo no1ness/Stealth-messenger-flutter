@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
+import '../feedback/stealth_haptics.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
 class GlassMessageInput extends StatefulWidget {
@@ -50,6 +51,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
 
   void _handleSendMessage() {
     if (_controller.text.trim().isNotEmpty) {
+      StealthHaptics.light(context);
       widget.onSendMessage(_controller.text.trim());
       _controller.clear();
     }
@@ -90,10 +92,16 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
         path: path,
       );
 
+      if (mounted) {
+        StealthHaptics.medium(context);
+      }
       setState(() => _isRecording = true);
     } else {
       // Stop recording
       final recordedPath = await _recorder.stop();
+      if (mounted) {
+        StealthHaptics.light(context);
+      }
       setState(() => _isRecording = false);
 
       if (recordedPath != null) {

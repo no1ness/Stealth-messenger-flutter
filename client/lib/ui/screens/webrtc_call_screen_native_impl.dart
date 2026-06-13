@@ -7,6 +7,9 @@ import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/call/call_hud_overlay.dart';
+import 'package:stealth/themes/apple_liquid/widgets/status_chip.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
 import 'package:stealth/ui/screens/calls/native_call_controller.dart';
 
@@ -73,8 +76,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showStealthSnackBar(context, message, kind: SnackKind.danger);
   }
 
   void _popIfPossible() {
@@ -118,7 +120,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                   child: Row(
                     children: [
                       IconButton(
@@ -127,17 +129,27 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                         onPressed: _controller.hangUp,
                       ),
                       const Spacer(),
-                      const Icon(Icons.lock_outline,
-                          size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'End-to-End Encrypted',
-                        style: AppTypography.caption1
-                            .copyWith(color: AppColors.textSecondary),
-                      ),
-                      const Spacer(),
                       const SizedBox(width: 48),
                     ],
+                  ),
+                ),
+                // Signature in-call HUD — mono duration + E2E ENCRYPTED
+                // badge with scanline + connection-quality chip.
+                Semantics(
+                  label: AccessibilityIds.callStatus,
+                  liveRegion: true,
+                  child: CallHudOverlay(
+                    duration: _controller.connected
+                        ? _formatDuration(_controller.callDurationSeconds)
+                        : _controller.initializing
+                            ? 'Connecting…'
+                            : 'Calling…',
+                    connectionLabel: _controller.connected
+                        ? 'CONNECTED'
+                        : 'NEGOTIATING',
+                    connectionKind: _controller.connected
+                        ? StatusKind.success
+                        : StatusKind.pending,
                   ),
                 ),
                 const Spacer(),
@@ -148,32 +160,10 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   style: AppTypography.largeTitle.copyWith(
                       color: Colors.white, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Semantics(
-                  label: AccessibilityIds.callStatus,
-                  liveRegion: true,
-                  child: Text(
-                    _controller.connected
-                        ? _formatDuration(_controller.callDurationSeconds)
-                        : _controller.initializing
-                            ? 'Connecting...'
-                            : 'Calling...',
-                    style: AppTypography.body.copyWith(
-                      color: _controller.connected
-                          ? Colors.white
-                          : AppColors.textSecondary,
-                      fontFeatures: [const FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
                   spacing: AppSpacing.sm,
                   children: [
-                    _buildStatusChip(
-                        label:
-                            _controller.connected ? 'Connected' : 'Negotiating',
-                        active: _controller.connected),
                     _buildStatusChip(
                         label: _controller.microphoneEnabled
                             ? 'Mic on'
@@ -213,13 +203,15 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   remoteStream.getVideoTracks().isNotEmpty)
                 RTCVideoView(
                   _controller.media.remoteRenderer,
-                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  objectFit:
+                      RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                 )
               else
                 Center(
                   child: Text(
                     'Waiting for video...',
-                    style: AppTypography.body.copyWith(color: Colors.white70),
+                    style:
+                        AppTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
               Positioned(
@@ -275,7 +267,9 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         child: Text(
           widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
           style: const TextStyle(
-              fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Colors.white),
         ),
       ),
     );
@@ -307,8 +301,9 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               color: _controller.microphoneEnabled
                   ? Colors.white.withValues(alpha: 0.2)
                   : Colors.white,
-              iconColor:
-                  _controller.microphoneEnabled ? Colors.white : Colors.black,
+              iconColor: _controller.microphoneEnabled
+                  ? Colors.white
+                  : Colors.black,
               onPressed: _controller.toggleMicrophone,
             ),
           ),

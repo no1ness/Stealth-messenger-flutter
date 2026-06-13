@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 
 /// Opens the "Manage group" bottom sheet for a group chat.
 ///
@@ -129,13 +130,15 @@ Future<void> showManageGroupSheet({
                                         userId: userId,
                                       );
                                     } else if (action == 'promote') {
-                                      await appService.updateGroupMemberRole(
+                                      await appService
+                                          .updateGroupMemberRole(
                                         chatId: chatId,
                                         userId: userId,
                                         role: 'admin',
                                       );
                                     } else if (action == 'demote') {
-                                      await appService.updateGroupMemberRole(
+                                      await appService
+                                          .updateGroupMemberRole(
                                         chatId: chatId,
                                         userId: userId,
                                         role: 'member',
@@ -146,8 +149,10 @@ Future<void> showManageGroupSheet({
                                     if (!context.mounted) {
                                       return;
                                     }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('$error')),
+                                    showStealthSnackBar(
+                                      context,
+                                      '$error',
+                                      kind: SnackKind.danger,
                                     );
                                   }
                                 },
@@ -211,7 +216,8 @@ Future<void> showManageGroupSheet({
                                   trailing: FilledButton(
                                     onPressed: () async {
                                       try {
-                                        await appService.addMembersToGroupChat(
+                                        await appService
+                                            .addMembersToGroupChat(
                                           chatId: chatId,
                                           memberIds: [userId],
                                         );
@@ -220,9 +226,10 @@ Future<void> showManageGroupSheet({
                                         if (!context.mounted) {
                                           return;
                                         }
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(content: Text('$error')),
+                                        showStealthSnackBar(
+                                          context,
+                                          '$error',
+                                          kind: SnackKind.danger,
                                         );
                                       }
                                     },

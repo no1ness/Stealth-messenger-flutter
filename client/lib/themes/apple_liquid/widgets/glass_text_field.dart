@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_motion.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
+import '../effects/chromatic_aberration.dart';
 
 class GlassTextField extends StatefulWidget {
   final TextEditingController? controller;
@@ -38,15 +40,27 @@ class GlassTextField extends StatefulWidget {
   State<GlassTextField> createState() => _GlassTextFieldState();
 }
 
-class _GlassTextFieldState extends State<GlassTextField> {
+class _GlassTextFieldState extends State<GlassTextField>
+    with SingleTickerProviderStateMixin {
   late FocusNode _focusNode;
   bool _isFocused = false;
+
+  /// Drives the brief chromatic-aberration pulse on focus gain.
+  /// Tweens 1 → 0 over `AppMotion.normal` whenever focus is gained;
+  /// idle value is 0 (no overlay rendered — short-circuit in the
+  /// `ChromaticAberration` widget). Auto-disables in light mode.
+  late final AnimationController _aberrationCtrl;
 
   @override
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChange);
+    _aberrationCtrl = AnimationController(
+      vsync: this,
+      duration: AppMotion.normal,
+      value: 0,
+    );
   }
 
   @override
@@ -56,13 +70,20 @@ class _GlassTextFieldState extends State<GlassTextField> {
     } else {
       _focusNode.removeListener(_onFocusChange);
     }
+    _aberrationCtrl.dispose();
     super.dispose();
   }
 
   void _onFocusChange() {
+    final gained = _focusNode.hasFocus && !_isFocused;
     setState(() {
       _isFocused = _focusNode.hasFocus;
     });
+    if (gained) {
+      _aberrationCtrl
+        ..value = 1
+        ..animateTo(0, curve: AppMotion.emphasized);
+    }
   }
 
   @override
@@ -79,52 +100,67 @@ class _GlassTextFieldState extends State<GlassTextField> {
           ),
           const SizedBox(height: AppSpacing.xs),
         ],
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _isFocused
-                    ? AppColors.glassMedium
-                    : AppColors.glassUltraDark,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: _isFocused
-                      ? AppColors.systemBlue
-                      : AppColors.glassMedium.withValues(alpha: 0.3),
-                  width: _isFocused ? 2 : 1,
+        AnimatedBuilder(
+          animation: _aberrationCtrl,
+          builder: (context, _) {
+            final input = ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _isFocused
+                        ? AppColors.glassMedium
+                        : AppColors.glassUltraDark,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(
+                      color: _isFocused
+                          ? AppColors.systemBlue
+                          : AppColors.glassMedium.withValues(alpha: 0.3),
+                      width: _isFocused ? 2 : 1,
+                    ),
+                  ),
+                  child: TextFormField(
+                    controller: widget.controller,
+                    focusNode: _focusNode,
+                    obscureText: widget.obscureText,
+                    keyboardType: widget.keyboardType,
+                    maxLines: widget.maxLines,
+                    enabled: widget.enabled,
+                    onChanged: widget.onChanged,
+                    validator: widget.validator,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: widget.hintText,
+                      hintStyle: AppTypography.body.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                      prefixIcon: widget.prefixIcon,
+                      suffixIcon: widget.suffixIcon,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      filled: false,
+                    ),
+                  ),
                 ),
               ),
-              child: TextFormField(
-                controller: widget.controller,
-                focusNode: _focusNode,
-                obscureText: widget.obscureText,
-                keyboardType: widget.keyboardType,
-                maxLines: widget.maxLines,
-                enabled: widget.enabled,
-                onChanged: widget.onChanged,
-                validator: widget.validator,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: widget.hintText,
-                  hintStyle: AppTypography.body.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                  prefixIcon: widget.prefixIcon,
-                  suffixIcon: widget.suffixIcon,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  filled: false,
-                ),
-              ),
-            ),
-          ),
+            );
+            // Short-circuit the wrapper while the pulse is at rest —
+            // ChromaticAberration also handles this internally, but
+            // skipping the rebuild keeps idle text-field perf identical
+            // to pre-effect.
+            if (_aberrationCtrl.value <= 0.01) return input;
+            return ChromaticAberration(
+              intensity: _aberrationCtrl.value,
+              child: input,
+            );
+          },
         ),
       ],
     );

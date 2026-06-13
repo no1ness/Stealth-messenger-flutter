@@ -5,6 +5,10 @@ import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_dialog.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/apple_liquid/navigation/glass_page_route.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -99,8 +103,9 @@ class _CallManagerState extends State<CallManager> {
       return;
     }
 
-    final fromNickname =
-        offer.fromNickname.isEmpty ? 'Unknown' : offer.fromNickname;
+    final fromNickname = offer.fromNickname.isEmpty
+        ? 'Unknown'
+        : offer.fromNickname;
 
     Logger.info('[stealth-call] CallManager recording incoming call');
     await _appService.recordIncomingCall(
@@ -135,8 +140,7 @@ class _CallManagerState extends State<CallManager> {
     // Если для этого roomId открыт диалог — закрываем.
     final closer = _activeDialogClosers.remove(hangup.roomId);
     if (closer != null) {
-      Logger.info(
-          '[stealth-call] CallManager closing dialog due to remote hangup');
+      Logger.info('[stealth-call] CallManager closing dialog due to remote hangup');
       closer();
     }
 
@@ -160,11 +164,16 @@ class _CallManagerState extends State<CallManager> {
       return;
     }
 
-    showDialog<void>(
+    showStealthDialog<void>(
       context: context,
+      title: 'Incoming call',
       barrierDismissible: false,
-      builder: (dialogContext) {
-        // Регистрируем closer чтобы remote hangup мог закрыть диалог.
+      importance: DialogImportance.high,
+      // No top-level actions — the three buttons (Diagnostics / Decline /
+      // Answer) live inside `body` so each can drive its own async flow
+      // and dismiss the dialog manually. Semantics wrappers preserved
+      // verbatim per `call_manager_semantics_test.dart` contract.
+      body: Builder(builder: (dialogContext) {
         _activeDialogClosers[chatId] = () {
           if (Navigator.of(dialogContext).canPop()) {
             Navigator.of(dialogContext).pop();
@@ -174,9 +183,7 @@ class _CallManagerState extends State<CallManager> {
           builder: (dialogContext, setDialogState) {
             Future<void> refreshSupport() async {
               final support = await getWebRTCSupport();
-              if (!dialogContext.mounted) {
-                return;
-              }
+              if (!dialogContext.mounted) return;
               setDialogState(() {
                 _incomingCallSupportSummary = support.summary;
                 _incomingCallBlockingIssues = support.blockingIssues;
@@ -190,195 +197,192 @@ class _CallManagerState extends State<CallManager> {
             final canAnswer =
                 _incomingCallBlockingIssues.isEmpty && !_answeringCall;
 
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.phone_in_talk, color: Colors.green, size: 32),
-                  SizedBox(width: 12),
-                  Text('Incoming call'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    child: Text(
-                      fromNickname.isNotEmpty
-                          ? fromNickname[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(fontSize: 32),
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  child: Text(
+                    fromNickname.isNotEmpty
+                        ? fromNickname[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(fontSize: 32),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Semantics(
+                  label: AccessibilityIds.callerName,
+                  excludeSemantics: true,
+                  child: Text(
+                    fromNickname,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Semantics(
-                    label: AccessibilityIds.callerName,
-                    excludeSemantics: true,
-                    child: Text(
-                      fromNickname,
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isVideoCall
+                      ? 'Wants to start a secure video call'
+                      : 'Wants to start a secure audio call',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _incomingCallSupportSummary,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                if (_incomingCallBlockingIssues.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
-                    isVideoCall
-                        ? 'Wants to start a secure video call'
-                        : 'Wants to start a secure audio call',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _incomingCallSupportSummary,
+                    _incomingCallBlockingIssues.join('\n'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: const TextStyle(color: Colors.red),
                   ),
-                  if (_incomingCallBlockingIssues.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _incomingCallBlockingIssues.join('\n'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(dialogContext).push(
+                          GlassPageRoute(
+                            builder: (_) => const WebRTCDiagnosticsScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.network_check),
+                      label: const Text('Diagnostics'),
+                    ),
+                    Semantics(
+                      label: AccessibilityIds.decline,
+                      button: true,
+                      excludeSemantics: true,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          Navigator.of(dialogContext).pop();
+                          _activeDialogClosers.remove(chatId);
+                          await _appService.markIncomingCallDeclined(
+                            chatId: chatId,
+                            fromUserId: fromUserId,
+                          );
+                          final selfId = _currentUserId;
+                          if (selfId != null) {
+                            await _incomingCallService.declineCall(
+                              roomId: chatId,
+                              callerUserId: fromUserId,
+                              selfUserId: selfId,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.call_end, color: Colors.red),
+                        label: const Text(
+                          'Decline',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Semantics(
+                      label: AccessibilityIds.answer,
+                      button: true,
+                      excludeSemantics: true,
+                      child: ElevatedButton.icon(
+                        onPressed: !canAnswer
+                            ? null
+                            : () async {
+                                Logger.info('[stealth-call] Answer pressed',
+                                    extras: {'chatId': chatId});
+                                final navigatorRoot = Navigator.of(
+                                  context,
+                                  rootNavigator: true,
+                                );
+                                final dialogNavigator =
+                                    Navigator.of(dialogContext);
+
+                                setDialogState(() => _answeringCall = true);
+                                final preflightError =
+                                    await requestWebRTCAudioPreflight(
+                                  requireVideo: isVideoCall,
+                                );
+                                Logger.info('[stealth-call] preflight result',
+                                    extras: {'error': preflightError ?? 'OK'});
+                                if (preflightError != null) {
+                                  if (dialogContext.mounted) {
+                                    showStealthSnackBar(
+                                      dialogContext,
+                                      preflightError,
+                                      kind: SnackKind.danger,
+                                    );
+                                    setDialogState(
+                                        () => _answeringCall = false);
+                                  }
+                                  return;
+                                }
+
+                                dialogNavigator.pop();
+                                _activeDialogClosers.remove(chatId);
+                                setState(() => _isInCall = true);
+
+                                if (!mounted) {
+                                  Logger.warn(
+                                      '[stealth-call] not mounted after dialog pop');
+                                  return;
+                                }
+
+                                Logger.info(
+                                    '[stealth-call] pushing WebRTCCallScreen with initialOffer');
+                                await navigatorRoot.push(
+                                  GlassPageRoute.modal(
+                                    builder: (_) => WebRTCCallScreen(
+                                      peerName: fromNickname,
+                                      chatId: chatId,
+                                      isCaller: false,
+                                      isVideoCall: isVideoCall,
+                                      initialOffer: offerSdp,
+                                      callerUserId: fromUserId,
+                                    ),
+                                  ),
+                                );
+                                Logger.info('[stealth-call] call screen popped');
+
+                                if (mounted) {
+                                  setState(() => _isInCall = false);
+                                  _answeringCall = false;
+                                }
+                              },
+                        icon: _answeringCall
+                            ? const StealthLoadingIndicator(
+                                size: 18,
+                                strokeWidth: 2,
+                              )
+                            : const Icon(Icons.phone),
+                        label: Text(canAnswer ? 'Answer' : 'Unavailable'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                ],
-              ),
-              actionsAlignment: MainAxisAlignment.spaceBetween,
-              actions: [
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.of(dialogContext).push(
-                      MaterialPageRoute(
-                        builder: (_) => const WebRTCDiagnosticsScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.network_check),
-                  label: const Text('Diagnostics'),
-                ),
-                Semantics(
-                  label: AccessibilityIds.decline,
-                  button: true,
-                  excludeSemantics: true,
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      Navigator.of(dialogContext).pop();
-                      _activeDialogClosers.remove(chatId);
-                      await _appService.markIncomingCallDeclined(
-                        chatId: chatId,
-                        fromUserId: fromUserId,
-                      );
-                      final selfId = _currentUserId;
-                      if (selfId != null) {
-                        await _incomingCallService.declineCall(
-                          roomId: chatId,
-                          callerUserId: fromUserId,
-                          selfUserId: selfId,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.call_end, color: Colors.red),
-                    label: const Text(
-                      'Decline',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ),
-                Semantics(
-                  label: AccessibilityIds.answer,
-                  button: true,
-                  excludeSemantics: true,
-                  child: ElevatedButton.icon(
-                    onPressed: !canAnswer
-                        ? null
-                        : () async {
-                            Logger.info('[stealth-call] Answer pressed',
-                                extras: {'chatId': chatId});
-                            final navigatorRoot = Navigator.of(
-                              context,
-                              rootNavigator: true,
-                            );
-                            final dialogNavigator = Navigator.of(dialogContext);
-                            final messenger =
-                                ScaffoldMessenger.of(dialogContext);
-
-                            setDialogState(() => _answeringCall = true);
-                            final preflightError =
-                                await requestWebRTCAudioPreflight(
-                              requireVideo: isVideoCall,
-                            );
-                            Logger.info('[stealth-call] preflight result',
-                                extras: {'error': preflightError ?? 'OK'});
-                            if (preflightError != null) {
-                              if (dialogContext.mounted) {
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(preflightError)),
-                                );
-                                setDialogState(() => _answeringCall = false);
-                              }
-                              return;
-                            }
-
-                            dialogNavigator.pop();
-                            _activeDialogClosers.remove(chatId);
-                            setState(() => _isInCall = true);
-
-                            if (!mounted) {
-                              Logger.warn(
-                                  '[stealth-call] not mounted after dialog pop');
-                              return;
-                            }
-
-                            Logger.info(
-                                '[stealth-call] pushing WebRTCCallScreen with initialOffer');
-                            await navigatorRoot.push(
-                              MaterialPageRoute(
-                                builder: (_) => WebRTCCallScreen(
-                                  peerName: fromNickname,
-                                  chatId: chatId,
-                                  isCaller: false,
-                                  isVideoCall: isVideoCall,
-                                  initialOffer: offerSdp,
-                                  callerUserId: fromUserId,
-                                ),
-                              ),
-                            );
-                            Logger.info('[stealth-call] call screen popped');
-
-                            if (mounted) {
-                              setState(() => _isInCall = false);
-                              _answeringCall = false;
-                            }
-                          },
-                    icon: _answeringCall
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.phone),
-                    label: Text(canAnswer ? 'Answer' : 'Unavailable'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
                 ),
               ],
             );
           },
         );
-      },
+      }),
     );
   }
 

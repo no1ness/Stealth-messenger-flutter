@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_dialog.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'voice_message_player.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -57,44 +59,35 @@ class ChatBubble extends StatelessWidget {
     }
   }
 
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showDeleteDialog(BuildContext context) async {
+    final result = await showStealthDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить сообщение?'),
-        content: const Text('Это действие нельзя отменить.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              if (messageId != null) {
-                try {
-                  // await LocalAppService().softDeleteMessage(messageId: messageId!);
-                  onDeleted?.call();
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Сообщение удалено'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Ошибка: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      title: 'Удалить сообщение?',
+      body: const Text('Это действие нельзя отменить.'),
+      importance: DialogImportance.high,
+      actions: const [
+        StealthDialogAction<bool>(label: 'Отмена', result: false),
+        StealthDialogAction<bool>.destructive(label: 'Удалить', result: true),
+      ],
     );
+
+    if (result != true || messageId == null) return;
+    if (!context.mounted) return;
+
+    try {
+      // await LocalAppService().softDeleteMessage(messageId: messageId!);
+      onDeleted?.call();
+      if (!context.mounted) return;
+      showStealthSnackBar(
+        context,
+        'Сообщение удалено',
+        kind: SnackKind.success,
+        duration: const Duration(seconds: 1),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      showStealthSnackBar(context, 'Ошибка: $e', kind: SnackKind.danger);
+    }
   }
 
   @override

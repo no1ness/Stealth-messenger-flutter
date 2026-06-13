@@ -5,6 +5,7 @@ import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
+import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
 
 class WebRTCDiagnosticsScreen extends StatefulWidget {
@@ -128,8 +129,10 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                 GlassContainer(
                   child: Column(
                     children: [
-                      Text('Microphone Test', style: AppTypography.headline),
-                      const SizedBox(height: AppSpacing.md),
+                      const SectionHeader(
+                        title: 'Microphone Test',
+                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                      ),
                       if (_error.isNotEmpty)
                         Text(
                           _error,
@@ -166,8 +169,10 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                 GlassContainer(
                   child: Column(
                     children: [
-                      Text('Connectivity Test', style: AppTypography.headline),
-                      const SizedBox(height: AppSpacing.md),
+                      const SectionHeader(
+                        title: 'Connectivity Test',
+                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                      ),
                       Text(_connectivityStatus, textAlign: TextAlign.center),
                       const SizedBox(height: AppSpacing.md),
                       ElevatedButton.icon(
@@ -182,8 +187,10 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                 GlassContainer(
                   child: Column(
                     children: [
-                      Text('System Info', style: AppTypography.headline),
-                      const SizedBox(height: AppSpacing.md),
+                      const SectionHeader(
+                        title: 'System Info',
+                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                      ),
                       _buildInfoRow('Flutter WebRTC', 'Installed'),
                       _buildInfoRow(
                         'Platform',

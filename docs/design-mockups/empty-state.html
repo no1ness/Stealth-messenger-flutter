@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stealth · Empty state</title>
+<link rel="stylesheet" href="_tokens.css" />
+<style>
+  body {
+    padding: 48px 24px 96px;
+    display: flex;
+    justify-content: center;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='1'/></svg>");
+    background-size: 200px;
+    z-index: 0;
+  }
+
+  .back {
+    position: fixed;
+    top: 24px; left: 24px;
+    z-index: 10;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid var(--separator);
+    border-radius: 999px;
+    background: rgba(0,0,0,0.30);
+    backdrop-filter: blur(10px);
+  }
+  .back:hover { color: var(--system-blue); border-color: var(--system-blue); }
+
+  .stage {
+    display: flex;
+    gap: 64px;
+    align-items: flex-start;
+    z-index: 1;
+    position: relative;
+  }
+
+  .phone {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    background: var(--bg-primary);
+    border-radius: 48px;
+    border: 1px solid var(--separator);
+    box-shadow: var(--elev-4);
+    overflow: hidden;
+    z-index: 1;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    border-radius: 60px;
+    background: radial-gradient(circle at 50% 50%, var(--glow-blue), transparent 70%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-stealth);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .notch {
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #000; border-radius: 14px; z-index: 4;
+  }
+  .statusbar {
+    position: relative; z-index: 3;
+    height: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    font: 600 14px/1 var(--font-sans);
+  }
+  .statusbar .ts { font: 500 14px/1 var(--font-mono); }
+
+  .appbar {
+    position: relative; z-index: 3;
+    padding: 8px 20px 14px;
+  }
+  .appbar h1 {
+    margin: 0;
+    font: 600 28px/1.1 var(--font-sans);
+    letter-spacing: -0.5px;
+  }
+
+  /* Empty state body — the signature key-fingerprint backdrop */
+  .empty {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    overflow: hidden;
+  }
+  /* Grain on top of the empty body */
+  .empty::after {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='1'/></svg>");
+    background-size: 200px;
+    z-index: 1;
+  }
+  /* Key-fingerprint backdrop — 14 × 8 hex grid at ~3.5% opacity */
+  .fingerprint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 0;
+    color: rgba(255, 255, 255, 0.035);
+    font: 400 13px/1.4 var(--font-mono);
+    letter-spacing: 2.5px;
+    text-align: center;
+    white-space: pre;
+  }
+
+  .empty-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    max-width: 260px;
+  }
+  .empty-content .icon {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 1px solid var(--text-tertiary);
+    background: rgba(0,0,0,0.30);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    font-size: 30px;
+  }
+  .empty-content h2 {
+    margin: 0;
+    font: 600 18px/1.3 var(--font-sans);
+    color: var(--text-primary);
+  }
+  .empty-content p {
+    margin: 0;
+    font: 400 14px/1.5 var(--font-sans);
+    color: var(--text-secondary);
+  }
+  .empty-content .cta {
+    margin-top: 8px;
+    height: 36px;
+    padding: 0 18px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--system-blue);
+    border-radius: 999px;
+    font: 500 12px/1 var(--font-sans);
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background var(--motion-fast);
+  }
+  .empty-content .cta:hover { background: rgba(0,122,255,0.10); }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 134px; height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.3);
+    z-index: 6;
+  }
+
+  /* Bottom nav */
+  .navbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 5;
+    padding: 12px 24px calc(12px + 16px);
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid var(--separator);
+    background: rgba(10, 14, 26, 0.80);
+    backdrop-filter: blur(20px);
+  }
+  .nav-btn {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 2px;
+    padding: 6px 12px; border-radius: 12px;
+    font: 500 10px/1 var(--font-sans);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .nav-btn.active { color: var(--system-blue); }
+  .nav-icon { font-size: 20px; }
+
+  .annotation {
+    max-width: 320px;
+    margin-top: 80px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .annotation h2 {
+    font: 500 11px/1 var(--font-mono);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 12px;
+  }
+  .annotation h3 {
+    color: var(--text-primary);
+    font: 600 24px/1.2 var(--font-sans);
+    margin: 0 0 16px;
+  }
+  .annotation ul { list-style: none; padding: 0; margin: 24px 0 0; }
+  .annotation li { padding: 10px 0; border-bottom: 1px solid var(--separator); font-size: 13px; line-height: 1.5; }
+  .annotation li::before {
+    content: '·';
+    color: var(--system-blue);
+    margin-right: 8px;
+    font-weight: 700;
+  }
+  .annotation code {
+    font: 500 12px/1 var(--font-mono);
+    color: var(--system-blue);
+    background: rgba(0,122,255,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .stage { flex-direction: column; gap: 32px; align-items: center; }
+    .annotation { margin-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">← Index</a>
+
+<div class="stage">
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen">
+
+    <div class="statusbar">
+      <span class="ts">12:43</span>
+      <span>●●●●  87%  ⌁</span>
+    </div>
+
+    <div class="appbar"><h1>Chats</h1></div>
+
+    <div class="empty">
+      <div class="fingerprint">A2:5F:90:1B:7C:E4:31:88
+0F:6A:DD:2B:91:CC:08:74
+6E:33:AB:91:F0:1C:55:E7
+09:42:8B:D6:71:2A:9F:18
+55:13:7C:90:E4:0D:81:6A
+B1:7E:CC:48:33:5F:90:21
+12:8C:E0:44:91:DD:7B:65
+A2:0F:31:88:5F:CC:91:E4
+7C:E4:31:88:0F:6A:DD:2B
+DD:2B:91:CC:08:74:6E:33
+6E:33:AB:91:F0:1C:55:E7
+09:42:8B:D6:71:2A:9F:18
+55:13:7C:90:E4:0D:81:6A
+B1:7E:CC:48:33:5F:90:21</div>
+
+      <div class="empty-content">
+        <div class="icon">⌬</div>
+        <h2>No conversations yet.</h2>
+        <p>Send a contact bundle to start a thread. Stealth is silent until you reach out.</p>
+        <button class="cta">Share my contact bundle</button>
+      </div>
+    </div>
+
+    <div class="navbar">
+      <div class="nav-btn active"><span class="nav-icon">⌬</span><span>Chats</span></div>
+      <div class="nav-btn"><span class="nav-icon">⎈</span><span>Contacts</span></div>
+      <div class="nav-btn"><span class="nav-icon">⎙</span><span>Calls</span></div>
+      <div class="nav-btn"><span class="nav-icon">◔</span><span>Profile</span></div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+</div>
+
+<aside class="annotation">
+  <h2>Surface · empty-state.html</h2>
+  <h3>Empty state</h3>
+  <p>
+    Wired on the chats list, contacts grid and call history when
+    there's nothing to show. Same pattern, three pieces of copy.
+  </p>
+  <ul>
+    <li><strong>Key-fingerprint backdrop.</strong> 14 × 8 grid of hex pairs in <code>GeistMono</code> at 3.5% opacity behind the icon. Seed = the empty-state <code>title</code>, so each surface is stable but distinct.</li>
+    <li><strong>Grain overlay.</strong> 4% opacity procedural noise on the whole empty body. Atmospheric, not blank.</li>
+    <li><strong>Outline icon</strong> in a hairline ring. Not a hero, just a calm anchor.</li>
+    <li><strong>Memorable copy.</strong> "Stealth is silent until you reach out" — leans into the brand instead of "no items yet".</li>
+    <li><strong>Auto-gates in light mode.</strong> The fingerprint backdrop renders as <code>SizedBox.shrink()</code> against a near-white scaffold — would read as visual noise.</li>
+  </ul>
+</aside>
+
+</div>
+
+</body>
+</html>

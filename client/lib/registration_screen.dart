@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/themes/apple_liquid/effects/grain_overlay.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_haptics.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
@@ -29,16 +33,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     try {
       await _appService.registerUser(nickname);
       if (!mounted) return;
+      StealthHaptics.success(context);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainTabs()),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registration failed: $e'),
-          backgroundColor: AppColors.systemRed,
-        ),
+      showStealthSnackBar(
+        context,
+        'Registration failed: $e',
+        kind: SnackKind.danger,
       );
     } finally {
       if (mounted) {
@@ -60,9 +64,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: StealthAnimatedBackground(
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
+        child: GrainOverlay(
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -107,13 +112,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ? _register
                         : null,
                     child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                        ? const StealthLoadingIndicator(
+                            size: 20,
+                            strokeWidth: 2,
                           )
                         : const Text('GET STARTED'),
                   ),
@@ -129,6 +130,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

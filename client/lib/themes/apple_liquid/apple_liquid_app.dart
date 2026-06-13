@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/registration_screen.dart';
+import 'feedback/stealth_loading_indicator.dart';
 import 'liquid_theme.dart';
 import 'screens/liquid_main_screen.dart';
 
@@ -42,9 +43,7 @@ class _AppleLiquidAppState extends State<AppleLiquidApp> {
       theme: LiquidTheme.theme,
       home: _isLoading
           ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: StealthLoadingIndicator()),
             )
           : _isUserRegistered
               ? const LiquidMainScreen()

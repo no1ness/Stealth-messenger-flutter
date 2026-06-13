@@ -34,6 +34,22 @@ flowchart TD
 - `WebRtcSignalingService` - PocketBase SSE transport для offer/answer/candidate/hangup.
 - `IncomingCallSignalingService` - глобальная подписка на входящие звонки.
 
+## UI / Design System
+
+Все экраны зависят от единого design layer `client/lib/themes/apple_liquid/`:
+
+- **`constants/`** — `AppColors`, `AppSpacing`, `AppTypography` (Geist + Geist Mono), `AppMotion`, `AppElevation`, `AppEffects`, `AppHaptics`, `GlassStyles`.
+- **`widgets/`** — `GlassContainer`, `GlassAppBar`, `GlassBottomNavBar`, `GlassChatBubble`, `GlassMessageInput`, `SectionHeader`, `ListDivider`, `StatusChip`. Сабпапки `chats/` (`ChatTile`), `contacts/` (`ContactTile`), `profile/` (5 cards), `call/` (`CallHudOverlay`, `CallControlButtons`).
+- **`feedback/`** — `showStealthSnackBar`, `showStealthDialog`, `StealthHaptics`, `StealthLoadingIndicator`, `StealthSkeletonTile`.
+- **`effects/`** — `ScanlineOverlay`, `GrainOverlay` (signature visual moments; auto-disable в light theme).
+- **`navigation/`** — `GlassPageRoute` (custom transition).
+- **`motion/`** — `StaggeredListView` (orchestrated first-render reveal).
+
+Tokens, signature elements, и dual-identity (dark = signature, light = high-contrast)
+задокументированы в `docs/design-system.md`. Тема контроллируется через
+`ThemeController` (`ValueNotifier<ThemeMode>`); при merge с feature/hardening-di-secure-storage
+будет заменена на Riverpod-провайдер.
+
 ## Контакты
 
 Контакт создается из contact bundle:

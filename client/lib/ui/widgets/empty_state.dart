@@ -1,85 +1,196 @@
 import 'package:flutter/material.dart';
 
-class EmptyState extends StatelessWidget {
-  final String type;
+import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/effects/grain_overlay.dart';
 
-  const EmptyState({super.key, required this.type});
+/// Renders a deterministic, ultra-faint hex fingerprint pattern behind
+/// the empty-state icon — the kind of grid you'd see formatting a
+/// 256-bit safety number in `00:11:22:33` groups. Atmospheric only;
+/// `IgnorePointer` so it doesn't intercept the action button.
+///
+/// Theme-aware: dark mode only. In light mode the pattern would read
+/// as visual noise against the near-white scaffold and break the
+/// "accessibility / high contrast" intent — so we return `SizedBox`.
+class _KeyFingerprintBackdrop extends StatelessWidget {
+  const _KeyFingerprintBackdrop({required this.seed});
 
-  String _getTitle() {
-    switch (type) {
-      case 'chats':
-        return 'No chats yet';
-      case 'contacts':
-        return 'No contacts yet';
-      default:
-        return 'Nothing to see here';
+  /// Seed string — typically the empty-state `title`. Same seed →
+  /// same fingerprint across rebuilds (stable for golden snapshots).
+  final String seed;
+
+  static const int _rows = 14;
+  static const int _pairsPerRow = 8;
+
+  /// Linear congruential generator with a stable seed derived from
+  /// the input string. We deliberately avoid `dart:math.Random` so the
+  /// output is fully deterministic across platforms.
+  int _hash(String s) {
+    var h = 0x811C9DC5;
+    for (final code in s.codeUnits) {
+      h = ((h ^ code) * 0x01000193) & 0xFFFFFFFF;
     }
+    return h;
   }
 
-  String _getDescription() {
-    switch (type) {
-      case 'chats':
-        return 'Start a new conversation to see it here.';
-      case 'contacts':
-        return 'Add a new contact to start chatting.';
-      default:
-        return '';
+  String _buildPattern() {
+    final buf = StringBuffer();
+    var state = _hash(seed);
+    for (var r = 0; r < _rows; r++) {
+      for (var p = 0; p < _pairsPerRow; p++) {
+        state = (state * 1103515245 + 12345) & 0xFFFFFFFF;
+        final pair = (state >> 16) & 0xFF;
+        if (p > 0) buf.write(':');
+        buf.write(pair.toRadixString(16).padLeft(2, '0').toUpperCase());
+      }
+      if (r < _rows - 1) buf.write('\n');
     }
-  }
-
-  IconData _getIcon() {
-    switch (type) {
-      case 'chats':
-        return Icons.chat_bubble_outline;
-      case 'contacts':
-        return Icons.person_add_alt_1_outlined;
-      default:
-        return Icons.info_outline;
-    }
+    return buf.toString();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _getIcon(),
-              size: 80,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    if (isLight) return const SizedBox.shrink();
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0.035,
+        child: Center(
+          child: Text(
+            _buildPattern(),
+            textAlign: TextAlign.center,
+            style: AppTypography.captionMono.copyWith(
+              color: AppColors.textPrimary,
+              height: 1.25,
             ),
-            const SizedBox(height: 24),
-            Text(
-              _getTitle(),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.8),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _getDescription(),
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Empty-state widget for the Stealth design system.
+///
+/// Reads from [AppColors] (NOT `Theme.of(context).colorScheme`) so
+/// it stays consistent with the rest of the app. Wraps the body in
+/// a [GrainOverlay] — empty states feel atmospheric rather than
+/// blank, in the spirit of the "refined crypto-noir" north star.
+///
+/// Two named constructors carry copy + iconography for the most
+/// common slots; the unnamed constructor is for anything bespoke.
+class StealthEmptyState extends StatelessWidget {
+  const StealthEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.message,
+    this.action,
+  });
+
+  /// Chats list when the user has no conversations.
+  const StealthEmptyState.chats({super.key, this.action})
+      : icon = Icons.chat_bubble_outline,
+        title = 'No conversations yet.',
+        message =
+            'Send a contact bundle to start a thread. Stealth is silent until you reach out.';
+
+  /// Contacts list when the user has no contacts.
+  const StealthEmptyState.contacts({super.key, this.action})
+      : icon = Icons.person_add_alt_1_outlined,
+        title = 'Your address book is private.',
+        message =
+            'Scan a contact bundle or paste an invite. Nothing leaves the device until you do.';
+
+  /// Calls list when there is no recent call activity.
+  const StealthEmptyState.calls({super.key, this.action})
+      : icon = Icons.call_outlined,
+        title = 'No calls. Stay silent.',
+        message =
+            'Outgoing or incoming — your history starts the first time you dial.';
+
+  final IconData icon;
+  final String title;
+  final String? message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('[ds:empty-state] title=$title');
+    return GrainOverlay(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _KeyFingerprintBackdrop(seed: title),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 64,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    title,
+                    style: AppTypography.headline.copyWith(
+                      color: AppColors.textOnGlass,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (message != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      message!,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (action != null) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    action!,
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Legacy alias to keep existing import sites compiling during the
+/// migration. New code should reach for [StealthEmptyState] directly.
+///
+/// The `type` parameter maps to the three named constructors;
+/// unknown values fall back to the generic [StealthEmptyState].
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key, required this.type});
+
+  final String type;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (type) {
+      case 'chats':
+        return const StealthEmptyState.chats();
+      case 'contacts':
+        return const StealthEmptyState.contacts();
+      case 'calls':
+        return const StealthEmptyState.calls();
+      default:
+        return const StealthEmptyState(
+          icon: Icons.info_outline,
+          title: 'Nothing to see here',
+        );
+    }
   }
 }

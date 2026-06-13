@@ -73,4 +73,28 @@ class AppSpacing {
   // Safe area additions
   static const double bottomSafeArea = 34.0; // iPhone bottom notch
   static const double topSafeArea = 44.0; // iPhone top notch
+
+  // --------------------------------------------------------------
+  // Semantic aliases — design-system v2. New widgets should prefer
+  // these over the raw scale tokens (`md`, `lg`, etc.) so the
+  // intent of the spacing travels with the code.
+  // --------------------------------------------------------------
+
+  /// Horizontal inset for the contents of any top-level screen.
+  /// Matches the iOS standard list inset.
+  static const double screenEdge = screenPadding; // 16
+
+  /// Horizontal+vertical gap between rows in a list/grid where the
+  /// rows themselves carry their own padding. Smaller than
+  /// [cardMargin] so dense lists do not feel airy.
+  static const double tileGap = 8.0;
+
+  /// Extra bottom inset that screens with the `GlassBottomNavBar`
+  /// must apply so floating content (FABs, snackbars, last list
+  /// row) does not sit underneath the nav bar.
+  static const double bottomBarOverlap = tabBarHeight + 24.0; // 80
+
+  /// Default button height — the iOS-standard 44 pt touch target.
+  /// Alias of [buttonHeightMedium].
+  static const double buttonHeight = buttonHeightMedium;
 }
