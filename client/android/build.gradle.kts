@@ -3,6 +3,11 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy {
+            force("io.github.webrtc-sdk:android:120.6099.03")
+        }
+    }
 }
 
 val newBuildDir: Directory =

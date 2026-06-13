@@ -41,7 +41,10 @@ dependencies:
     path_provider: ^2.1.5
     file_picker: ^11.0.2
     intl: ^0.20.2
-    flutter_webrtc: ^1.5.0
+    flutter_webrtc:
+        git:
+            url: https://github.com/flutter-webrtc/flutter-webrtc.git
+            ref: master
     permission_handler: ^12.0.1
     url_launcher: ^6.3.1
     record: ^7.1.0
@@ -56,6 +59,8 @@ dependencies:
     sqflite: ^2.4.3
     path: ^1.9.1
     pocketbase: ^0.24.0
+    device_info_plus: ^12.4.0
+    package_info_plus: ^9.0.1
 
 dev_dependencies:
     flutter_test:

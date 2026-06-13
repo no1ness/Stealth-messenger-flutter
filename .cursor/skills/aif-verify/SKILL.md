@@ -30,6 +30,12 @@ Verify that the completed implementation matches the plan, nothing was missed, a
 - **verify_mode:** default verification strictness (`strict` | `normal` | `lenient`)
 - **Git:** `git.enabled`, `git.base_branch`, `git.create_branches`
 - **Rules hierarchy:** the resolved RULES.md path + `rules.base` + named `rules.<area>` entries
+- **Workflow:** `workflow.plan_id_format` (default: `slug`) — used by branch-based plan discovery in Step 0.2.
+  Active values: `slug` and `sequential`. When `sequential`, the resolver globs
+  `<paths.plans>/[0-9]{4}_<branch_stem>.md` first and falls back to
+  `<paths.plans>/<branch_stem>.md` only if no numbered match is found.
+  `timestamp` and `uuid` are **reserved values** and currently behave like `slug`.
+  Treat any unknown value as `slug`.
 
 **verify_mode priority:**
 1. `--strict` CLI flag → always use `strict`
@@ -40,10 +46,12 @@ If config.yaml doesn't exist, use defaults:
 - Paths: `.ai-factory/` for all artifacts
 - verify_mode: `normal`
 - Rules: RULES.md only
+- `workflow.plan_id_format`: `slug`
 
 ### 0.1 Load Ownership and Gate Contract
 
 - Read `references/CONTEXT-GATES-AND-OWNERSHIP.md` first.
+- Read `references/GATE-RESULT-CONTRACT.md` for the machine-readable quality gate summary.
 - Treat it as the canonical source for:
   - command-to-artifact ownership,
   - read-only behavior for `aif-commit`/`aif-review`/`aif-verify`,
@@ -52,18 +60,30 @@ If config.yaml doesn't exist, use defaults:
 
 ### 0.2 Find Plan File
 
-Same logic as `/aif-implement`:
+Same logic as `/aif-implement` — produce the **canonical branch stem** before any plans-dir glob so producer and consumers agree by construction.
 
 ```
 1. Check current git branch:
    git branch --show-current
-   → Look for <configured plans dir>/<branch-name>.md
-2. If the branch-based plan is missing or git mode is off:
-   → Check whether the configured plans dir contains exactly one `*.md` full-mode plan
+2. Convert branch to filename stem (git mode only):
+   branch_stem = current branch with every "/" replaced by "-"
+   Example: feature/user-auth → feature-user-auth
+3. Resolve the plan file using <branch_stem>:
+   → When `workflow.plan_id_format = sequential`, glob first
+       <configured plans dir>/[0-9][0-9][0-9][0-9]_<branch_stem>.md
+       - 0 matches → fall through to the un-prefixed lookup below
+       - 1 match  → use it
+       - >1 matches → use the **highest-numbered** match and emit
+           WARN [aif-verify] multiple sequential plans for <branch>: <list>; using <chosen>
+   → Otherwise (default `plan_id_format`, or sequential with no numbered match):
+       <configured plans dir>/<branch_stem>.md
+4. If the branch-based plan is missing or git mode is off:
+   → Check whether the configured plans dir contains exactly one `*.md` full-mode
+     plan (a leading 4-digit prefix counts as a match)
    → If exactly one exists, use it
    → If multiple exist, ask the user to choose or use `@<path>` via `/aif-implement`
-3. No full-mode plan → Check the resolved fast plan path
-4. No full-mode plan and no resolved fast plan → fall back to standalone verification choices
+5. No full-mode plan → Check the resolved fast plan path
+6. No full-mode plan and no resolved fast plan → fall back to standalone verification choices
 ```
 
 **If no plan file found:**
@@ -298,9 +318,23 @@ Strict mode behavior:
 - Clear roadmap mismatch fails verification.
 - Missing milestone linkage for `feat`/`fix`/`perf` remains a warning (even when `.ai-factory/ROADMAP.md` exists).
 
-Logging/reporting format:
+Human logging/reporting format:
 - Non-blocking findings: `WARN [gate-name] ...`
 - Blocking findings: `ERROR [gate-name] ...`
+
+If the user wants a standalone rules-only pass, suggest `/aif-rules-check`. Keep human context-gate labels at `WARN` / `ERROR`, then derive the final machine-readable gate result from the full verification report.
+
+Machine-readable gate result:
+- Append one final fenced `aif-gate-result` JSON block after the human-readable verification report.
+- Use `"gate": "verify"`.
+- Use `"status": "pass|warn|fail"` where:
+  - `fail` = incomplete required tasks, failed blocking quality checks, strict-mode context gate failures, or other blockers requiring remediation.
+  - `warn` = only non-blocking warnings remain, optional checks were skipped, docs/test gaps were accepted as warnings, or context drift is ambiguous.
+  - `pass` = no blocking or warning findings remain.
+- Use `"blocking": true|false`; set it to `true` only when the result should stop commit or merge flow.
+- Include only blocking findings in `"blockers": [`; keep non-blocking notes in the human summary.
+- Include changed or implicated paths in `"affected_files": [`.
+- Set `"suggested_next": {` to `/aif-fix`, `/aif-rules`, `/aif-architecture`, `/aif-roadmap`, `/aif-commit`, or `null` according to `references/GATE-RESULT-CONTRACT.md`.
 
 ### 3.6 Context Drift (Optional Remediation)
 
@@ -367,6 +401,27 @@ Options:
 - **All Green** — everything verified, no issues
 - **Minor Issues** — small gaps that can be fixed quickly
 - **Significant Gaps** — tasks missing or partially done, needs re-implementation
+
+### 4.2.1 Append Machine-Readable Gate Result
+
+After the human-readable report and overall status, append exactly one final `aif-gate-result` fenced JSON block.
+
+```aif-gate-result
+{
+  "schema_version": 1,
+  "gate": "verify",
+  "status": "pass",
+  "blocking": false,
+  "blockers": [],
+  "affected_files": [],
+  "suggested_next": {
+    "command": "/aif-commit",
+    "reason": "Verification passed without blockers."
+  }
+}
+```
+
+Schema reminder: `"status": "pass|warn|fail"`, `"blocking": true|false`, `"blockers": [`, `"affected_files": [`, `"suggested_next": {`.
 
 ### 4.3 Action on Issues
 

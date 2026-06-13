@@ -70,6 +70,9 @@ class P2PService {
   final Map<String, StreamSubscription<RtcMessage>> _signalingSubs = {};
   final Map<String, _RetryState> _retryState = {};
 
+  int _reconnectCount = 0;
+  DateTime? _lastConnectedAt;
+
   /// blobId → assembly buffer for incoming chunked blobs (task #11).
   final Map<String, _BlobAssembly> _blobAssemblies = {};
 
@@ -261,10 +264,30 @@ class P2PService {
         _dataChannels.remove(chatId);
         _disposePeerConnectionOnly(chatId);
       } else if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        if (_lastConnectedAt != null) _reconnectCount++;
+        _lastConnectedAt = DateTime.now();
         // Pump any pending outgoing rows for this chat as soon as the
         // channel comes up (task #9 retry worker).
         unawaited(pumpPendingForChat(chatId));
       }
+    };
+  }
+
+  /// Returns aggregated connection stats for the monitoring dashboard.
+  Map<String, dynamic> getConnectionStats() {
+    final openChannels = _dataChannels.values
+        .where((dc) => dc.state == RTCDataChannelState.RTCDataChannelOpen)
+        .length;
+    return {
+      'totalConnections': _connections.length,
+      'openDataChannels': openChannels,
+      'reconnectCount': _reconnectCount,
+      'lastConnectedAt': _lastConnectedAt?.toIso8601String(),
+      'connectionSummary': _connections.isEmpty
+          ? 'disconnected'
+          : openChannels > 0
+              ? 'connected'
+              : 'connecting',
     };
   }
 

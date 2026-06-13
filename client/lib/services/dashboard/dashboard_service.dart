@@ -2,6 +2,8 @@ import 'dart:async';
 
 import '../../local_database_service.dart';
 import '../../storage_service.dart';
+import '../device/device_info_service.dart';
+import '../device/device_registry_service.dart';
 
 /// Analytics rollups used by the settings/profile dashboards. Extracted
 /// from `LocalAppService` (FIX_PLAN Phase A task A2) — kept deliberately
@@ -29,6 +31,10 @@ class DashboardService {
       messageCount +=
           (await _localDb.getMessages(chat['id'].toString())).length;
     }
+
+    final deviceInfo = await DeviceInfoService.instance.getDeviceInfo();
+    final registry = DeviceRegistryService.instance;
+
     return {
       'chatCount': chats.length,
       'contactCount': contacts.length,
@@ -37,6 +43,14 @@ class DashboardService {
       'localMediaReady': true,
       'bucketReady': true,
       'secureStorageReady': await _storage.read('privateKey') != null,
+      'deviceId': registry.deviceId,
+      'installCount': registry.installCount,
+      'platformType': deviceInfo.platformType,
+      'osVersion': deviceInfo.osVersion,
+      'deviceModel': deviceInfo.deviceModel,
+      'deviceBrand': deviceInfo.deviceBrand,
+      'appVersion': deviceInfo.appVersion,
+      'appBuildNumber': deviceInfo.appBuildNumber,
     };
   }
 

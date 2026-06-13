@@ -11,6 +11,7 @@ Action-oriented skills that execute specific tasks:
 - `aif-fix.md` — Fix bugs with structured approach
 - `aif-implement.md` — Execute plans step by step
 - `aif-commit.md` — Create conventional commits
+- `aif-rules-check.md` — Run a standalone rules compliance gate
 - `aif-review.md` — Code review checklist
 - `aif-ci.md` — CI/CD pipeline setup
 

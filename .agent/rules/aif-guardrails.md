@@ -15,6 +15,7 @@
 - Use `/aif-fix` for bug fixes — analyzes, fixes, suggests tests
 - Use `/aif-commit` for commits — follows conventional commits
 - Use `/aif-implement` to execute plans step by step
+- Use `/aif-rules-check` for a standalone project rules gate
 - Use `/aif-review` before merging — checks code quality
 
 ## Safety

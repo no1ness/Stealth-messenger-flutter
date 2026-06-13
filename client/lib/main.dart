@@ -6,6 +6,7 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/services/device/device_registry_service.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/themes/theme_controller.dart';
@@ -129,6 +130,7 @@ class _MyAppState extends State<MyApp> {
           extras: {'url': pocketbaseUrl});
 
       _appService = LocalAppService();
+      await DeviceRegistryService.instance.init();
       await _checkRegistration();
     } catch (error) {
       // Corrupted secure storage (e.g. Android Keystore key rotated after a
