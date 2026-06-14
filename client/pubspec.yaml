@@ -50,6 +50,7 @@ dependencies:
     audioplayers: ^6.1.0
     shared_preferences: ^2.5.5
     cryptography: ^2.7.0
+    crypto: ^3.0.0
     web: ^1.1.1
     idb_shim: ^2.9.4
     nsd: ^5.0.1

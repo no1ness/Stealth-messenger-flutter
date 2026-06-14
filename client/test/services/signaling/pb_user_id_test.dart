@@ -3,17 +3,17 @@ import 'package:stealth/services/signaling/pb_user_id.dart';
 
 void main() {
   group('pbIdFromLocalUuid', () {
-    test('strips dashes and truncates canonical UUID to 15 chars', () {
+    test('computes SHA-256 prefix for a canonical UUID', () {
       expect(
         pbIdFromLocalUuid('550e8400-e29b-41d4-a716-446655440000'),
-        '550e8400e29b41d',
+        'a3a9e1ed9732cab',
       );
     });
 
-    test('handles uppercase hex digits with truncation', () {
+    test('handles uppercase hex digits', () {
       expect(
         pbIdFromLocalUuid('AABBCCDD-1122-3344-5566-778899AABBCC'),
-        'AABBCCDD1122334',
+        '0b1904e0cf655ee',
       );
     });
 
@@ -22,48 +22,49 @@ void main() {
       expect(pbIdFromLocalUuid('smoke_a_1234567890123456'), 'smoke_a_1234567');
       expect(pbIdFromLocalUuid(''), '');
     });
+  });
 
-    test('truncates already-stripped UUID to 15 chars', () {
+  group('PbUserIdResolver', () {
+    test('resolves known PB-ids to local UUIDs', () {
+      const knownUuid = '550e8400-e29b-41d4-a716-446655440000';
+      final resolver = PbUserIdResolver([knownUuid]);
+      final pbId = pbIdFromLocalUuid(knownUuid);
+      expect(resolver.localUuidFromPbId(pbId), knownUuid);
+      expect(resolver.knows(pbId), true);
+    });
+
+    test('passes unknown PB-ids through unchanged', () {
+      final resolver = PbUserIdResolver([]);
+      expect(resolver.localUuidFromPbId('unknown_id'), 'unknown_id');
+      expect(resolver.knows('unknown_id'), false);
+    });
+
+    test('empty resolver returns passthrough for any input', () {
+      final resolver = PbUserIdResolver.empty;
+      expect(resolver.localUuidFromPbId('some_pb_id'), 'some_pb_id');
+    });
+
+    test('resolves multiple UUIDs efficiently', () {
+      final resolver = PbUserIdResolver([
+        '550e8400-e29b-41d4-a716-446655440000',
+        'AABBCCDD-1122-3344-5566-778899AABBCC',
+      ]);
       expect(
-        pbIdFromLocalUuid('550e8400e29b41d4a716446655440000'),
-        '550e8400e29b41d',
+        resolver.localUuidFromPbId('a3a9e1ed9732cab'),
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+      expect(
+        resolver.localUuidFromPbId('0b1904e0cf655ee'),
+        'AABBCCDD-1122-3344-5566-778899AABBCC',
       );
     });
   });
 
-  group('localUuidFromPbId', () {
-    test('reinserts dashes into a 32-hex PocketBase id', () {
-      expect(
-        localUuidFromPbId('550e8400e29b41d4a716446655440000'),
-        '550e8400-e29b-41d4-a716-446655440000',
-      );
-    });
-
-    test('passes non-32-hex input through unchanged', () {
-      expect(localUuidFromPbId('user-A'), 'user-A');
-      expect(localUuidFromPbId('smoke_a_1234567890123456'),
-          'smoke_a_1234567890123456');
-      expect(localUuidFromPbId(''), '');
-    });
-
-    test('passes canonical-UUID-shaped input through unchanged', () {
-      expect(
-        localUuidFromPbId('550e8400-e29b-41d4-a716-446655440000'),
-        '550e8400-e29b-41d4-a716-446655440000',
-      );
-    });
-  });
-
-  group('round-trip', () {
-    test('canonical UUID truncated to 15 chars — no longer reversible', () {
-      const uuid = '550e8400-e29b-41d4-a716-446655440000';
-      expect(localUuidFromPbId(pbIdFromLocalUuid(uuid)), '550e8400e29b41d');
-    });
-
-    test('long non-UUID truncated in pb→local direction', () {
-      const id = 'smoke_a_1234567890123456';
-      expect(pbIdFromLocalUuid(id), 'smoke_a_1234567');
-      expect(localUuidFromPbId('smoke_a_1234567'), 'smoke_a_1234567');
+  group('kPbIdLength', () {
+    test('SHA-256 prefix is exactly 15 chars', () {
+      expect(kPbIdLength, 15);
+      final pbId = pbIdFromLocalUuid('550e8400-e29b-41d4-a716-446655440000');
+      expect(pbId.length, kPbIdLength);
     });
   });
 }
