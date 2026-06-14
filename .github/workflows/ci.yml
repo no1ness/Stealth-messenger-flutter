@@ -1,18 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - "**"
-  pull_request:
-    branches:
-      - main
-  # Task #13: manual trigger for the heavy release + macOS jobs.
   workflow_dispatch:
-  # Task #13: nightly release-apk + macOS smoke. UTC.
-  schedule:
-    - cron: '0 3 * * *'  # 03:00 UTC → build-android-release
-    - cron: '0 4 * * *'  # 04:00 UTC → analyze-macos
 
 # Cancel in-flight runs for the same ref when a new commit is pushed.
 concurrency:
