@@ -28,11 +28,11 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 - [x] **M7 — Quality gates infra.** GitHub Actions CI: analyze + test + build web + signaling smoke. `secure_storage_policy_test`, `private_key_no_export_test` regression gates. (`post-pocketbase-hardening` Phases 2, 7.)
 - [x] **M8 — chats_screen.dart split + group sheets.** 1794-line `chats_screen.dart` decomposed into `client/lib/ui/screens/chats/` modules (panel + attachment + group-management-sheet). (`post-pocketbase-hardening` Phase 5.)
 - [x] **M9 — Android release hardening.** `applicationId` renamed off `com.example.turbo`, release signing config, lint re-enabled. (`post-pocketbase-hardening` Phase 8.)
+- [x] **M10.1 — GlassTextField focus-pulse perf budget for web.** `ChromaticAberration.ghostBuilder` API + `kIsWeb` cheap-ghost path (`_GlassFieldGhost`). Transplanted from `perf/glass-text-field-web-budget` into `main` (commit `761f8c2`). **2026-06-14.**
 
 ## In flight
 
 - [~] **M10 — Design system v2 (Apple Liquid).** Tokens, primitives, signature effects (ScanlineOverlay, GrainOverlay, ChromaticAberration, DecryptText, key-fingerprint backdrop), `GlassPageRoute`, `StealthHaptics`. Source of truth: `docs/design-system.md` + `docs/design-mockups/`. Backing plan: `.ai-factory/plans/feature-ui-design-refactor.md` (6 refinement passes shipped). **PR #3** open.
-- [~] **M10.1 — GlassTextField focus-pulse perf budget for web.** `ChromaticAberration.ghostBuilder` API + `kIsWeb` cheap-ghost path (`_GlassFieldGhost`). Backing plan: was `.ai-factory/PLAN.md` (fast, transient). **PR #4** open, stacked on PR #3.
 - [~] **M9.1 — Re-enable Android CI build-apk.** Scoped under M9 (Android release hardening). `ci.yml` `if: false` gate removed (originally gated in commit `06dbd4c` for slowness; gradle cache now warm). **PR #5** open.
 
 ## Committed, not started
