@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
-import '../../services/dashboard/dashboard_service.dart';
-import '../../services/device/device_info_service.dart';
-import '../../services/device/device_registry_service.dart';
-import '../../p2p_service.dart';
-import '../../themes/apple_liquid/feedback/stealth_loading_indicator.dart';
-import '../../themes/apple_liquid/liquid_theme.dart';
-import '../../themes/apple_liquid/navigation/glass_app_bar.dart';
-import '../../themes/apple_liquid/widgets/glass_container.dart';
-import '../../themes/apple_liquid/widgets/section_header.dart';
+import 'package:stealth/p2p_service.dart';
+import 'package:stealth/services/dashboard/dashboard_service.dart';
+import 'package:stealth/services/device/device_info_service.dart';
+import 'package:stealth/services/device/device_registry_service.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
+import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});
@@ -53,8 +53,7 @@ class _MonitoringScreenState extends State<MonitoringScreen>
         state == AppLifecycleState.inactive) {
       _refreshTimer?.cancel();
       _refreshTimer = null;
-    } else if (state == AppLifecycleState.resumed &&
-        _refreshTimer == null) {
+    } else if (state == AppLifecycleState.resumed && _refreshTimer == null) {
       _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
         if (!mounted) return;
         _refresh();
@@ -105,9 +104,10 @@ class _MonitoringScreenState extends State<MonitoringScreen>
           const SectionHeader(title: 'Статистика'),
           const SizedBox(height: AppSpacing.sm),
           _buildStatRow('Чаты', '${_dashboardStats['chatCount'] ?? '-'}'),
-          _buildStatRow('Контакты', '${_dashboardStats['contactCount'] ?? '-'}'),
-          _buildStatRow('Сообщения',
-              '${_dashboardStats['messageCount'] ?? '-'}'),
+          _buildStatRow(
+              'Контакты', '${_dashboardStats['contactCount'] ?? '-'}'),
+          _buildStatRow(
+              'Сообщения', '${_dashboardStats['messageCount'] ?? '-'}'),
           _buildStatRow('Звонки', '${_dashboardStats['callCount'] ?? '-'}'),
         ],
       ),
@@ -127,8 +127,8 @@ class _MonitoringScreenState extends State<MonitoringScreen>
           _buildStatRow('Бренд', _deviceInfo?.deviceBrand ?? '-'),
           _buildStatRow('Версия', _deviceInfo?.appVersion ?? '-'),
           _buildStatRow('Сборка', _deviceInfo?.appBuildNumber ?? '-'),
-          _buildStatRow('ID', _truncate(
-              _dashboardStats['deviceId']?.toString() ?? '-')),
+          _buildStatRow(
+              'ID', _truncate(_dashboardStats['deviceId']?.toString() ?? '-')),
           _buildStatRow('Запусков', '$_installCount'),
         ],
       ),
@@ -142,16 +142,14 @@ class _MonitoringScreenState extends State<MonitoringScreen>
         children: [
           const SectionHeader(title: 'P2P / WebRTC'),
           const SizedBox(height: AppSpacing.sm),
+          _buildStatRow('Статус', '${_p2pStats['connectionSummary'] ?? '-'}'),
           _buildStatRow(
-              'Статус', '${_p2pStats['connectionSummary'] ?? '-'}'),
-          _buildStatRow('Подключения',
-              '${_p2pStats['totalConnections'] ?? '-'}'),
-          _buildStatRow('Каналы',
-              '${_p2pStats['openDataChannels'] ?? '-'}'),
-          _buildStatRow('Переподключения',
-              '${_p2pStats['reconnectCount'] ?? '-'}'),
+              'Подключения', '${_p2pStats['totalConnections'] ?? '-'}'),
+          _buildStatRow('Каналы', '${_p2pStats['openDataChannels'] ?? '-'}'),
+          _buildStatRow(
+              'Переподключения', '${_p2pStats['reconnectCount'] ?? '-'}'),
           _buildStatRow('Посл. связь',
-              '${_p2pStats['lastConnectedAt']?.toString()?.substring(0, 19) ?? '-'}'),
+              (_p2pStats['lastConnectedAt']?.toString() ?? '').substring(0, 19)),
         ],
       ),
     );
@@ -163,8 +161,8 @@ class _MonitoringScreenState extends State<MonitoringScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body),
-          Text(value, style: AppTypography.bodySecondary),
+          Text(label, style: AppTypography.footnote),
+          Text(value, style: AppTypography.caption1),
         ],
       ),
     );

@@ -14,6 +14,7 @@ import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.d
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 import 'package:stealth/themes/theme_controller.dart';
+import 'package:stealth/ui/screens/monitoring_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
 
@@ -432,6 +433,18 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             onPressed: _loadSettings,
             icon: const Icon(Icons.refresh),
             label: const Text('Refresh diagnostics'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MonitoringScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.monitor_heart_outlined),
+            label: const Text('Open monitoring'),
           ),
         ],
       ),

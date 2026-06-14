@@ -27,6 +27,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `flutter_secure_storage_x` и web storage abstraction для ключей
 - `shared_preferences` и `flutter_dotenv` для локальных настроек
 - `device_info_plus` и `package_info_plus` для сбора информации об устройстве и приложении
+- Экран мониторинга (`MonitoringScreen`) с автообновлением 3с, разделами статистики, устройства и P2P/WebRTC
 - **Design system:** Geist + Geist Mono (SIL OFL 1.1, bundled под `client/assets/fonts/`) + `apple_liquid` design layer под `client/lib/themes/apple_liquid/`. Источник правды — `docs/design-system.md` (плюс HTML-mockups в `docs/design-mockups/`).
 - **Testing:** `flutter_test` (axiom); `golden_toolkit` dev-dep для golden infra (Phase 9.0, инфра ready, visual-reel deferred).
 

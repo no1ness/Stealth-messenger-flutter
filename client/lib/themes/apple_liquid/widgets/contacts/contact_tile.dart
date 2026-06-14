@@ -19,12 +19,14 @@ class ContactTile extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.trailing,
+    this.isOnline,
   });
 
   final Map<String, dynamic> contact;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final Widget? trailing;
+  final bool? isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +42,48 @@ class ContactTile extends StatelessWidget {
         child: GlassContainer(
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.systemBlue,
-                child: Text(
-                  _initials(name),
-                  style: AppTypography.calloutEmphasis.copyWith(
-                    color: AppColors.textOnGlass,
-                  ),
+              Semantics(
+                label: isOnline == true
+                    ? 'Online'
+                    : isOnline == false
+                        ? 'Offline'
+                        : AccessibilityIds.contactPresenceIndicator,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.systemBlue,
+                      child: Text(
+                        _initials(name),
+                        style: AppTypography.calloutEmphasis.copyWith(
+                          color: AppColors.textOnGlass,
+                        ),
+                      ),
+                    ),
+                    if (isOnline != null)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: AnimatedOpacity(
+                          opacity: 1,
+                          duration: const Duration(milliseconds: 300),
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: isOnline!
+                                  ? AppColors.systemGreen
+                                  : AppColors.systemGray,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.textOnGlass,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

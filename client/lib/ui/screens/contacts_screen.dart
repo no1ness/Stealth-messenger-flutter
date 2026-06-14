@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:stealth/local_app_service.dart';
@@ -11,8 +13,11 @@ import 'package:stealth/themes/apple_liquid/navigation/glass_page_route.dart';
 import 'package:stealth/themes/apple_liquid/widgets/contacts/contact_tile.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
+import 'package:stealth/ui/sheets/user_detail_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
+import 'package:stealth/services/user_directory/presence_service.dart';
+import 'package:stealth/services/user_directory/user_directory_service.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/contacts_data_source.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
@@ -37,6 +42,7 @@ class _ContactsScreenState extends State<ContactsScreen>
   bool _loading = true;
   bool _startingCall = false;
   List<Map<String, dynamic>> _contacts = const [];
+  StreamSubscription<Map<String, dynamic>>? _presenceSub;
 
   @override
   bool get wantKeepAlive => true;
@@ -45,13 +51,32 @@ class _ContactsScreenState extends State<ContactsScreen>
   void initState() {
     super.initState();
     _loadContacts();
+    _subscribeToPresence();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _addContactController.dispose();
+    _presenceSub?.cancel();
     super.dispose();
+  }
+
+  void _subscribeToPresence() {
+    _presenceSub?.cancel();
+    _presenceSub = PresenceService().onPresenceChange.listen((profile) {
+      final userId = profile['userId'] as String?;
+      if (userId == null) return;
+      setState(() {
+        final idx = _contacts.indexWhere(
+          (c) => (c['user_id'] ?? c['contact_user_id']) == userId,
+        );
+        if (idx >= 0) {
+          _contacts[idx]['isOnline'] = profile['isOnline'];
+          _contacts[idx]['lastSeen'] = profile['lastSeen'];
+        }
+      });
+    });
   }
 
   Future<void> _loadContacts() async {
@@ -61,34 +86,50 @@ class _ContactsScreenState extends State<ContactsScreen>
       });
     }
     final rows = await _appService.getContacts();
+    final cached = UserDirectoryService().getCachedProfiles();
+
+    final merged = <String, Map<String, dynamic>>{};
+    for (final contact in rows.cast<Map<String, dynamic>>()) {
+      final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString() ?? '';
+      if (userId.isNotEmpty) {
+        final profile = cached.where((p) => p['userId'] == userId).firstOrNull;
+        if (profile != null) {
+          contact['isOnline'] = profile['isOnline'] ?? contact['isOnline'];
+          contact['lastSeen'] = profile['lastSeen'] ?? contact['lastSeen'];
+          if (profile['deviceModel'] != null) contact['deviceModel'] = profile['deviceModel'];
+          if (profile['platform'] != null) contact['platform'] = profile['platform'];
+          if (profile['appVersion'] != null) contact['appVersion'] = profile['appVersion'];
+        }
+        merged[userId] = contact;
+      }
+    }
+
+    for (final profile in cached) {
+      final uid = profile['userId']?.toString() ?? '';
+      if (uid.isEmpty || merged.containsKey(uid)) continue;
+      final autoContact = <String, dynamic>{
+        'user_id': uid,
+        'contact_user_id': uid,
+        'name': uid,
+        'nickname': uid,
+        'isOnline': profile['isOnline'] ?? false,
+        'lastSeen': profile['lastSeen'] ?? '',
+        'deviceModel': profile['deviceModel'] ?? '',
+        'platform': profile['platform'] ?? '',
+        'appVersion': profile['appVersion'] ?? '',
+        'auto_populated': true,
+      };
+      merged[uid] = autoContact;
+    }
+
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _contacts = rows.cast<Map<String, dynamic>>();
+      _contacts = merged.values.toList();
       _loading = false;
     });
-  }
-
-  Future<void> _deleteContact(Map<String, dynamic> contact) async {
-    final userId = contact['user_id'] as String?;
-    final name = contact['name'] as String? ?? 'Contact';
-    if (userId == null || userId.isEmpty) {
-      return;
-    }
-
-    await _appService.deleteContact(userId);
-    await _loadContacts();
-    if (!mounted) {
-      return;
-    }
-
-    showStealthSnackBar(
-      context,
-      '$name removed',
-      kind: SnackKind.success,
-    );
   }
 
   Future<void> _showContactActions(Map<String, dynamic> contact) async {
@@ -96,16 +137,26 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
+    final name = contact['name'] as String? ?? 'Unknown';
+    final autoPopulated = contact['auto_populated'] == true;
+
     await showModalBottomSheet<void>(
       context: context,
       builder: (context) {
-        final name = contact['name'] as String? ?? 'Unknown';
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('Information'),
+                  onTap: () async {
+                    Navigator.of(context).pop();
+                    await showUserDetailSheet(context, contact);
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.chat_bubble_outline),
                   title: const Text('Open chat'),
@@ -139,11 +190,23 @@ class _ContactsScreenState extends State<ContactsScreen>
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: Text('Remove $name'),
+                  leading: autoPopulated
+                      ? const Icon(Icons.visibility_off_outlined)
+                      : const Icon(Icons.delete_outline),
+                  title: Text(autoPopulated ? 'Hide' : 'Remove $name'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _deleteContact(contact);
+                    final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString();
+                    if (userId != null && userId.isNotEmpty) {
+                      await _appService.deleteContact(userId);
+                      await _loadContacts();
+                    }
+                    if (!mounted) return;
+                    showStealthSnackBar(
+                      context,
+                      autoPopulated ? '$name hidden' : '$name removed',
+                      kind: SnackKind.success,
+                    );
                   },
                 ),
               ],
@@ -520,14 +583,19 @@ class _ContactsScreenState extends State<ContactsScreen>
                                 ),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
-                                  return ContactTile(
-                                    contact: contact,
-                                    onTap: _startingCall
-                                        ? () {}
-                                        : () => _openChat(contact),
-                                    onLongPress: () =>
-                                        _showContactActions(contact),
-                                    trailing: Row(
+                                  final isOnline = contact['isOnline'] as bool?;
+                                  final autoPopulated = contact['auto_populated'] == true;
+                                  return Opacity(
+                                    opacity: autoPopulated ? 0.85 : 1.0,
+                                    child: ContactTile(
+                                      contact: contact,
+                                      isOnline: isOnline,
+                                      onTap: _startingCall
+                                          ? () {}
+                                          : () => _openChat(contact),
+                                      onLongPress: () =>
+                                          _showContactActions(contact),
+                                      trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
@@ -599,7 +667,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                                         ),
                                       ],
                                     ),
-                                  );
+                                  ),
+                                );
                                 },
                               ),
                   ),

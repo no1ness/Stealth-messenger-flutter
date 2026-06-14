@@ -124,7 +124,7 @@ jobs:
       # `--dart-define=POCKETBASE_URL=...` at deploy time.
 
       - name: flutter build web --release
-        run: flutter build web --release --no-tree-shake-icons
+        run: flutter build web --release
 
   build-android:
     name: build android (debug apk)

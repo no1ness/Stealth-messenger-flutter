@@ -131,6 +131,7 @@ class _MyAppState extends State<MyApp> {
 
       _appService = LocalAppService();
       await DeviceRegistryService.instance.init();
+      await _appService?.startPBBasedWorkers();
       await _checkRegistration();
     } catch (error) {
       // Corrupted secure storage (e.g. Android Keystore key rotated after a

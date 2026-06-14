@@ -1,0 +1,10 @@
+[{"name":"user_profiles","type":"base","schema":[
+  {"name":"userId","type":"text","required":true,"id":"userid"},
+  {"name":"publicKey","type":"text","id":"pubkey"},
+  {"name":"deviceModel","type":"text","id":"devmodel"},
+  {"name":"platform","type":"text","id":"platform"},
+  {"name":"appVersion","type":"text","id":"appver"},
+  {"name":"registeredAt","type":"date","id":"regat"},
+  {"name":"isOnline","type":"bool","id":"isonline"},
+  {"name":"lastSeen","type":"date","id":"lastseen"}
+],"listRule":"@request.auth.id != \"\"","viewRule":"@request.auth.id != \"\"","createRule":"@request.auth.id != \"\" && userId = pbIdFromLocalUuid(@request.auth.id)","updateRule":"userId = pbIdFromLocalUuid(@request.auth.id)"}]

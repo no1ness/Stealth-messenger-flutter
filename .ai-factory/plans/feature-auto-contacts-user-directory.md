@@ -42,7 +42,7 @@ Architecture:
 
 ### Phase 1: PocketBase schema & core services
 
-- [ ] **Task 1: Create `user_profiles` PB collection + update setup docs**
+- [x] **Task 1: Create `user_profiles` PB collection + update setup docs**
   - Создать коллекцию `user_profiles` в PocketBase:
     - `userId` (text, unique, required) — локальный UUID владельца
     - `publicKey` (text) — X25519 публичный ключ для E2E (base64)
@@ -62,7 +62,7 @@ Architecture:
   - *Файлы:* `docs/POCKETBASE_SETUP.md`, `docs/pb_schemas/user_profiles.json`
   - *Логирование:* `[user-profiles]` INFO о создании/обновлении профиля, WARN при ошибках API rules
 
-- [ ] **Task 2: Create `PresenceService` + `UserDirectoryService` (единая realtime подписка)**
+- [x] **Task 2: Create `PresenceService` + `UserDirectoryService` (единая realtime подписка)**
   - `PresenceService` (singleton) — владеет PB realtime подпиской:
     - Конструктор: `PresenceService({PocketBase? pocketBase, StorageService? storage, Connectivity? connectivity})` — defaults `PocketBaseClient.instance.pb` / `StorageService()` / `Connectivity()` (паттерн как в `WebRtcSignalingService`). Создаёт `PocketBaseAuthService(pocketBase: pb, storage: storage)` внутри для вызовов `ensureAuth`.
     - `start(String selfUserId)` — принимает userId, вызывает `_authService.ensureAuth(selfUserId)`, затем:
@@ -96,7 +96,7 @@ Architecture:
     - *Файлы:* `client/lib/services/user_directory/user_directory_service.dart`
     - *Логирование:* `[user-directory]` DEBUG при fetch/sync, INFO при новых контактах, WARN при ошибках PB
 
-- [ ] **Task 3: Add `ContactService.addOrUpdateContact()` method**
+- [x] **Task 3: Add `ContactService.addOrUpdateContact()` method**
   - Новый публичный метод (независим от `_lastSearchResults`, в отличие от `addContact`):
     - `addOrUpdateContact(Map<String, dynamic> profile)` — принимает профиль из user_directory
     - Проверить существование: `_localDb.getContacts()` → найти по `contact_user_id == profile['userId']`
@@ -113,7 +113,7 @@ Architecture:
 
 ### Phase 2: Bootstrap & integration
 
-- [ ] **Task 4: Add `_publishOwnProfile()` to `LocalAppService`**
+- [x] **Task 4: Add `_publishOwnProfile()` to `LocalAppService`**
   - Реализовать приватный метод `_publishOwnProfile(String userId)` в `LocalAppService`:
     - Получить pb: `final pb = PocketBaseClient.instance.pb;`
     - Вызвать `PocketBaseAuthService(pocketBase: pb, storage: StorageService()).ensureAuth(userId)`
@@ -132,7 +132,7 @@ Architecture:
   - *Файлы:* `client/lib/local_app_service.dart`
   - *Логирование:* `[profile-publish]` INFO при публикации профиля (новый vs обновление), DEBUG с данными устройства, WARN при ошибке или skip по guard
 
-- [ ] **Task 5: Wire services into `LocalAppService` + `startPBBasedWorkers()` + update `main.dart`**
+- [x] **Task 5: Wire services into `LocalAppService` + `startPBBasedWorkers()` + update `main.dart`**
   - В `LocalAppService`:
     - Добавить поля: `final _userDirectory = UserDirectoryService();` и `final _presence = PresenceService();` (singleton factory — возвращает `_instance`, как `_contacts = ContactService()`)
     - `_kickoffBackgroundWorkers()` остаётся без изменений (только `P2PService.startRetryWorker()` и `_attachments.evictOldBlobs()` — не зависят от PB/DeviceRegistry)
@@ -170,7 +170,7 @@ Architecture:
 
 ### Phase 3: UI
 
-- [ ] **Task 6: Update `ContactTile` with online/offline indicator**
+- [x] **Task 6: Update `ContactTile` with online/offline indicator**
   - Добавить параметр `isOnline` (bool?) в ContactTile
   - Если `isOnline == true` — зелёная точка (3px) в правом верхнем углу CircleAvatar
   - Если `isOnline == false` — серая точка
@@ -182,7 +182,7 @@ Architecture:
   - *Логирование:* не требуется (UI)
   - *Зависимость:* Task 8 читает поле `contact_user_id` из кэша — убедиться, что ContactTile не ломается при отсутствии `user_id` (null-safe userId fallback)
 
-- [ ] **Task 7: Create user detail bottom sheet**
+- [x] **Task 7: Create user detail bottom sheet**
   - `showUserDetailSheet(context, contact)` — функция bottom sheet:
     - CircleAvatar с инициалами
     - Имя пользователя (nickname)
@@ -199,7 +199,7 @@ Architecture:
   - *Логирование:* не требуется (UI)
   - *Зависимость:* Task 8 использует showUserDetailSheet при long-press
 
-- [ ] **Task 8: Update `ContactsScreen` — show all users + presence + auto_populated display**
+- [x] **Task 8: Update `ContactsScreen` — show all users + presence + auto_populated display**
   - **DataSource delegation:** добавить в `ContactsDataSource` и `LocalContactsDataSource` методы `getUserDirectoryService()` (возвращает `UserDirectoryService.instance`) и `getPresenceService()` (возвращает `PresenceService.instance`) — чтобы ContactsScreen мог подписываться на стримы. Либо экспортировать синглтоны напрямую (уже есть `UserDirectoryService.instance`, `PresenceService.instance`).
   - В `ContactsScreen.loadContacts()`:
     - После `_appService.getContacts()` загрузить `UserDirectoryService.instance.getCachedProfiles()`

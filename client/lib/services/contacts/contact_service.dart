@@ -211,6 +211,64 @@ class ContactService {
     return results;
   }
 
+  /// Creates or updates a local contact from a PB user_profiles record.
+  /// Used by [UserDirectoryService] for auto-populated contacts.
+  ///
+  /// Does NOT replace manually set nickname — only updates presence fields
+  /// (isOnline, lastSeen, deviceInfo) and publicKey for existing contacts.
+  Future<void> addOrUpdateContact(Map<String, dynamic> profile) async {
+    final userId = profile['userId']?.toString();
+    if (userId == null || userId.isEmpty) return;
+
+    final contacts = await _localDb.getContacts();
+    final existingIdx = contacts.indexWhere(
+      (c) => (c['contact_user_id']?.toString() ?? c['user_id']?.toString()) == userId,
+    );
+
+    if (existingIdx >= 0) {
+      final existing = Map<String, dynamic>.from(contacts[existingIdx] as Map);
+      existing['isOnline'] = profile['isOnline'] ?? existing['isOnline'];
+      existing['lastSeen'] = profile['lastSeen'] ?? existing['lastSeen'];
+      existing['publicKey'] = profile['publicKey'] ?? existing['publicKey'];
+      existing['deviceInfo'] = {
+        'deviceModel': profile['deviceModel'],
+        'platform': profile['platform'],
+        'appVersion': profile['appVersion'],
+      };
+      if (profile['deviceModel'] != null) existing['deviceModel'] = profile['deviceModel'];
+      if (profile['platform'] != null) existing['platform'] = profile['platform'];
+      if (profile['appVersion'] != null) existing['appVersion'] = profile['appVersion'];
+      await _localDb.saveContact(existing);
+      Logger.debug('[contacts] upsert updated contact',
+          extras: {'userId': userId, 'isOnline': existing['isOnline']});
+    } else {
+      final now = DateTime.now().toIso8601String();
+      final contact = <String, dynamic>{
+        'contact_user_id': userId,
+        'user_id': userId,
+        'name': userId,
+        'nickname': userId,
+        'public_key': profile['publicKey'] ?? '',
+        'publicKey': profile['publicKey'] ?? '',
+        'isOnline': profile['isOnline'] ?? false,
+        'lastSeen': profile['lastSeen'] ?? '',
+        'deviceModel': profile['deviceModel'] ?? '',
+        'platform': profile['platform'] ?? '',
+        'appVersion': profile['appVersion'] ?? '',
+        'deviceInfo': {
+          'deviceModel': profile['deviceModel'],
+          'platform': profile['platform'],
+          'appVersion': profile['appVersion'],
+        },
+        'auto_populated': true,
+        'created_at': now,
+      };
+      await _localDb.saveContact(contact);
+      Logger.info('[contacts] created auto-populated contact',
+          extras: {'userId': userId});
+    }
+  }
+
   /// Drops in-memory caches. Called by `LocalAppService.logout` so the
   /// next session starts cold.
   void clearCaches() {

@@ -172,7 +172,75 @@ Lazy auth-флоу Stealth регистрирует per-device PocketBase акк
 `payload.creatorLocalId` / `payload.targetLocalId` для UI, истории звонков
 и сопоставления с локальными контактами.
 
-## 4. Коллекция `users`
+## 4. Коллекция `user_profiles`
+
+Коллекция хранит мета-информацию и presence пользователей: устройство, онлайн-статус, публичный ключ.
+Используется для автоматического отображения всех зарегистрированных пользователей в контактах.
+
+### Быстрый старт (через Admin UI)
+
+1. Открой `https://signal.stealthpro.ru/_/#/settings/collections`
+2. Нажми **"+ New collection"**
+3. Name: `user_profiles`, Type: `Base`
+4. Добавь поля:
+
+   | Поле | Тип | Required |
+   |------|-----|----------|
+   | `userId` | text | да |
+   | `publicKey` | text | нет |
+   | `deviceModel` | text | нет |
+   | `platform` | text | нет |
+   | `appVersion` | text | нет |
+   | `registeredAt` | date | нет |
+   | `isOnline` | bool | нет |
+   | `lastSeen` | date | нет |
+
+5. API Rules:
+
+   - **List rule**: `@request.auth.id != ""`
+   - **View rule**: `@request.auth.id != ""`
+   - **Create rule**: `@request.auth.id != "" && userId = pbIdFromLocalUuid(@request.auth.id)`
+   - **Update rule**: `userId = pbIdFromLocalUuid(@request.auth.id)`
+   - **Delete rule**: оставь пустым
+
+6. Нажми **Save**
+
+### Импорт через JSON (Settings → Import collections)
+
+```json
+[{"name":"user_profiles","type":"base","schema":[
+  {"name":"userId","type":"text","required":true,"id":"userid"},
+  {"name":"publicKey","type":"text","id":"pubkey"},
+  {"name":"deviceModel","type":"text","id":"devmodel"},
+  {"name":"platform","type":"text","id":"platform"},
+  {"name":"appVersion","type":"text","id":"appver"},
+  {"name":"registeredAt","type":"date","id":"regat"},
+  {"name":"isOnline","type":"bool","id":"isonline"},
+  {"name":"lastSeen","type":"date","id":"lastseen"}
+],"listRule":"@request.auth.id != \"\"","viewRule":"@request.auth.id != \"\"","createRule":"@request.auth.id != \"\" && userId = pbIdFromLocalUuid(@request.auth.id)","updateRule":"userId = pbIdFromLocalUuid(@request.auth.id)"}]
+```
+
+Файл импорта также доступен в репозитории: `docs/pb_schemas/user_profiles.json`.
+
+### Схема полей
+
+| Поле | Тип | Required | Заметки |
+|------|-----|----------|---------|
+| `userId` | text | да | локальный UUID владельца (без дефисов) |
+| `publicKey` | text | нет | X25519 публичный ключ для E2E (base64) |
+| `deviceModel` | text | нет | модель устройства |
+| `platform` | text | нет | `android`/`ios`/`web` |
+| `appVersion` | text | нет | версия приложения |
+| `registeredAt` | date | нет | когда создан профиль |
+| `isOnline` | bool | нет | онлайн/оффлайн |
+| `lastSeen` | date | нет | последняя активность |
+
+**Create rule** проверяет, что пользователь создаёт профиль только для себя:
+`@request.auth.id != "" && userId = pbIdFromLocalUuid(@request.auth.id)`. Это гарантирует,
+что один пользователь может иметь ровно один профиль (уникальный `userId`) и не может
+создать профиль от имени другого пользователя.
+
+## 5. Коллекция `users`
 
 PocketBase из коробки даёт auth-коллекцию `users`; ничего дополнительно
 не нужно. Клиент использует `email + password` auth с синтетическими
@@ -180,7 +248,7 @@ PocketBase из коробки даёт auth-коллекцию `users`; нич�
 публичную регистрацию (дефолт) или вызывай `pb.collection('users').create()`
 из своих admin-тулов — клиент логинится по паролю как только запись существует.
 
-## 5. Scheduled cleanup (TTL)
+## 6. Scheduled cleanup (TTL)
 
 Без cleanup'а коллекция растёт на каждое signaling-сообщение. Добавь hook
 в `pb_hooks/rtc_cleanup.pb.js`, чтобы удалять записи старше 1 часа:
@@ -205,7 +273,7 @@ cronAdd("rtc_cleanup", "*/10 * * * *", () => {
 записи. Текущая реализация Stealth этого **не** делает; SQL TTL выше
 достаточен для типичного call-трафика.
 
-## 6. Верификация развёртывания
+## 7. Верификация развёртывания
 
 Из корня Stealth-клиента:
 
@@ -225,7 +293,7 @@ flutter test test/services/signaling/pocketbase_signaling_smoke_test.dart
 2. Схема и rules `rtc_signaling` корректны.
 3. Realtime SSE доставляет in-room сообщения за ~10 секунд.
 
-## 7. Операционные заметки
+## 8. Операционные заметки
 
 - **Бэкапы.** PocketBase хранит всё в `pb_data/data.db` (SQLite).
   Снимок volume'а — через admin UI (Settings → Backup) или средствами

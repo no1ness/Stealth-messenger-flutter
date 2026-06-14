@@ -10,8 +10,15 @@ import 'services/chat_management/chat_management_service.dart';
 import 'services/contacts/contact_service.dart';
 import 'services/crypto/group_secret_service.dart';
 import 'services/dashboard/dashboard_service.dart';
+import 'services/device/device_info_service.dart';
 import 'services/identity/identity_service.dart';
 import 'services/messaging/message_service.dart';
+import 'storage_service.dart';
+import 'package:pocketbase/pocketbase.dart';
+import 'services/signaling/pocketbase_auth_service.dart';
+import 'services/signaling/pocketbase_client.dart';
+import 'services/user_directory/presence_service.dart';
+import 'services/user_directory/user_directory_service.dart';
 
 class LocalAppService {
   LocalAppService() {
@@ -48,6 +55,64 @@ class LocalAppService {
     }
   }
 
+  Future<void> _publishOwnProfile(String userId) async {
+    final now = DateTime.now();
+    if (_lastProfilePublishAt != null &&
+        now.difference(_lastProfilePublishAt!).inMinutes < 5) {
+      Logger.warn('[profile-publish] skipped by guard',
+          extras: {'lastPublish': _lastProfilePublishAt!.toIso8601String()});
+      return;
+    }
+    try {
+      final pb = PocketBaseClient.instance.pb;
+      final authService = PocketBaseAuthService(
+        pocketBase: pb,
+        storage: StorageService(),
+      );
+      await authService.ensureAuth(userId);
+
+      final deviceInfo = await DeviceInfoService.instance.getDeviceInfo();
+      final publicKey = await StorageService().read('publicKey');
+      if (publicKey == null || publicKey.isEmpty) {
+        Logger.warn('[profile-publish] publicKey missing, publishing without');
+      }
+      final registeredAt = await StorageService().read('registeredAt');
+      final body = <String, dynamic>{
+        'userId': userId,
+        'deviceModel': deviceInfo.deviceModel,
+        'platform': deviceInfo.platformType,
+        'appVersion': deviceInfo.appVersion,
+        'registeredAt': registeredAt ?? DateTime.now().toIso8601String(),
+        'isOnline': true,
+        'lastSeen': DateTime.now().toIso8601String(),
+      };
+      if (publicKey != null && publicKey.isNotEmpty) {
+        body['publicKey'] = publicKey;
+      }
+
+      await _upsertProfile(pb, userId, body);
+      _lastProfilePublishAt = now;
+      Logger.info('[profile-publish] profile published',
+          extras: {'userId': userId, 'deviceModel': deviceInfo.deviceModel});
+    } catch (error) {
+      Logger.warn('[profile-publish] error', extras: {'error': error});
+    }
+  }
+
+  Future<void> _upsertProfile(
+      PocketBase pb, String userId, Map<String, dynamic> body) async {
+    try {
+      final existing = await pb
+          .collection('user_profiles')
+          .getFirstListItem('userId="$userId"');
+      await pb.collection('user_profiles').update(existing.id, body: body);
+      Logger.debug('[profile-publish] profile updated');
+    } catch (_) {
+      await pb.collection('user_profiles').create(body: body);
+      Logger.debug('[profile-publish] profile created');
+    }
+  }
+
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final IdentityService _identity = IdentityService();
   final ContactService _contacts = ContactService();
@@ -57,6 +122,11 @@ class LocalAppService {
   final ChatManagementService _chatMgmt = ChatManagementService();
   final DashboardService _dashboard = DashboardService();
   final GroupSecretService _groupSecrets = GroupSecretService();
+  final UserDirectoryService _userDirectory = UserDirectoryService();
+  final PresenceService _presence = PresenceService();
+
+  bool _pbWorkersStarted = false;
+  DateTime? _lastProfilePublishAt;
 
   // Message-domain methods delegate to MessageService (task #6).
   Future<String> encryptMessage(String content, String otherUserId,
@@ -86,7 +156,29 @@ class LocalAppService {
   Future<void> registerUser(String nickname) =>
       _identity.registerUser(nickname);
 
+  Future<void> startPBBasedWorkers() async {
+    if (_pbWorkersStarted) return;
+    _pbWorkersStarted = true;
+    final me = await _identity.getUserId();
+    if (me == null || me.isEmpty) return;
+    try {
+      await _publishOwnProfile(me);
+      await _presence.start(me);
+      final profiles = await _userDirectory.fetchAllProfiles(me);
+      await _userDirectory.syncToLocalContacts(profiles);
+      _presence.startHeartbeat();
+    } catch (error) {
+      Logger.warn('[bootstrap] PB workers failed, will retry on next app start',
+          extras: {'error': error});
+    }
+  }
+
   Future<void> logout() async {
+    await _presence.setOffline();
+    _presence.dispose();
+    _userDirectory.clearCache();
+    _pbWorkersStarted = false;
+    _lastProfilePublishAt = null;
     await _identity.logout();
     _messages.clearCaches();
     _groupSecrets.clearOnLogout();

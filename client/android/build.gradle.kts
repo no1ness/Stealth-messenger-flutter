@@ -5,7 +5,7 @@ allprojects {
     }
     configurations.all {
         resolutionStrategy {
-            force("io.github.webrtc-sdk:android:120.6099.03")
+            force("io.github.webrtc-sdk:android:144.7559.09")
         }
     }
 }

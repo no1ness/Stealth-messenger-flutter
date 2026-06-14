@@ -55,6 +55,7 @@ class AccessibilityIds {
   static const String chatTileUnreadBadge = 'Chat unread count';
 
   // ContactTile (extracted from contacts_screen)
+  static const String contactPresenceIndicator = 'Contact presence indicator';
   static const String contactTileTrailing = 'Contact actions';
   static const String contactTileVerificationBadge = 'Verification status';
 
