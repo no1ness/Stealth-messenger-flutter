@@ -123,4 +123,40 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'ghostBuilder provides distinct widgets for ghost layers',
+    (tester) async {
+      const childKey = ValueKey('real-child');
+      const ghostKey = ValueKey('ghost-layer');
+      await tester.pumpWidget(wrap(
+        ThemeMode.dark,
+        ChromaticAberration(
+          intensity: 1.0,
+          child: const SizedBox(key: childKey, width: 100, height: 20),
+          ghostBuilder: (_) => const SizedBox(key: ghostKey),
+        ),
+      ));
+      // Real child is rendered once as the interactive baseline.
+      expect(find.byKey(childKey), findsOneWidget);
+      // Ghost builder is called for both ghost layers (red + cyan).
+      expect(find.byKey(ghostKey), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'null ghostBuilder falls back to child for ghost layers',
+    (tester) async {
+      const childKey = ValueKey('backward-compat-child');
+      await tester.pumpWidget(wrap(
+        ThemeMode.dark,
+        const ChromaticAberration(
+          intensity: 1.0,
+          child: SizedBox(key: childKey, width: 100, height: 20),
+        ),
+      ));
+      // Without ghostBuilder the child is rendered 3× (baseline + two ghosts).
+      expect(find.byKey(childKey), findsNWidgets(3));
+    },
+  );
 }

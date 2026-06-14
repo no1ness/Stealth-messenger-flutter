@@ -24,12 +24,22 @@ import '../constants/app_effects.dart';
 /// small subtrees (a single input, a small badge) — do NOT wrap a
 /// full screen. Wrapped in `RepaintBoundary` so the ghosts don't
 /// invalidate sibling subtrees.
+///
+/// **Ghost-layer escape hatch.** Pass [ghostBuilder] to supply a
+/// cheaper subtree for the two coloured ghost layers while keeping
+/// the full [child] as the interactive baseline. On web, for example,
+/// you can pass a lightweight border-only widget to avoid rendering
+/// an expensive input subtree three times — see
+/// `GlassTextField._GlassFieldGhost`. When [ghostBuilder] is null
+/// (the default) the ghost layers fall back to [child] for backward
+/// compatibility.
 class ChromaticAberration extends StatelessWidget {
   const ChromaticAberration({
     super.key,
     required this.child,
     this.intensity = 1.0,
     this.force = false,
+    this.ghostBuilder,
   });
 
   final Widget child;
@@ -42,6 +52,16 @@ class ChromaticAberration extends StatelessWidget {
   /// Test-only escape hatch for the dark-mode-only gate.
   final bool force;
 
+  /// Optional builder for the two coloured ghost layers.
+  ///
+  /// When non-null, each ghost layer calls [ghostBuilder] instead of
+  /// rendering [child], saving [child] from being built three times.
+  /// The interactive baseline always uses [child].
+  ///
+  /// Default: null (ghost layers use [child], preserving the original
+  /// three-build behaviour).
+  final WidgetBuilder? ghostBuilder;
+
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
@@ -52,7 +72,10 @@ class ChromaticAberration extends StatelessWidget {
       return child;
     }
     final dx = AppEffects.aberrationDxPx * intensity;
-    debugPrint('[fx:aberration] mount brightness=$brightness dx=$dx');
+    final ghost = ghostBuilder != null ? ghostBuilder!(context) : child;
+    debugPrint(
+      '[fx:aberration] mount brightness=$brightness dx=$dx ghostBuilder=${ghostBuilder != null}',
+    );
     return RepaintBoundary(
       child: Stack(
         children: [
@@ -68,7 +91,7 @@ class ChromaticAberration extends StatelessWidget {
                       Color(0xFFFF1A1A),
                       BlendMode.srcATop,
                     ),
-                    child: child,
+                    child: ghost,
                   ),
                 ),
               ),
@@ -86,7 +109,7 @@ class ChromaticAberration extends StatelessWidget {
                       Color(0xFF1AFFFF),
                       BlendMode.srcATop,
                     ),
-                    child: child,
+                    child: ghost,
                   ),
                 ),
               ),

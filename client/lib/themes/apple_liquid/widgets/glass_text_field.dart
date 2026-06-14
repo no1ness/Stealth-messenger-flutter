@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
@@ -40,6 +41,38 @@ class GlassTextField extends StatefulWidget {
   State<GlassTextField> createState() => _GlassTextFieldState();
 }
 
+BoxDecoration _glassFieldDecoration({
+  required bool focused,
+  required Color fillColor,
+}) {
+  return BoxDecoration(
+    color: fillColor,
+    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+    border: Border.all(
+      color: focused
+          ? AppColors.systemBlue
+          : AppColors.glassMedium.withValues(alpha: 0.3),
+      width: focused ? 2 : 1,
+    ),
+  );
+}
+
+class _GlassFieldGhost extends StatelessWidget {
+  const _GlassFieldGhost({required this.focused});
+
+  final bool focused;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _glassFieldDecoration(
+        focused: focused,
+        fillColor: Colors.transparent,
+      ),
+    );
+  }
+}
+
 class _GlassTextFieldState extends State<GlassTextField>
     with SingleTickerProviderStateMixin {
   late FocusNode _focusNode;
@@ -61,6 +94,9 @@ class _GlassTextFieldState extends State<GlassTextField>
       duration: AppMotion.normal,
       value: 0,
     );
+    if (kIsWeb) {
+      debugPrint('[ds:glass-text-field] perf-budget cheap-ghost path active');
+    }
   }
 
   @override
@@ -108,18 +144,11 @@ class _GlassTextFieldState extends State<GlassTextField>
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: _isFocused
+                  decoration: _glassFieldDecoration(
+                    focused: _isFocused,
+                    fillColor: _isFocused
                         ? AppColors.glassMedium
                         : AppColors.glassUltraDark,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(
-                      color: _isFocused
-                          ? AppColors.systemBlue
-                          : AppColors.glassMedium.withValues(alpha: 0.3),
-                      width: _isFocused ? 2 : 1,
-                    ),
                   ),
                   child: TextFormField(
                     controller: widget.controller,
@@ -158,6 +187,9 @@ class _GlassTextFieldState extends State<GlassTextField>
             if (_aberrationCtrl.value <= 0.01) return input;
             return ChromaticAberration(
               intensity: _aberrationCtrl.value,
+              ghostBuilder: kIsWeb
+                  ? (ctx) => _GlassFieldGhost(focused: _isFocused)
+                  : null,
               child: input,
             );
           },
