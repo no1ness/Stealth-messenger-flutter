@@ -11,9 +11,11 @@ import 'services/contacts/contact_service.dart';
 import 'services/crypto/group_secret_service.dart';
 import 'services/dashboard/dashboard_service.dart';
 import 'services/device/device_info_service.dart';
+import 'services/diagnostics/diagnostics_service.dart';
 import 'services/identity/identity_service.dart';
 import 'services/messaging/message_service.dart';
 import 'storage_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'services/signaling/pocketbase_auth_service.dart';
 import 'services/signaling/pocketbase_client.dart';
@@ -34,7 +36,17 @@ class LocalAppService {
     // Background workers must start AFTER all callback wiring is done so
     // they never observe a half-wired service. See `_kickoffBackgroundWorkers`.
     unawaited(_kickoffBackgroundWorkers());
+    Logger.info('[app] diagnostics factory ready');
   }
+
+  DiagnosticsService createDiagnostics() => DiagnosticsService(
+        dashboardSummary: _dashboard.getDashboardSummary,
+        attachmentDebugSummary: _attachments.getStorageDebugSummary,
+        getUserId: _identity.getUserId,
+        p2pActiveChannelCount: () => P2PService.instance.activeChannelCount,
+        p2pRetryWorkerRunning: () => P2PService.instance.retryWorkerRunning,
+        pocketbaseUrl: () => dotenv.env['POCKETBASE_URL']?.trim(),
+      );
 
   Future<void> _kickoffBackgroundWorkers() async {
     try {

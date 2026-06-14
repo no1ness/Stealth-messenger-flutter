@@ -273,6 +273,12 @@ class P2PService {
     };
   }
 
+  bool _retryWorkerStarted = false;
+
+  int get activeChannelCount => _signalingSubs.length;
+
+  bool get retryWorkerRunning => _retryWorkerStarted;
+
   /// Returns aggregated connection stats for the monitoring dashboard.
   Map<String, dynamic> getConnectionStats() {
     final openChannels = _dataChannels.values
@@ -321,6 +327,7 @@ class P2PService {
       if (chatId == null || chatId.isEmpty) continue;
       await _tryDeliverPending(chatId: chatId, row: message);
     }
+    _retryWorkerStarted = true;
   }
 
   /// Pump pending outgoing rows for a single chat. Invoked from the

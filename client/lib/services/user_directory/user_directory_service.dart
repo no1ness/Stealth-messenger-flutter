@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/contacts/contact_service.dart';
@@ -14,19 +15,34 @@ class UserDirectoryService {
   factory UserDirectoryService() => _instance;
   UserDirectoryService._({
     PocketBase? pocketBase,
-  }) : _pb = pocketBase ?? PocketBaseClient.instance.pb;
+  })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
+        _authService = PocketBaseAuthService(
+          pocketBase: PocketBaseClient.instance.pb,
+          storage: StorageService(),
+        ),
+        _contacts = ContactService(),
+        _presence = PresenceService();
+
+  @visibleForTesting
+  UserDirectoryService.test({
+    required PocketBase pocketBase,
+    PocketBaseAuthService? authService,
+    ContactService? contactService,
+    PresenceService? presenceService,
+  })  : _pb = pocketBase,
+        _authService = authService ?? PocketBaseAuthService(
+          pocketBase: PocketBaseClient.instance.pb,
+          storage: StorageService(),
+        ),
+        _contacts = contactService ?? ContactService(),
+        _presence = presenceService ?? PresenceService();
 
   static final UserDirectoryService _instance = UserDirectoryService._();
 
   final PocketBase _pb;
-
-  final PocketBaseAuthService _authService = PocketBaseAuthService(
-    pocketBase: PocketBaseClient.instance.pb,
-    storage: StorageService(),
-  );
-
-  final ContactService _contacts = ContactService();
-  final PresenceService _presence = PresenceService();
+  final PocketBaseAuthService _authService;
+  final ContactService _contacts;
+  final PresenceService _presence;
 
   List<Map<String, dynamic>> _cachedProfiles = [];
   StreamSubscription<Map<String, dynamic>>? _presenceSub;

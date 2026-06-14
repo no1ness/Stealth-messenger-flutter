@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
@@ -17,17 +18,29 @@ class PresenceService with WidgetsBindingObserver {
     PocketBase? pocketBase,
     Connectivity? connectivity,
   })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
-        _connectivity = connectivity ?? Connectivity();
+        _connectivity = connectivity ?? Connectivity(),
+        _authService = PocketBaseAuthService(
+          pocketBase: PocketBaseClient.instance.pb,
+          storage: StorageService(),
+        );
+
+  @visibleForTesting
+  PresenceService.test({
+    required PocketBase pocketBase,
+    required Connectivity connectivity,
+    PocketBaseAuthService? authService,
+  })  : _pb = pocketBase,
+        _connectivity = connectivity,
+        _authService = authService ?? PocketBaseAuthService(
+          pocketBase: PocketBaseClient.instance.pb,
+          storage: StorageService(),
+        );
 
   static final PresenceService _instance = PresenceService._();
 
   final PocketBase _pb;
   final Connectivity _connectivity;
-
-  final PocketBaseAuthService _authService = PocketBaseAuthService(
-    pocketBase: PocketBaseClient.instance.pb,
-    storage: StorageService(),
-  );
+  final PocketBaseAuthService _authService;
 
   final StreamController<Map<String, dynamic>> _presenceController =
       StreamController<Map<String, dynamic>>.broadcast();
