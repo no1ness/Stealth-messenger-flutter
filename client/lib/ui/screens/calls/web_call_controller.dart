@@ -251,6 +251,7 @@ class WebCallController extends ChangeNotifier {
         'purpose': 'call',
         'nickname': nickname ?? '',
         'callType': isVideoCall ? 'video' : 'audio',
+        'creatorUuid': selfUserId,
       },
     );
   }

@@ -457,6 +457,13 @@ class WebCallMediaBindings {
   }) {
     final raw = urlsEnv?.trim();
     if (raw == null || raw.isEmpty) return;
+    // PocketBase 0.23+ returns turn-like entries with empty credentials
+    // when TURN is not configured. Skip those to avoid sending
+    // `RTCIceServer` with empty username/credential.
+    final user = userEnv?.trim();
+    final pass = passEnv?.trim();
+    if (user == null || user.isEmpty) return;
+    if (pass == null || pass.isEmpty) return;
     final urls = raw
         .split(',')
         .map((u) => u.trim())

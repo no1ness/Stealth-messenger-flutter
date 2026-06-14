@@ -32,8 +32,12 @@ class CallManager extends StatefulWidget {
 
 class _CallManagerState extends State<CallManager> {
   final LocalAppService _appService = LocalAppService();
-  final IncomingCallSignalingService _incomingCallService =
-      IncomingCallSignalingService();
+  late final IncomingCallSignalingService _incomingCallService =
+      IncomingCallSignalingService(
+    knownPeerUuidsProvider: () => _knownContactUuidsCache,
+  );
+
+  List<String> _knownContactUuidsCache = const <String>[];
 
   StreamSubscription<IncomingCallEvent>? _eventsSub;
   String? _currentUserId;
@@ -62,6 +66,20 @@ class _CallManagerState extends State<CallManager> {
       Logger.warn(
           '[stealth-call] CallManager NOT subscribing (userId null or not mounted)');
       return;
+    }
+
+    // Warm the contact UUID cache for PbUserIdResolver reverse lookup.
+    try {
+      final rawContacts = await _appService.getContacts();
+      _knownContactUuidsCache = rawContacts
+          .map((c) => (c is Map ? c['user_id']?.toString() ?? '' : '') as String)
+          .where((id) => id.isNotEmpty)
+          .toList();
+      Logger.info('[stealth-call] contact cache warmed',
+          extras: {'count': _knownContactUuidsCache.length});
+    } catch (error) {
+      Logger.warn('[stealth-call] contact cache load error',
+          extras: {'error': error});
     }
 
     Logger.info(

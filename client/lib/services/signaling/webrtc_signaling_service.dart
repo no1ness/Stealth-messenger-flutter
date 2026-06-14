@@ -55,6 +55,7 @@ class WebRtcSignalingService implements SignalingTransport {
   final PocketBase _pb;
   final Connectivity _connectivity;
   final PocketBaseAuthService _authService;
+  final Set<String> _knownUserIds = <String>{};
 
   final StreamController<RtcMessage> _incomingController =
       StreamController<RtcMessage>.broadcast();
@@ -89,6 +90,9 @@ class WebRtcSignalingService implements SignalingTransport {
         extras: {'roomId': roomId, 'selfUserId': selfUserId});
     _activeRoomId = roomId;
     _activeSelfUserId = selfUserId;
+    _knownUserIds.add(selfUserId);
+
+    Logger.debug('[signaling] connect _knownUserIds size=${_knownUserIds.length}');
 
     await _authService.ensureAuth(selfUserId);
     await _subscribe();
@@ -176,6 +180,7 @@ class WebRtcSignalingService implements SignalingTransport {
         'WebRtcSignalingService.connect must be called before sending messages',
       );
     }
+    _knownUserIds.add(targetUserId);
     final pbCreator = pbIdFromLocalUuid(selfUserId);
     final pbTarget = pbIdFromLocalUuid(targetUserId);
     final body = <String, dynamic>{
@@ -254,7 +259,8 @@ class WebRtcSignalingService implements SignalingTransport {
     if (selfUserId == null) return;
     if (target != pbIdFromLocalUuid(selfUserId)) return;
     try {
-      final message = RtcMessage.fromRecord(record);
+      final resolver = PbUserIdResolver(_knownUserIds);
+      final message = RtcMessage.fromRecord(record, resolver: resolver);
       Logger.info('[signaling] recv', extras: {
         'type': message.type.wireValue,
         'roomId': message.roomId,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
@@ -71,20 +72,28 @@ class IncomingCallHangup extends IncomingCallEvent {
 /// сервис ловит ВСЕ события `target=selfUserId` независимо от roomId
 /// — поэтому именно он отвечает за приём `offer` (= новый звонок) и
 /// `hangup` от ещё не отвеченных звонков.
+///
+/// [knownPeerUuidsProvider] supplies known contact UUIDs so that incoming
+/// records can be resolved from 15-char PB ids back to local UUIDs. Defaults
+/// to an empty list provider.
 class IncomingCallSignalingService {
   IncomingCallSignalingService({
     PocketBase? pocketBase,
     StorageService? storage,
     PocketBaseAuthService? authService,
+    Iterable<String> Function()? knownPeerUuidsProvider,
   })  : _pb = pocketBase ?? PocketBaseClient.instance.pb,
         _authService = authService ??
             PocketBaseAuthService(
               pocketBase: pocketBase ?? PocketBaseClient.instance.pb,
               storage: storage ?? StorageService(),
-            );
+            ),
+        _knownPeerUuidsProvider =
+            knownPeerUuidsProvider ?? (() => const <String>[]);
 
   final PocketBase _pb;
   final PocketBaseAuthService _authService;
+  final Iterable<String> Function() _knownPeerUuidsProvider;
   final StreamController<IncomingCallEvent> _eventsController =
       StreamController<IncomingCallEvent>.broadcast();
 
@@ -171,7 +180,17 @@ class IncomingCallSignalingService {
     final typeRaw = record.getStringValue('type');
     if (typeRaw != 'offer' && typeRaw != 'hangup') return;
     try {
-      final message = RtcMessage.fromRecord(record);
+      final knownUuids = <String>[
+        if (_selfUserId != null) _selfUserId!,
+        ..._knownPeerUuidsProvider(),
+      ];
+      final resolver = PbUserIdResolver(knownUuids);
+      final message = RtcMessage.fromRecord(record, resolver: resolver);
+      debugPrint(
+        '[incoming] resolved creatorUuid=${message.payload['creatorUuid']} '
+        'pbCreator=${record.getStringValue('creator')} '
+        'knownUuids=${knownUuids.length}',
+      );
       switch (message.type) {
         case RtcMessageType.offer:
           if (message.payload['purpose'] == 'datachannel') {

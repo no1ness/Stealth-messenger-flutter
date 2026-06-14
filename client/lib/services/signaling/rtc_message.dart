@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
@@ -52,7 +53,14 @@ class RtcMessage {
     required this.created,
   });
 
-  factory RtcMessage.fromRecord(RecordModel record) {
+  factory RtcMessage.fromRecord(
+    RecordModel record, {
+    PbUserIdResolver? resolver,
+  }) {
+    final r = resolver ?? PbUserIdResolver.empty;
+    if (resolver == null) {
+      debugPrint('[rtc] no resolver provided, using empty');
+    }
     final typeRaw = record.getStringValue('type');
     final type = RtcMessageType.fromString(typeRaw);
     final payloadRaw = record.data['payload'];
@@ -60,15 +68,16 @@ class RtcMessage {
         ? Map<String, dynamic>.from(payloadRaw)
         : <String, dynamic>{};
     final roomId = record.getStringValue('roomId');
-    // Wire-level `creator` / `target` are PocketBase record ids and may be
-    // truncated to satisfy PocketBase id limits. New clients therefore carry
-    // full local ids inside payload; legacy records fall back to best-effort
-    // PB-id conversion.
-    final creator = payload['creatorLocalId']?.toString() ??
+    // Wire-level `creator` / `target` are 15-char SHA-256 PB ids.
+    // New clients carry `creatorUuid` in payload for direct UUID resolution;
+    // fall back to the resolver for reverse lookup (or passthrough for legacy
+    // test fixtures).
+    final creator = payload['creatorUuid']?.toString() ??
+        payload['creatorLocalId']?.toString() ??
         payload['fromUserId']?.toString() ??
-        localUuidFromPbId(record.getStringValue('creator'));
+        r.localUuidFromPbId(record.getStringValue('creator'));
     final target = payload['targetLocalId']?.toString() ??
-        localUuidFromPbId(record.getStringValue('target'));
+        r.localUuidFromPbId(record.getStringValue('target'));
     final created = DateTime.tryParse(record.get<String>('created')) ??
         DateTime.now().toUtc();
 

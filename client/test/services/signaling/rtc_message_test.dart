@@ -231,7 +231,8 @@ void main() {
 
   group('PocketBase id translation', () {
     const localUuid = '550e8400-e29b-41d4-a716-446655440000';
-    const pbId = '550e8400e29b41d';
+    // SHA-256(utf8.encode(localUuid)).substring(0, 15)
+    const shaPbId = 'a3a9e1ed9732cab';
 
     test('fromRecord prefers full local ids carried in payload', () {
       final record = RecordModel({
@@ -239,9 +240,9 @@ void main() {
         'created': '2026-05-14 00:00:00.000Z',
         'collectionName': 'rtc_signaling',
         'roomId': 'room-1',
-        // Wire-level ids do NOT contain dashes (PocketBase record ids).
-        'creator': pbId,
-        'target': pbId,
+        // Wire-level ids are 15-char SHA-256 prefixes (PocketBase record ids).
+        'creator': shaPbId,
+        'target': shaPbId,
         'type': 'offer',
         'payload': const <String, dynamic>{
           'creatorLocalId': localUuid,
@@ -261,19 +262,19 @@ void main() {
         'created': '2026-05-14 00:00:00.000Z',
         'collectionName': 'rtc_signaling',
         'roomId': 'room-1',
-        'creator': pbId,
-        'target': pbId,
+        'creator': shaPbId,
+        'target': shaPbId,
         'type': 'offer',
         'payload': const <String, dynamic>{},
       });
 
       final msg = RtcMessage.fromRecord(record);
 
-      expect(msg.creator, pbId);
-      expect(msg.target, pbId);
+      expect(msg.creator, shaPbId);
+      expect(msg.target, shaPbId);
     });
 
-    test('toCreateBody strips dashes when emitting wire payload', () {
+    test('toCreateBody emits SHA-256 PB id for wire payload', () {
       final msg = RtcMessage(
         id: '',
         roomId: 'room-1',
@@ -286,8 +287,8 @@ void main() {
 
       final body = msg.toCreateBody();
 
-      expect(body['creator'], pbId);
-      expect(body['target'], pbId);
+      expect(body['creator'], shaPbId);
+      expect(body['target'], shaPbId);
     });
   });
 }
