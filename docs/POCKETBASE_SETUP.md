@@ -98,19 +98,19 @@ production убедись что URL — HTTPS, и cert доверен устр�
 3. Name: `rtc_signaling`, Type: `Base`
 4. Добавь поля:
 
-   | Поле | Тип | Required |
-   |------|-----|----------|
-   | `roomId` | text | да |
-   | `sender` | text | да |
-   | `target` | text | да |
-   | `payload` | json | нет |
-   | `type` | text | да |
+| Поле | Тип | Required |
+|------|-----|----------|
+| `roomId` | text | да |
+| `creator` | text | да |
+| `target` | text | да |
+| `payload` | json | нет |
+| `type` | text | да |
 
 5. API Rules (вкладка после полей):
 
-   - **List rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
-   - **View rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
-   - **Create rule**: `(target = @request.auth.id) || (sender = @request.auth.id)`
+   - **List rule**: `(target = @request.auth.id) || (creator = @request.auth.id)`
+   - **View rule**: `(target = @request.auth.id) || (creator = @request.auth.id)`
+   - **Create rule**: `(target = @request.auth.id) || (creator = @request.auth.id)`
    - **Update rule**: оставь пустым
    - **Delete rule**: оставь пустым
 
@@ -121,11 +121,11 @@ production убедись что URL — HTTPS, и cert доверен устр�
 ```json
 [{"name":"rtc_signaling","type":"base","schema":[
   {"name":"roomId","type":"text","required":true,"id":"room"},
-  {"name":"sender","type":"text","required":true,"id":"sender"},
+  {"name":"creator","type":"text","required":true,"id":"creator"},
   {"name":"target","type":"text","required":true,"id":"target"},
   {"name":"payload","type":"json"},
   {"name":"type","type":"text","required":true,"id":"type"}
-],"listRule":"(target = @request.auth.id) || (sender = @request.auth.id)","viewRule":"(target = @request.auth.id) || (sender = @request.auth.id)","createRule":"(target = @request.auth.id) || (sender = @request.auth.id)"}]
+],"listRule":"(target = @request.auth.id) || (creator = @request.auth.id)","viewRule":"(target = @request.auth.id) || (creator = @request.auth.id)","createRule":"(target = @request.auth.id) || (creator = @request.auth.id)"}]
 ```
 
 ### Схема полей
@@ -133,10 +133,10 @@ production убедись что URL — HTTPS, и cert доверен устр�
 | Поле | Тип | Required | Заметки |
 |------|-----|----------|---------|
 | `roomId` | text | да | равен chatId для 1-к-1 звонков |
-| `sender` | text | да | PocketBase `users.id` отправителя |
-| `target` | text | да | PocketBase `users.id` получателя |
+| `creator` | text | да | PocketBase `users.id` отправителя (15-char SHA-256) |
+| `target` | text | да | PocketBase `users.id` получателя (15-char SHA-256) |
 | `type` | text | да | значения: `offer`, `answer`, `candidate`, `hangup` |
-| `payload` | json | нет | сырой SDP / candidate + `creatorLocalId` / `targetLocalId` |
+| `payload` | json | нет | сырой SDP / candidate + `creatorUuid` / `targetLocalId` |
 
 ### Индексы (опционально, Settings → Indexes)
 
@@ -149,28 +149,28 @@ CREATE INDEX idx_rtc_signaling_room
 
 ## 3. API rules
 
-Rules на коллекции `rtc_signaling` (текущие для схемы с `sender`):
+Rules на коллекции `rtc_signaling` (текущие для схемы с `creator`):
 
 - **List / View rule**
 
   ```
-  (target = @request.auth.id) || (sender = @request.auth.id)
+  (target = @request.auth.id) || (creator = @request.auth.id)
   ```
 
 - **Create rule**
 
   ```
-  (target = @request.auth.id) || (sender = @request.auth.id)
+  (target = @request.auth.id) || (creator = @request.auth.id)
   ```
 
 - **Update rule**: пусто (никто не может менять)
 - **Delete rule**: пусто (никто не может удалять)
 
 Lazy auth-флоу Stealth регистрирует per-device PocketBase аккаунт с
-детерминированным PB-id, полученным из локального UUID через
-`pbIdFromLocalUuid`. Полные локальные UUID передаются в
-`payload.creatorLocalId` / `payload.targetLocalId` для UI, истории звонков
-и сопоставления с локальными контактами.
+детерминированным 15-char PB-id — SHA-256(локальный UUID)[:15] (через
+`pbIdFromLocalUuid`). Полные локальные UUID передаются в
+`payload.creatorUuid` / `payload.targetLocalId` для UI, истории звонков
+и сопоставления с локальными контактами (`PbUserIdResolver`).
 
 ## 4. Коллекция `user_profiles`
 
