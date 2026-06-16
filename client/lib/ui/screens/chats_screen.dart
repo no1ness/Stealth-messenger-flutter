@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +16,8 @@ import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
+import 'package:stealth/ui/screens/chats/chat_search_bar.dart';
+import 'package:stealth/ui/screens/chats/insight_panel.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/p2p_service.dart';
 
@@ -38,7 +39,10 @@ class _ChatsScreenState extends State<ChatsScreen>
   final LocalAppService _appService = LocalAppService();
   final ScrollController _messagesScrollController = ScrollController();
   final Map<String, StreamSubscription> _activeSubscriptions = {};
-  Timer? _searchDebounce;
+  Timer? _messageSearchDebounce;
+  Timer? _loadChatsDebounce;
+  List<Map<String, dynamic>> _filteredChats = const [];
+  List<Map<String, dynamic>> _filteredMessages = const [];
 
   bool _loading = true;
   bool _loadingMessages = false;
@@ -85,12 +89,13 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
+            _updateFilters();
             _scheduleScrollToBottom();
           }
         });
       }
       // If the chat is in the list, we might want to update last message preview
-      unawaited(_loadChats());
+      _debouncedLoadChats();
     });
   }
 
@@ -100,7 +105,8 @@ class _ChatsScreenState extends State<ChatsScreen>
     if (selectedChatId != null) {
       _appService.setTypingStatus(chatId: selectedChatId, isTyping: false);
     }
-    _searchDebounce?.cancel();
+    _messageSearchDebounce?.cancel();
+    _loadChatsDebounce?.cancel();
     _searchController.dispose();
     _groupNameController.dispose();
     _messageSearchController.dispose();
@@ -196,6 +202,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       setState(() {
         _chats = chats;
         _loading = false;
+        _updateFilters();
       });
 
       if (_pendingInitialChatId != null &&
@@ -266,6 +273,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       _loadingMessages = false;
       _hasMoreMessages = rows.length >= 40;
       _pinnedMessage = pinnedMessage;
+      _updateFilters();
     });
 
     await _appService.markChatRead(chatId);
@@ -310,6 +318,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       ];
       _loadingOlderMessages = false;
       _hasMoreMessages = rows.length >= 30;
+      _updateFilters();
     });
   }
 
@@ -347,6 +356,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 (left, right) => (left['created_at'] as String)
                     .compareTo(right['created_at'] as String),
               );
+            _updateFilters();
             _scheduleScrollToBottom();
           }
         });
@@ -514,12 +524,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     };
   }
 
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-
+  void _updateFilters() {
     final query = _searchController.text.trim().toLowerCase();
-    final filteredChats = query.isEmpty
+    _filteredChats = query.isEmpty
         ? _chats
         : _chats
             .where(
@@ -528,12 +535,8 @@ class _ChatsScreenState extends State<ChatsScreen>
             )
             .toList();
 
-    final currentChat = _chats.firstWhere(
-      (chat) => chat['id'] == _selectedChatId,
-      orElse: () => const {'name': 'Chat'},
-    );
     final messageQuery = _messageSearchController.text.trim().toLowerCase();
-    final visibleMessages = messageQuery.isEmpty
+    _filteredMessages = messageQuery.isEmpty
         ? _messages
         : _messages
             .where(
@@ -542,6 +545,28 @@ class _ChatsScreenState extends State<ChatsScreen>
                   .contains(messageQuery),
             )
             .toList();
+  }
+
+  void _debouncedLoadChats() {
+    _loadChatsDebounce?.cancel();
+    _loadChatsDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        if (mounted) {
+          _loadChats();
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    final currentChat = _chats.firstWhere(
+      (chat) => chat['id'] == _selectedChatId,
+      orElse: () => const {'name': 'Chat'},
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -606,28 +631,28 @@ class _ChatsScreenState extends State<ChatsScreen>
               children: [
                 SizedBox(
                   width: 360,
-                  child: _buildChatListPanel(filteredChats, showStats: true),
+                  child: _buildChatListPanel(_filteredChats, showStats: true),
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: _selectedChatId == null
                       ? const StealthEmptyState.chats()
-                      : _buildConversationPanel(visibleMessages),
+                      : _buildConversationPanel(_filteredMessages),
                 ),
                 const VerticalDivider(width: 1),
                 SizedBox(
                   width: 280,
-                  child: _buildInsightPanel(filteredChats.length),
+                  child: _buildInsightPanel(_filteredChats.length),
                 ),
               ],
             );
           }
 
           if (_selectedChatId == null) {
-            return _buildChatListPanel(filteredChats, showStats: false);
+            return _buildChatListPanel(_filteredChats, showStats: false);
           }
 
-          return _buildConversationPanel(visibleMessages);
+          return _buildConversationPanel(_filteredMessages);
         },
       ),
     );
@@ -644,27 +669,15 @@ class _ChatsScreenState extends State<ChatsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              ChatSearchBar(
                 controller: _searchController,
-                onChanged: (_) {
-                  _searchDebounce?.cancel();
-                  _searchDebounce = Timer(
-                    const Duration(milliseconds: 200),
-                    () { if (mounted) setState(() {}); },
-                  );
+                onSearchChanged: () {
+                  if (mounted) {
+                    setState(() {
+                      _updateFilters();
+                    });
+                  }
                 },
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search chats',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.1),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
               ),
               if (showStats) ...[
                 const SizedBox(height: 14),
@@ -771,14 +784,26 @@ class _ChatsScreenState extends State<ChatsScreen>
       pinnedMessage: _pinnedMessage,
       messageSearchController: _messageSearchController,
       searchInConversation: _searchInConversation,
-      onSearchChanged: () => setState(() {
-        _searchInConversation =
-            _messageSearchController.text.trim().isNotEmpty;
-      }),
+      onSearchChanged: () {
+        _messageSearchDebounce?.cancel();
+        _messageSearchDebounce = Timer(
+          const Duration(milliseconds: 200),
+          () {
+            if (mounted) {
+              setState(() {
+                _searchInConversation =
+                    _messageSearchController.text.trim().isNotEmpty;
+                _updateFilters();
+              });
+            }
+          },
+        );
+      },
       onSearchCleared: () {
         _messageSearchController.clear();
         setState(() {
           _searchInConversation = false;
+          _updateFilters();
         });
       },
       scrollController: _messagesScrollController,
@@ -819,65 +844,10 @@ class _ChatsScreenState extends State<ChatsScreen>
   }
 
   Widget _buildInsightPanel(int visibleChats) {
-    final theme = Theme.of(context);
-    final values = [
-      _messages.isEmpty ? 0.18 : 0.68,
-      visibleChats == 0 ? 0.12 : 0.54,
-      kIsWeb ? 0.74 : 0.49,
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Session insight', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _InsightTile(
-            label: 'Realtime sync',
-            value: 'Active',
-            accent: AppColors.systemGreen,
-          ),
-          const SizedBox(height: 10),
-          _InsightTile(
-            label: 'Platform',
-            value: kIsWeb ? 'Web' : 'Mobile',
-            accent: AppColors.systemBlue,
-          ),
-          const SizedBox(height: 10),
-          _InsightTile(
-            label: 'Current user',
-            value: _myUserId == null ? 'Unknown' : _myUserId!.substring(0, 8),
-            accent: AppColors.systemOrange,
-          ),
-          const SizedBox(height: 22),
-          Text('Load profile', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 130,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: values
-                  .map(
-                    (value) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 240),
-                          height: 110 * value,
-                          decoration: BoxDecoration(
-                            color: AppColors.systemBlue.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
+    return InsightPanel(
+      messageCount: _messages.length,
+      visibleChatCount: visibleChats,
+      myUserId: _myUserId,
     );
   }
 
@@ -1040,52 +1010,6 @@ class _StatCard extends StatelessWidget {
             Text(value, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InsightTile extends StatelessWidget {
-  const _InsightTile({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: accent,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label)),
-            Text(
-              value,
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
           ],
         ),
       ),

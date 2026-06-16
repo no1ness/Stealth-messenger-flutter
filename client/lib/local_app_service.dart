@@ -24,7 +24,16 @@ import 'services/user_directory/presence_service.dart';
 import 'services/user_directory/user_directory_service.dart';
 
 class LocalAppService {
-  LocalAppService() {
+  LocalAppService._();
+  static final LocalAppService _instance = LocalAppService._();
+  factory LocalAppService() => _instance;
+
+  bool _initialized = false;
+  bool _workersStarted = false;
+
+  void init() {
+    if (_initialized) return;
+    _initialized = true;
     // Group-encryption callbacks route through GroupSecretService
     // (FIX_PLAN Phase D) — secrets live there, not in this facade.
     _messages.attachGroupCrypto(
@@ -50,6 +59,8 @@ class LocalAppService {
       );
 
   Future<void> _kickoffBackgroundWorkers() async {
+    if (_workersStarted) return;
+    _workersStarted = true;
     try {
       await P2PService.instance.startRetryWorker();
     } catch (error) {

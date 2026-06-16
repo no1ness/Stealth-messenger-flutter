@@ -187,9 +187,7 @@ class _GlassTextFieldState extends State<GlassTextField>
             if (_aberrationCtrl.value <= 0.01) return input;
             return ChromaticAberration(
               intensity: _aberrationCtrl.value,
-              ghostBuilder: kIsWeb
-                  ? (ctx) => _GlassFieldGhost(focused: _isFocused)
-                  : null,
+              ghostBuilder: (ctx) => _GlassFieldGhost(focused: _isFocused),
               child: input,
             );
           },

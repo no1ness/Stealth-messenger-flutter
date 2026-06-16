@@ -25,7 +25,7 @@ class ContactService {
   final IdentityService _identity = IdentityService();
 
   /// userId → nickname (own id and peers). Populated lazily by
-  /// [getNicknameForUser]; cleared by [clearCaches].
+  /// [getNicknameForUser] and [getNicknamesBatch]; cleared by [clearCaches].
   final Map<String, String?> _nicknameCache = {};
 
   /// userId → last successful search hit. Required so [addContact] knows
@@ -52,10 +52,48 @@ class ContactService {
     _lastSearchResults.remove(userId);
   }
 
-  Future<void> getNicknames(Set<String> userIds) async {
+  Future<Map<String, String?>> getNicknamesBatch(Set<String> userIds) async {
+    final result = <String, String?>{};
+    final uncached = <String>{};
+    final me = await _identity.getUserId();
+
     for (final id in userIds) {
-      _nicknameCache[id] = await getNicknameForUser(id);
+      if (_nicknameCache.containsKey(id)) {
+        result[id] = _nicknameCache[id];
+      } else {
+        uncached.add(id);
+      }
     }
+    if (uncached.isEmpty) return result;
+
+    for (final contact in await _localDb.getContacts()) {
+      final id =
+          (contact['contact_user_id'] ?? contact['user_id'])?.toString();
+      if (id != null && uncached.contains(id)) {
+        final nickname =
+            (contact['nickname'] ?? contact['name'] ?? id).toString();
+        _nicknameCache[id] = nickname;
+        result[id] = nickname;
+        uncached.remove(id);
+      }
+    }
+    for (final id in uncached.toList()) {
+      if (id == me) {
+        final nickname = await _identity.getNickname();
+        _nicknameCache[id] = nickname;
+        result[id] = nickname;
+        uncached.remove(id);
+      }
+    }
+    for (final id in uncached) {
+      _nicknameCache[id] = null;
+      result[id] = null;
+    }
+    return result;
+  }
+
+  Future<void> getNicknames(Set<String> userIds) async {
+    await getNicknamesBatch(userIds);
   }
 
   Future<String?> getNicknameForUser(String userId) async {
@@ -84,6 +122,50 @@ class ContactService {
       getNicknameForUser(userId);
 
   Future<String?> getUserNickname() => _identity.getNickname();
+
+  /// Batch variant of [getOtherPublicKey]. Loads contacts once and returns
+  /// a map of userId → SimplePublicKey (or throws if any key is missing).
+  Future<Map<String, SimplePublicKey>> getOtherPublicKeysBatch(
+      Set<String> userIds) async {
+    final me = await _identity.getUserId();
+    final result = <String, SimplePublicKey>{};
+    final remaining = <String>{...userIds};
+
+    if (me != null && remaining.contains(me)) {
+      final ownPublicKey = await _storage.read('publicKey');
+      if (ownPublicKey != null && ownPublicKey.isNotEmpty) {
+        result[me] = SimplePublicKey(
+          base64Decode(ownPublicKey),
+          type: KeyPairType.x25519,
+        );
+        remaining.remove(me);
+      }
+    }
+    if (remaining.isEmpty) return result;
+
+    final contacts = await _localDb.getContacts();
+    for (final contact in contacts) {
+      final id =
+          (contact['contact_user_id'] ?? contact['user_id'])?.toString();
+      if (id != null && remaining.contains(id)) {
+        final publicKey = contact['public_key']?.toString();
+        if (publicKey != null && publicKey.isNotEmpty) {
+          result[id] = SimplePublicKey(
+            base64Decode(publicKey),
+            type: KeyPairType.x25519,
+          );
+          remaining.remove(id);
+        }
+      }
+    }
+    if (remaining.isNotEmpty) {
+      throw StateError(
+        'Missing public key for ${remaining.first}. '
+        'Add the contact from a Stealth contact bundle.',
+      );
+    }
+    return result;
+  }
 
   /// Returns the peer's X25519 public key. For our own id reads from
   /// [StorageService] (same source [IdentityService] persists into); for

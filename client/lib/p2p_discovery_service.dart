@@ -34,5 +34,6 @@ class P2PDiscoveryService {
   Future<void> stop() async {
     if (_registration != null) await unregister(_registration!);
     if (_discovery != null) await stopDiscovery(_discovery!);
+    await _peerController.close();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
@@ -65,12 +67,22 @@ class _ScanlinePainter extends CustomPainter {
 
   final double intensity;
 
+  static final Map<_SizeKey, ui.Picture> _pictureCache = {};
+
   @override
   void paint(Canvas canvas, Size size) {
     final alpha = (AppEffects.scanlineOpacity * intensity).clamp(0.0, 1.0);
     if (alpha <= 0) {
       return;
     }
+    final key = _SizeKey.fromSize(size);
+    final cached = _pictureCache[key];
+    if (cached != null) {
+      canvas.drawPicture(cached);
+      return;
+    }
+    final recorder = ui.PictureRecorder();
+    final recordCanvas = Canvas(recorder);
     final paint = Paint()
       ..color = AppColors.textOnGlass.withValues(alpha: alpha)
       ..strokeWidth = AppEffects.scanlineThicknessPx
@@ -78,11 +90,28 @@ class _ScanlinePainter extends CustomPainter {
 
     final spacing = AppEffects.scanlineSpacingPx;
     for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      recordCanvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
+    final picture = recorder.endRecording();
+    _pictureCache[key] = picture;
+    canvas.drawPicture(picture);
   }
 
   @override
   bool shouldRepaint(_ScanlinePainter oldDelegate) =>
       oldDelegate.intensity != intensity;
+}
+
+class _SizeKey {
+  final double width;
+  final double height;
+  const _SizeKey(this.width, this.height);
+  _SizeKey.fromSize(Size s) : this(s.width, s.height);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SizeKey && other.width == width && other.height == height;
+
+  @override
+  int get hashCode => Object.hash(width, height);
 }
