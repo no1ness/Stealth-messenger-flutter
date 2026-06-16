@@ -38,7 +38,7 @@ class PresenceService with WidgetsBindingObserver {
 
   static final PresenceService _instance = PresenceService._();
 
-  final PocketBase _pb;
+  PocketBase _pb;
   final Connectivity _connectivity;
   final PocketBaseAuthService _authService;
 
@@ -46,6 +46,7 @@ class PresenceService with WidgetsBindingObserver {
       StreamController<Map<String, dynamic>>.broadcast();
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  StreamSubscription<void>? _reconfigureSub;
   UnsubscribeFunc? _unsubscribe;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
@@ -71,6 +72,13 @@ class PresenceService with WidgetsBindingObserver {
     _connectivitySub ??= _connectivity.onConnectivityChanged.listen(
       _onConnectivityChanged,
     );
+
+    _reconfigureSub ??= PocketBaseClient.onReconfigure.listen((_) {
+      if (_selfUserId == null) return;
+      _pb = PocketBaseClient.instance.pb;
+      _authService.reconfigure(_pb);
+      _scheduleReconnect(immediate: true);
+    });
 
     WidgetsBinding.instance.addObserver(this);
   }
@@ -125,6 +133,8 @@ class PresenceService with WidgetsBindingObserver {
     _reconnectTimer = null;
     await _connectivitySub?.cancel();
     _connectivitySub = null;
+    await _reconfigureSub?.cancel();
+    _reconfigureSub = null;
     WidgetsBinding.instance.removeObserver(this);
 
     final unsubscribe = _unsubscribe;

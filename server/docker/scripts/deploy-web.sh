@@ -23,28 +23,26 @@ rsync -avz --delete "$REPO_ROOT/client/build/web/" "$SSH_HOST:/var/www/stealth-w
 SYNC_ELAPSED=$((SECONDS - SYNC_START))
 echo "[deploy-web] sync finished in ${SYNC_ELAPSED}s"
 
-echo "[deploy-web] 4/5 Updating Caddy config..."
+echo "[deploy-web] 4/5 Updating Caddy web block..."
 ssh "$SSH_HOST" "mkdir -p /etc/caddy"
-ssh "$SSH_HOST" "cat > /etc/caddy/Caddyfile <<'CADDY'
-${SIGNAL_DOMAIN} {
-    reverse_proxy localhost:8090
-}
-
-${WEB_DOMAIN} {
+WEB_PORT="${WEB_FALLBACK_PORT:-8445}"
+ssh "$SSH_HOST" "cat > /tmp/caddy-web.conf <<CADDY
+:${WEB_PORT} {
     root * /var/www/stealth-web
     file_server
     encode gzip
 }
 CADDY"
+ssh "$SSH_HOST" "grep -qF ':${WEB_PORT}' /etc/caddy/Caddyfile || cat /tmp/caddy-web.conf >> /etc/caddy/Caddyfile; rm /tmp/caddy-web.conf"
 ssh "$SSH_HOST" "systemctl reload caddy"
 
 echo "[deploy-web] 5/5 Verifying deployment..."
-HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "https://${WEB_DOMAIN}/" 2>/dev/null || echo "000")
+HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "http://${VPS_PUBLIC_IP}:${WEB_PORT}/" 2>/dev/null || echo "000")
 if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "000" ]]; then
-  echo "[deploy-web] ✅ https://${WEB_DOMAIN}/ returned HTTP ${HTTP_CODE}"
+  echo "[deploy-web] ✅ http://${VPS_PUBLIC_IP}:${WEB_PORT}/ returned HTTP ${HTTP_CODE}"
 else
-  echo "[deploy-web] ⚠️  https://${WEB_DOMAIN}/ returned HTTP ${HTTP_CODE} (expected 200)"
+  echo "[deploy-web] ⚠️  http://${VPS_PUBLIC_IP}:${WEB_PORT}/ returned HTTP ${HTTP_CODE} (expected 200)"
 fi
 
 echo "[deploy-web] Deploy complete."
-echo "  URL: https://${WEB_DOMAIN}/"
+echo "  URL: http://${VPS_PUBLIC_IP}:${WEB_PORT}/"

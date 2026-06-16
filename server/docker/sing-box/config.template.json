@@ -1,0 +1,25 @@
+{
+  "log": { "level": "info" },
+  "inbounds": [{
+    "type": "vless", "tag": "vless-in",
+    "listen": "::", "listen_port": 443,
+    "users": [{ "uuid": "${VLESS_UUID}", "flow": "xtls-rprx-vision" }],
+    "tls": {
+      "enabled": true, "server_name": "telemost.yandex.ru",
+      "reality": {
+        "enabled": true,
+        "handshake": { "server": "telemost.yandex.ru", "server_port": 443 },
+        "private_key": "${VLESS_PRIVATE_KEY}",
+        "short_id": ["${VLESS_SHORT_ID}"]
+      }
+    },
+    "multiplex": { "enabled": true }
+  }],
+  "outbounds": [{
+    "type": "direct", "tag": "caddy-out",
+    "override_address": "127.0.0.1", "override_port": 8443
+  }],
+  "route": {
+    "rules": [{ "inbound": ["vless-in"], "outbound": "caddy-out" }]
+  }
+}

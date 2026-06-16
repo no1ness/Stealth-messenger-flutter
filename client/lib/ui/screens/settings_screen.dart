@@ -14,6 +14,7 @@ import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.d
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 import 'package:stealth/themes/theme_controller.dart';
+import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -44,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   int _webrtcAudioInputs = 0;
   List<double> _diagnosticBars = const [0.12, 0.12, 0.12, 0.12];
   bool _isLoading = true;
+  bool _bypassEnabled = false;
 
   @override
   void initState() {
@@ -99,6 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         weeklyActivity.fold<double>(
             0.12, (max, value) => value > max ? value : max),
       ];
+      _bypassEnabled = BypassStateController.isEnabled;
       _isLoading = false;
     });
   }
@@ -280,6 +283,23 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           ),
           const SizedBox(height: AppSpacing.md),
           _SignalServerLine(),
+          const SizedBox(height: AppSpacing.md),
+          SwitchListTile.adaptive(
+            value: _bypassEnabled,
+            onChanged: (value) async {
+              if (value) {
+                final ok = await BypassStateController.enable();
+                if (mounted) setState(() => _bypassEnabled = ok);
+              } else {
+                await BypassStateController.disable();
+                if (mounted) setState(() => _bypassEnabled = false);
+              }
+            },
+            title: const Text('Censorship bypass'),
+            subtitle: Text(
+              _bypassEnabled ? 'Proxy active — traffic via sing-box' : 'Direct connection',
+            ),
+          ),
         ],
       ),
     );

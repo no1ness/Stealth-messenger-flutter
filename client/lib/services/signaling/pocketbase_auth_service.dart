@@ -22,8 +22,12 @@ class PocketBaseAuthService {
   })  : _pb = pocketBase,
         _storage = storage;
 
-  final PocketBase _pb;
+  PocketBase _pb;
   final StorageService _storage;
+
+  void reconfigure(PocketBase pocketBase) {
+    _pb = pocketBase;
+  }
 
   static final Map<int, Future<void>> _authInFlightByClient =
       <int, Future<void>>{};

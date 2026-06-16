@@ -9,6 +9,10 @@ const List<String> kDartDefineEnvKeys = <String>[
   'TURNS_URL',
   'TURNS_USERNAME',
   'TURNS_PASSWORD',
+  'BYPASS_SERVER_IP',
+  'BYPASS_UUID',
+  'BYPASS_PUBLIC_KEY',
+  'BYPASS_SHORT_ID',
 ];
 
 void applyDartDefineOverrides() {
@@ -38,6 +42,14 @@ String fromEnvironmentByKey(String key) {
       return const String.fromEnvironment('TURNS_USERNAME');
     case 'TURNS_PASSWORD':
       return const String.fromEnvironment('TURNS_PASSWORD');
+    case 'BYPASS_SERVER_IP':
+      return const String.fromEnvironment('BYPASS_SERVER_IP');
+    case 'BYPASS_UUID':
+      return const String.fromEnvironment('BYPASS_UUID');
+    case 'BYPASS_PUBLIC_KEY':
+      return const String.fromEnvironment('BYPASS_PUBLIC_KEY');
+    case 'BYPASS_SHORT_ID':
+      return const String.fromEnvironment('BYPASS_SHORT_ID');
     default:
       return '';
   }

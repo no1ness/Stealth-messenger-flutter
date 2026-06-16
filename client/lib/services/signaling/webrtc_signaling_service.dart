@@ -50,9 +50,16 @@ class WebRtcSignalingService implements SignalingTransport {
             PocketBaseAuthService(
               pocketBase: pocketBase ?? PocketBaseClient.instance.pb,
               storage: storage ?? StorageService(),
-            );
+            ) {
+    _reconfigureSub = PocketBaseClient.onReconfigure.listen((_) {
+      if (_activeRoomId == null || _activeSelfUserId == null) return;
+      _pb = PocketBaseClient.instance.pb;
+      _authService.reconfigure(_pb);
+      _scheduleReconnect(immediate: true);
+    });
+  }
 
-  final PocketBase _pb;
+  PocketBase _pb;
   final Connectivity _connectivity;
   final PocketBaseAuthService _authService;
   final Set<String> _knownUserIds = <String>{};
@@ -63,6 +70,7 @@ class WebRtcSignalingService implements SignalingTransport {
       StreamController<SignalingConnectionState>.broadcast();
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  StreamSubscription<void>? _reconfigureSub;
   UnsubscribeFunc? _unsubscribe;
 
   String? _activeRoomId;
@@ -150,6 +158,8 @@ class WebRtcSignalingService implements SignalingTransport {
     _reconnectTimer = null;
     await _connectivitySub?.cancel();
     _connectivitySub = null;
+    await _reconfigureSub?.cancel();
+    _reconfigureSub = null;
     final unsubscribe = _unsubscribe;
     _unsubscribe = null;
     if (unsubscribe != null) {

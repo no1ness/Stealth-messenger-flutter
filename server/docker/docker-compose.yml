@@ -20,7 +20,21 @@ services:
       - caddy_config:/config
     ports:
       - "80:80"
-      - "443:443"
+      - "8443:8443"
+
+  sing-box:
+    image: ghcr.io/sagernet/sing-box:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./sing-box/config.template.json:/etc/sing-box/config.template.json:ro
+      - ./sing-box/entrypoint.sh:/etc/sing-box/entrypoint.sh:ro
+    entrypoint: ["/etc/sing-box/entrypoint.sh"]
+    environment:
+      - VLESS_UUID=${VLESS_UUID}
+      - VLESS_PRIVATE_KEY=${VLESS_PRIVATE_KEY}
+      - VLESS_SHORT_ID=${VLESS_SHORT_ID}
+    depends_on: [caddy]
 
   coturn:
     image: coturn/coturn:latest

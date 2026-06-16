@@ -4,9 +4,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$DOCKER_DIR/../.." && pwd)"
 if [[ -f "$DOCKER_DIR/.env" ]]; then source "$DOCKER_DIR/.env"; fi
-: "${SIGNAL_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}"
-: "${DASHBOARD_DOMAIN:=dashboard.${SIGNAL_DOMAIN#signal.}}"
-: "${WEB_DOMAIN:=app.${SIGNAL_DOMAIN#signal.}}"
+: "${VPS_PUBLIC_IP:?}"
+: "${DASHBOARD_FALLBACK_PORT:=8446}"
 : "${SSH_HOST:=root@${VPS_PUBLIC_IP}}"
 
 echo "[deploy-dashboard] 1/5 Building dashboard release..."
@@ -24,37 +23,25 @@ rsync -avz --delete "$REPO_ROOT/client/build/dashboard/" "$SSH_HOST:/var/www/ste
 SYNC_ELAPSED=$((SECONDS - SYNC_START))
 echo "[deploy-dashboard] sync finished in ${SYNC_ELAPSED}s"
 
-echo "[deploy-dashboard] 4/5 Updating Caddy config..."
+echo "[deploy-dashboard] 4/5 Updating Caddy dashboard block..."
 ssh "$SSH_HOST" "mkdir -p /etc/caddy"
-
-# Read current Caddyfile, append dashboard block, write back.
-# We use a temp file to avoid heredoc shell escaping issues.
-ssh "$SSH_HOST" "cat > /etc/caddy/Caddyfile <<'CADDY'
-${SIGNAL_DOMAIN} {
-    reverse_proxy localhost:8090
-}
-
-${WEB_DOMAIN} {
-    root * /var/www/stealth-web
-    file_server
-    encode gzip
-}
-
-${DASHBOARD_DOMAIN} {
+ssh "$SSH_HOST" "cat > /tmp/caddy-dashboard.conf <<CADDY
+:${DASHBOARD_FALLBACK_PORT} {
     root * /var/www/stealth-dashboard
     file_server
     encode gzip
 }
 CADDY"
+ssh "$SSH_HOST" "grep -qF ':${DASHBOARD_FALLBACK_PORT}' /etc/caddy/Caddyfile || cat /tmp/caddy-dashboard.conf >> /etc/caddy/Caddyfile; rm /tmp/caddy-dashboard.conf"
 ssh "$SSH_HOST" "systemctl reload caddy"
 
 echo "[deploy-dashboard] 5/5 Verifying deployment..."
-HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "https://${DASHBOARD_DOMAIN}/" 2>/dev/null || echo "000")
+HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/" 2>/dev/null || echo "000")
 if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "000" ]]; then
-  echo "[deploy-dashboard] https://${DASHBOARD_DOMAIN}/ returned HTTP ${HTTP_CODE}"
+  echo "[deploy-dashboard] http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/ returned HTTP ${HTTP_CODE}"
 else
-  echo "[deploy-dashboard] https://${DASHBOARD_DOMAIN}/ returned HTTP ${HTTP_CODE} (expected 200)"
+  echo "[deploy-dashboard] http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/ returned HTTP ${HTTP_CODE} (expected 200)"
 fi
 
 echo "[deploy-dashboard] Deploy complete."
-echo "  URL: https://${DASHBOARD_DOMAIN}/"
+echo "  URL: http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/"

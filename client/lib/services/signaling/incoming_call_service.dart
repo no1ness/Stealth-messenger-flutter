@@ -89,14 +89,22 @@ class IncomingCallSignalingService {
               storage: storage ?? StorageService(),
             ),
         _knownPeerUuidsProvider =
-            knownPeerUuidsProvider ?? (() => const <String>[]);
+            knownPeerUuidsProvider ?? (() => const <String>[]) {
+    _reconfigureSub = PocketBaseClient.onReconfigure.listen((_) {
+      if (_selfUserId == null) return;
+      _pb = PocketBaseClient.instance.pb;
+      _authService.reconfigure(_pb);
+      _resubscribe();
+    });
+  }
 
-  final PocketBase _pb;
+  PocketBase _pb;
   final PocketBaseAuthService _authService;
   final Iterable<String> Function() _knownPeerUuidsProvider;
   final StreamController<IncomingCallEvent> _eventsController =
       StreamController<IncomingCallEvent>.broadcast();
 
+  StreamSubscription<void>? _reconfigureSub;
   UnsubscribeFunc? _unsubscribe;
   String? _selfUserId;
 
@@ -120,6 +128,8 @@ class IncomingCallSignalingService {
 
   Future<void> stop() async {
     Logger.info('[signaling] incoming-call stop');
+    await _reconfigureSub?.cancel();
+    _reconfigureSub = null;
     final unsub = _unsubscribe;
     _unsubscribe = null;
     if (unsub != null) {
@@ -165,6 +175,23 @@ class IncomingCallSignalingService {
       });
     } catch (error) {
       Logger.warn('[signaling] decline error', extras: {'error': error});
+    }
+  }
+
+  Future<void> _resubscribe() async {
+    final old = _unsubscribe;
+    _unsubscribe = null;
+    if (old != null) {
+      try { await old(); } catch (_) {}
+    }
+    final selfUserId = _selfUserId;
+    if (selfUserId == null) return;
+    try {
+      await _authService.ensureAuth(selfUserId);
+      _unsubscribe = await _pb.collection('rtc_signaling').subscribe('*', _onRecord);
+    } catch (error) {
+      Logger.warn('[signaling] incoming-call resubscribe error',
+          extras: {'error': error});
     }
   }
 

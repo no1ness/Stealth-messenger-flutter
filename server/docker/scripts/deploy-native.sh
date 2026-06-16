@@ -5,10 +5,10 @@ DOCKER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$DOCKER_DIR/../.." && pwd)"
 
 if [[ -f "$DOCKER_DIR/.env" ]]; then source "$DOCKER_DIR/.env"; fi
-: "${SIGNAL_DOMAIN:?}" : "${TURN_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}" : "${TURN_USERNAME:?}" : "${TURN_PASSWORD:?}"
-: "${WEB_DOMAIN:=app.${SIGNAL_DOMAIN#signal.}}"
+: "${TURN_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}" : "${TURN_USERNAME:?}" : "${TURN_PASSWORD:?}"
+: "${WEB_FALLBACK_PORT:=8445}" : "${DASHBOARD_FALLBACK_PORT:=8446}"
 
-export SIGNAL_DOMAIN TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD WEB_DOMAIN
+export TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD WEB_FALLBACK_PORT DASHBOARD_FALLBACK_PORT
 
 # --- install system packages ---
 apt-get update -qq
@@ -49,15 +49,21 @@ UNIT
 # --- web app directory ---
 mkdir -p /var/www/stealth-web
 
-# --- Caddy config ---
+# --- Caddy config (on fallback ports — 443 is owned by sing-box) ---
 mkdir -p /etc/caddy
 cat > /etc/caddy/Caddyfile <<CADDY
-${SIGNAL_DOMAIN} {
+:8443 {
     reverse_proxy localhost:8090
 }
 
-${WEB_DOMAIN} {
+:${WEB_FALLBACK_PORT} {
     root * /var/www/stealth-web
+    file_server
+    encode gzip
+}
+
+:${DASHBOARD_FALLBACK_PORT} {
+    root * /var/www/stealth-dashboard
     file_server
     encode gzip
 }
@@ -103,12 +109,40 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 
+# --- sing-box binary (native) ---
+SING_BOX_VERSION=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//')
+wget -qO /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz"
+tar -xzf /tmp/sing-box.tar.gz -C /tmp/
+cp "/tmp/sing-box-${SING_BOX_VERSION}-linux-amd64/sing-box" /usr/local/bin/sing-box
+chmod +x /usr/local/bin/sing-box
+rm -rf /tmp/sing-box*
+
+mkdir -p /etc/sing-box
+cp "$REPO_ROOT/server/docker/sing-box/config.template.json" /etc/sing-box/config.template.json
+
+cat > /etc/systemd/system/sing-box.service <<UNIT
+[Unit]
+Description=Sing-box VLESS-Reality
+After=network.target
+[Service]
+Type=simple
+Environment=VLESS_UUID=${VLESS_UUID}
+Environment=VLESS_PRIVATE_KEY=${VLESS_PRIVATE_KEY}
+Environment=VLESS_SHORT_ID=${VLESS_SHORT_ID}
+ExecStart=/bin/sh -c 'sed -e "s|\${VLESS_UUID}|$VLESS_UUID|g" -e "s|\${VLESS_PRIVATE_KEY}|$VLESS_PRIVATE_KEY|g" -e "s|\${VLESS_SHORT_ID}|$VLESS_SHORT_ID|g" /etc/sing-box/config.template.json > /etc/sing-box/config.json && exec /usr/local/bin/sing-box run -c /etc/sing-box/config.json'
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
+UNIT
+
 systemctl daemon-reload
 systemctl enable --now pocketbase
 systemctl enable --now coturn
+systemctl enable --now sing-box
 
 echo "=== Web app dir ==="
 ls -la /var/www/stealth-web 2>/dev/null || echo "(empty — deploy web build later)"
 
 echo "=== All services started ==="
-systemctl status pocketbase caddy coturn --no-pager
+systemctl status pocketbase caddy coturn sing-box --no-pager

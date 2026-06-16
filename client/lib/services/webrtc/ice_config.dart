@@ -17,6 +17,11 @@ import '../../logging/logger.dart';
 ///
 /// `envOverride` is optional — exists only so unit tests can inject a
 /// mock map without booting `dotenv`. Production callers pass nothing.
+///
+/// Note: The sing-box bypass proxy (SOCKS5 :10808 / HTTP :10809) does NOT
+/// affect WebRTC ICE/STUN/TURN — those use system-level UDP/TCP sockets
+/// and bypass the local proxy entirely. ICE candidates still carry the
+/// real public IP.
 List<Map<String, dynamic>> buildIceServers({
   Map<String, String>? envOverride,
 }) {
