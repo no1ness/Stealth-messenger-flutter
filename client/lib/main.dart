@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:stealth/bootstrap_env.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
@@ -11,54 +12,6 @@ import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.d
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
-
-/// Environment keys that can be overridden at build time via
-/// `--dart-define=<key>=<value>`. Any non-empty value is pushed into
-/// [dotenv.env] after the committed defaults load, so existing readers
-/// (`dotenv.env[X]`) automatically pick up the override.
-const List<String> _kDartDefineEnvKeys = <String>[
-  'POCKETBASE_URL',
-  'TURN_URL',
-  'TURN_USERNAME',
-  'TURN_PASSWORD',
-  'TURNS_URL',
-  'TURNS_USERNAME',
-  'TURNS_PASSWORD',
-];
-
-void _applyDartDefineOverrides() {
-  for (final key in _kDartDefineEnvKeys) {
-    final fromDefine = _fromEnvironmentByKey(key);
-    if (fromDefine.isNotEmpty) {
-      dotenv.env[key] = fromDefine;
-      Logger.info('[bootstrap] env key overridden via --dart-define',
-          extras: {'key': key});
-    }
-  }
-}
-
-/// `String.fromEnvironment` only accepts compile-time constant names, so
-/// the keys are spelled out explicitly here.
-String _fromEnvironmentByKey(String key) {
-  switch (key) {
-    case 'POCKETBASE_URL':
-      return const String.fromEnvironment('POCKETBASE_URL');
-    case 'TURN_URL':
-      return const String.fromEnvironment('TURN_URL');
-    case 'TURN_USERNAME':
-      return const String.fromEnvironment('TURN_USERNAME');
-    case 'TURN_PASSWORD':
-      return const String.fromEnvironment('TURN_PASSWORD');
-    case 'TURNS_URL':
-      return const String.fromEnvironment('TURNS_URL');
-    case 'TURNS_USERNAME':
-      return const String.fromEnvironment('TURNS_USERNAME');
-    case 'TURNS_PASSWORD':
-      return const String.fromEnvironment('TURNS_PASSWORD');
-    default:
-      return '';
-  }
-}
 
 bool _isPlaceholderPocketbaseUrl(String url) {
   final lower = url.toLowerCase();
@@ -114,7 +67,7 @@ class _MyAppState extends State<MyApp> {
       // flags below or from local edits to `.env.defaults` — see the
       // file header for the override matrix.
       await dotenv.load(fileName: '.env.defaults');
-      _applyDartDefineOverrides();
+      applyDartDefineOverrides();
 
       final pocketbaseUrl = dotenv.env['POCKETBASE_URL']?.trim() ?? '';
       if (pocketbaseUrl.isEmpty || _isPlaceholderPocketbaseUrl(pocketbaseUrl)) {

@@ -76,5 +76,8 @@ pw-test/*.html
 pw-test/diag-*.json
 pw-test/*-report.json
 
+# Environment variables
+.env
+
 # PocketBase backups
 server/pb_backup_*.zip
