@@ -29,6 +29,7 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 - [x] **M8 — chats_screen.dart split + group sheets.** 1794-line `chats_screen.dart` decomposed into `client/lib/ui/screens/chats/` modules (panel + attachment + group-management-sheet). (`post-pocketbase-hardening` Phase 5.)
 - [x] **M9 — Android release hardening.** `applicationId` renamed off `com.example.turbo`, release signing config, lint re-enabled. (`post-pocketbase-hardening` Phase 8.)
 - [x] **M10.1 — GlassTextField focus-pulse perf budget for web.** `ChromaticAberration.ghostBuilder` API + `kIsWeb` cheap-ghost path (`_GlassFieldGhost`). Transplanted from `perf/glass-text-field-web-budget` into `main` (commit `761f8c2`). **2026-06-14.**
+- [x] **M17 — Sing-box/обход блокировок.** Интеграция Sing-box (VLESS-Reality) под маскировкой Яндекс.Телемоста. Server: Caddy на :8443 + Sing-box на :443 с Reality. Client: BypassManager (Kotlin) + Flutter channel + тумблер в Settings. Backing plan: `.ai-factory/plans/feature-sing-box-vless-bypass.md`. **2026-06-16.**
 
 ## In flight
 
@@ -41,7 +42,6 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 - [ ] **M12 — Two-device manual QA program.** Bundle exchange, chat with E2E ratchet, P2P DataChannel, audio/video call on two physical devices (Android×Android, Android×iOS). Trigger: pre-release QA cycle.
 - [ ] **M13 — Appium suite sync.** AccessibilityIds contract preserved through M10. Sync the values into the out-of-repo Appium suite; add coverage for `_GlassFieldGhost` if it becomes user-facing. Trigger: post-M10 merge.
 - [ ] **M14 — TURN/relay reliability.** Currently `lib/p2p_service.dart:33` notes `TODO: Add TURN servers for better reliability`. Survey traversal-failure rate from production logs, then commit to a TURN provider or self-host. Trigger: traversal-failure metric > threshold.
-- [ ] **M17 — Sing-box/обход блокировок.** Интеграция Sing-box (VLESS-Reality) под маскировкой Яндекс.Телемоста. Server: Caddy на :8443 + Sing-box на :443 с Reality. Client: BypassManager (Kotlin) + Flutter channel + тумблер в Settings. Backing plan: `.ai-factory/plans/feature-sing-box-vless-bypass.md`.
 
 ## Future direction (committed but blocked / awaiting prerequisite)
 
