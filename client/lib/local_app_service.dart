@@ -9,6 +9,7 @@ import 'services/calls/call_history_service.dart';
 import 'services/chat_management/chat_management_service.dart';
 import 'services/contacts/contact_service.dart';
 import 'services/crypto/group_secret_service.dart';
+import 'services/monitoring/app_stats_push_service.dart';
 import 'services/dashboard/dashboard_service.dart';
 import 'services/device/device_info_service.dart';
 import 'services/diagnostics/diagnostics_service.dart';
@@ -137,6 +138,8 @@ class LocalAppService {
   final UserDirectoryService _userDirectory = UserDirectoryService();
   final PresenceService _presence = PresenceService();
 
+  AppStatsPushService? _statsPusher;
+  Timer? _statsPushTimer;
   bool _pbWorkersStarted = false;
   DateTime? _lastProfilePublishAt;
 
@@ -179,6 +182,13 @@ class LocalAppService {
       final profiles = await _userDirectory.fetchAllProfiles(me);
       await _userDirectory.syncToLocalContacts(profiles);
       _presence.startHeartbeat();
+
+      _statsPusher = AppStatsPushService();
+      await _statsPusher!.pushStats();
+      _statsPushTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+        await _statsPusher?.pushStats();
+      });
+      Logger.info('[stats-push] periodic push started (interval: 5 min)');
     } catch (error) {
       Logger.warn('[bootstrap] PB workers failed, will retry on next app start',
           extras: {'error': error});
@@ -186,6 +196,9 @@ class LocalAppService {
   }
 
   Future<void> logout() async {
+    _statsPushTimer?.cancel();
+    _statsPushTimer = null;
+    _statsPusher = null;
     await _presence.setOffline();
     _presence.dispose();
     _userDirectory.clearCache();
