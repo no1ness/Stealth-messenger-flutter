@@ -58,7 +58,7 @@ class GlassChatBubble extends StatelessWidget {
         ),
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -240,7 +240,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.darkGray2.withValues(alpha: 0.8),
@@ -272,7 +272,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                         child: Container(
                           decoration: BoxDecoration(
                             color: AppColors.glassMedium,

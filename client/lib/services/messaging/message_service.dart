@@ -183,7 +183,11 @@ class MessageService {
     int limit = 40,
     int offset = 0,
   }) async {
-    final messages = await _localDb.getMessages(chatId);
+    final messages = await _localDb.getMessages(
+      chatId,
+      limit: limit,
+      offset: offset,
+    );
     final visible = messages
         .where((message) => message['deleted_at'] == null)
         .map((message) => Map<String, dynamic>.from(message))
@@ -192,26 +196,23 @@ class MessageService {
         (a, b) => (a['created_at']?.toString() ?? '')
             .compareTo(b['created_at']?.toString() ?? ''),
       );
-    final page = visible.skip(offset).take(limit).toList();
+    final page = visible.take(limit).toList();
     return Future.wait(page.map(decryptRawMessage));
   }
 
   Future<Map<String, dynamic>?> fetchLastMessage(String chatId) async {
-    final messages = await getMessages(chatId, limit: 1000);
-    if (messages.isEmpty) return null;
-    final list = messages.cast<Map<String, dynamic>>()
-      ..sort(
-        (a, b) => (a['created_at']?.toString() ?? '')
-            .compareTo(b['created_at']?.toString() ?? ''),
-      );
-    return list.last;
+    final message = await _localDb.getLastMessage(chatId);
+    if (message == null) return null;
+    if (message['deleted_at'] != null) return null;
+    final decrypted = await decryptRawMessage(message);
+    return decrypted;
   }
 
   Future<Map<String, dynamic>?> getPinnedMessage(String chatId) async {
     final chat = await _localDb.getChatById(chatId);
     final pinnedId = chat?['pinned_message_id']?.toString();
     if (pinnedId == null || pinnedId.isEmpty) return null;
-    final messages = await getMessages(chatId, limit: 1000);
+    final messages = await getMessages(chatId, limit: 200);
     for (final message in messages.cast<Map<String, dynamic>>()) {
       if (message['id'] == pinnedId) return message;
     }
@@ -548,23 +549,38 @@ class MessageService {
     return const [];
   }
 
+  final Map<String, String?> _otherUserIdCache = {};
+  final Map<String, bool> _isGroupChatCache = {};
+
   Future<String?> _getOtherUserId(String chatId) async {
+    if (_otherUserIdCache.containsKey(chatId)) {
+      return _otherUserIdCache[chatId];
+    }
     final me = await _identity.getUserId();
     final members = await _getChatMemberIds(chatId);
     for (final member in members) {
       if (member != me) {
+        _otherUserIdCache[chatId] = member;
         return member;
       }
     }
+    _otherUserIdCache[chatId] = null;
     return null;
   }
 
   Future<bool> _isGroupChat(String chatId) async {
+    if (_isGroupChatCache.containsKey(chatId)) {
+      return _isGroupChatCache[chatId]!;
+    }
     final chat = await _localDb.getChatById(chatId);
     final isPrivate = chat?['is_private'];
     if (isPrivate is bool) {
-      return !isPrivate;
+      final result = !isPrivate;
+      _isGroupChatCache[chatId] = result;
+      return result;
     }
-    return (await _getChatMemberIds(chatId)).length != 2;
+    final result = (await _getChatMemberIds(chatId)).length != 2;
+    _isGroupChatCache[chatId] = result;
+    return result;
   }
 }

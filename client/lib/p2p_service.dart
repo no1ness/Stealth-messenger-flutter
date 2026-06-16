@@ -720,4 +720,11 @@ class P2PService {
     connection.close();
     connection.dispose();
   }
+
+  void dispose() {
+    for (final chatId in _connections.keys.toList()) {
+      disposeConnection(chatId);
+    }
+    _messageController.close();
+  }
 }

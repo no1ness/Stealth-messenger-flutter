@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:idb_shim/idb_browser.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:stealth/crypto/crypto_isolate_service.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/helpers/crypto_helper.dart';
 
@@ -234,31 +235,78 @@ class LocalDatabaseService {
     return pending;
   }
 
-  /// Returns all messages for [chatId], decrypted.
-  Future<List<Map<String, dynamic>>> getMessages(String chatId) async {
+  /// Returns messages for [chatId], decrypted. When [limit] is set, stops
+  /// after that many rows. Pass [offset] to skip that many initial rows
+  /// (applied at the cursor level to avoid decrypting skipped rows).
+  Future<List<Map<String, dynamic>>> getMessages(
+    String chatId, {
+    int? limit,
+    int offset = 0,
+  }) async {
     await _ensureInitialized();
     final txn = _db!.transaction(messagesStore, idbModeReadOnly);
     final store = txn.objectStore(messagesStore);
     final index = store.index('chatId');
 
-    final messages = <Map<String, dynamic>>[];
+    final rows = <Map<String, dynamic>>[];
     final cursor = index.openCursor(key: chatId, autoAdvance: true);
+    var count = 0;
+    var skipped = 0;
 
+    await for (final cv in cursor) {
+      if (skipped < offset) {
+        skipped++;
+        continue;
+      }
+      if (limit != null && count >= limit) break;
+      rows.add(Map<String, dynamic>.from(cv.value as Map));
+      count++;
+    }
+
+    if (rows.isEmpty) return [];
+
+    final encryptedPayloads =
+        rows.map((r) => r['payload'] as String).toList();
+    final decryptedPayloads = await CryptoIsolateService.decryptBatch(
+      encryptedPayloads: encryptedPayloads,
+      key: _dbKey!,
+    );
+
+    final messages = <Map<String, dynamic>>[];
+    for (var i = 0; i < rows.length; i++) {
+      final message =
+          jsonDecode(decryptedPayloads[i]) as Map<String, dynamic>;
+      if (rows[i]['deliveryStatus'] != null) {
+        message['deliveryStatus'] = rows[i]['deliveryStatus'];
+      }
+      messages.add(message);
+    }
+    return messages;
+  }
+
+  /// Returns only the last (most recently inserted) message for [chatId],
+  /// decrypted. Avoids loading the full chat history.
+  Future<Map<String, dynamic>?> getLastMessage(String chatId) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(messagesStore, idbModeReadOnly);
+    final store = txn.objectStore(messagesStore);
+    final index = store.index('chatId');
+
+    final cursor =
+        index.openCursor(key: chatId, direction: 'prev', autoAdvance: true);
     await for (final cv in cursor) {
       final val = cv.value as Map;
       final decrypted =
           await CryptoHelper.decryptData(val['payload'] as String, _dbKey!);
       final message = jsonDecode(decrypted) as Map<String, dynamic>;
-      // Surface the top-level deliveryStatus marker (task #8) so the UI
-      // layer can render the per-message status icon (task #10). Absent
-      // for incoming rows; present for outgoing only.
       if (val['deliveryStatus'] != null) {
         message['deliveryStatus'] = val['deliveryStatus'];
       }
-      messages.add(message);
+      await txn.completed;
+      return message;
     }
-
-    return messages;
+    await txn.completed;
+    return null;
   }
 
   /// Returns messages that were written while offline (synced = 0).

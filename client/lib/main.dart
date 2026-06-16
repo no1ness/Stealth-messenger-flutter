@@ -41,15 +41,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _loadTheme();
     _initializeApp();
-  }
-
-  Future<void> _loadTheme() async {
-    // The controller writes ThemeController.mode itself; the
-    // `ValueListenableBuilder` in `build()` picks the new value up.
-    // No local setState needed.
-    await ThemeController.loadInitial();
   }
 
   Future<void> _initializeApp({bool afterReset = false}) async {
@@ -83,9 +75,13 @@ class _MyAppState extends State<MyApp> {
           extras: {'url': pocketbaseUrl});
 
       _appService = LocalAppService();
-      await DeviceRegistryService.instance.init();
-      await _appService?.startPBBasedWorkers();
+      _appService!.init();
+      await ThemeController.loadInitial();
       await _checkRegistration();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeviceRegistryService.instance.init();
+        _appService?.startPBBasedWorkers();
+      });
     } catch (error) {
       // Corrupted secure storage (e.g. Android Keystore key rotated after a
       // reinstall with a different signing key) manifests as a BAD_DECRYPT
