@@ -69,7 +69,9 @@ class ChatTile extends StatelessWidget {
                 : AppColors.glassMedium.withValues(alpha: 0.30),
           ),
         ),
-        child: ListTile(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ListTile(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           ),
@@ -201,6 +203,7 @@ class ChatTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

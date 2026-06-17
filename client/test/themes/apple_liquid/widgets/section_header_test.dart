@@ -20,7 +20,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Privacy'), findsOneWidget);
+    expect(find.text('PRIVACY'), findsOneWidget);
   });
 
   testWidgets('renders optional trailing widget when provided', (tester) async {
@@ -37,7 +37,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Connection'), findsOneWidget);
+    expect(find.text('CONNECTION'), findsOneWidget);
     expect(find.text('See all'), findsOneWidget);
   });
 
@@ -50,7 +50,7 @@ void main() {
         ),
       ),
     );
-    final semantics = tester.getSemantics(find.text('Storage'));
+    final semantics = tester.getSemantics(find.text('STORAGE'));
     // The Semantics wrapper sets header: true and uses the title as
     // its label. Both are part of the public contract.
     expect(semantics.label, contains('Storage'));
