@@ -68,69 +68,86 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Icons.security_rounded,
-                    size: 80,
-                    color: AppColors.systemBlue,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'STEALTH',
-                    style: AppTypography.largeTitle.copyWith(
-                      letterSpacing: 8,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(
+                      Icons.security_rounded,
+                      size: 80,
+                      color: AppColors.systemBlue,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Безопасный и приватный мессенджер',
-                    style: AppTypography.subheadline.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'STEALTH',
+                      style: AppTypography.largeTitle.copyWith(
+                        letterSpacing: 8,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.xxl * 2),
-                  GlassTextField(
-                    controller: _nicknameController,
-                    labelText: 'Выберите никнейм',
-                    hintText: 'Введите ваш алиас...',
-                    prefixIcon: const Icon(Icons.person_outline,
-                        color: AppColors.systemBlue),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  ElevatedButton(
-                    onPressed: !_isLoading &&
-                            _nicknameController.text.trim().isNotEmpty
-                        ? _register
-                        : null,
-                    child: _isLoading
-                        ? const StealthLoadingIndicator(
-                            size: 20,
-                            strokeWidth: 2,
-                          )
-                        : const Text('НАЧАТЬ'),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Без номера телефона. Без email.\nВаша приватность — наш приоритет.',
-                    style: AppTypography.caption1.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.6),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Безопасный и приватный мессенджер',
+                      style: AppTypography.subheadline.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.xxl * 2),
+                    GlassTextField(
+                      controller: _nicknameController,
+                      labelText: 'Выберите никнейм',
+                      hintText: 'Введите ваш алиас...',
+                      prefixIcon: const Icon(Icons.person_outline,
+                          color: AppColors.systemBlue),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    OutlinedButton(
+                      onPressed: !_isLoading &&
+                              _nicknameController.text.trim().isNotEmpty
+                          ? _register
+                          : null,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                          color: AppColors.systemBlue,
+                          width: 1.5,
+                        ),
+                        foregroundColor: AppColors.systemBlue,
+                        backgroundColor:
+                            AppColors.systemBlue.withValues(alpha: 0.08),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xxl,
+                          vertical: AppSpacing.sm,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusLg),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const StealthLoadingIndicator(
+                              size: 20,
+                              strokeWidth: 2,
+                            )
+                          : const Text('НАЧАТЬ'),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'Без номера телефона. Без email.\nВаша приватность — наш приоритет.',
+                      style: AppTypography.caption1.copyWith(
+                        color: AppColors.textSecondary.withValues(alpha: 0.6),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );

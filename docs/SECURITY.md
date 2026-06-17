@@ -1,3 +1,5 @@
+[← Performance](PERFORMANCE.md) · [Back to README](../README.md) · [PocketBase Setup →](POCKETBASE_SETUP.md)
+
 # Модель безопасности Stealth Messenger
 
 ## Что защищаем
@@ -48,3 +50,9 @@ WebRTC media шифруется механизмами WebRTC (DTLS-SRTP). Pocke
 3. Добавить key rotation/revocation.
 4. Добавить TTL cleanup для PocketBase signaling collection.
 5. Проверить TURN/TURNS deployment и certificate hygiene.
+
+## See Also
+
+- [Architecture](ARCHITECTURE.md) — runtime-модель и принципы
+- [PocketBase Setup](POCKETBASE_SETUP.md) — развёртывание signaling-сервера
+- [Deployment](deployment.md) — деплой и CI/CD

@@ -3,6 +3,7 @@ import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/themes/apple_liquid/widgets/debug_status_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/ui/screens/calls_screen.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/contacts_screen.dart';
 import 'package:stealth/ui/screens/profile_screen.dart';
@@ -26,10 +27,10 @@ class _MainTabsState extends State<MainTabs> {
   void initState() {
     super.initState();
 
-    // Tab screens are created once so navigation state survives tab switches.
     _screens = [
       ChatsScreen(initialChatId: widget.initialChatId),
       ContactsScreen(),
+      const CallsScreen(),
       const ProfileScreen(),
       const SettingsScreen(),
     ];
@@ -72,6 +73,12 @@ class _MainTabsState extends State<MainTabs> {
               selectedIcon: Icons.people,
               label: 'Контакты',
               semanticLabel: AccessibilityIds.contactsTab,
+            ),
+            GlassBottomNavBarItem(
+              icon: Icons.call_outlined,
+              selectedIcon: Icons.call,
+              label: 'Звонки',
+              semanticLabel: AccessibilityIds.callsTab,
             ),
             GlassBottomNavBarItem(
               icon: Icons.person_outline,

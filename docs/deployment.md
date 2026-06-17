@@ -1,4 +1,4 @@
-[← Security](SECURITY.md) · [Back to README](../README.md) · [PocketBase Setup →](POCKETBASE_SETUP.md)
+[← Android Release](ANDROID_RELEASE.md) · [Back to README](../README.md)
 
 # Деплой signaling + TURN на VPS
 

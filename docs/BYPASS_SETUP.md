@@ -1,3 +1,5 @@
+[← PocketBase Setup](POCKETBASE_SETUP.md) · [Back to README](../README.md) · [Android Release →](ANDROID_RELEASE.md)
+
 # Bypass censorship setup (Sing-box / VLESS-Reality)
 
 ## Architecture
@@ -78,3 +80,9 @@ curl -k https://<vps-ip>:443
 # Client — proxy active
 curl -x http://127.0.0.1:10809 https://signal.stealthpro.ru/api/health
 ```
+
+## See Also
+
+- [PocketBase Setup](POCKETBASE_SETUP.md) — развёртывание signaling-сервера
+- [Deployment](deployment.md) — деплой и CI/CD
+- [Security](SECURITY.md) — модель угроз и криптография

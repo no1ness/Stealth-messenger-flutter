@@ -17,8 +17,10 @@ import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/screens/chats/chat_search_bar.dart';
+import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 import 'package:stealth/ui/screens/chats/insight_panel.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
+import 'package:stealth/helpers/responsive_breakpoints.dart';
 import 'package:stealth/p2p_service.dart';
 
 class ChatsScreen extends StatefulWidget {
@@ -43,6 +45,8 @@ class _ChatsScreenState extends State<ChatsScreen>
   Timer? _loadChatsDebounce;
   List<Map<String, dynamic>> _filteredChats = const [];
   List<Map<String, dynamic>> _filteredMessages = const [];
+  List<Map<String, dynamic>> _pinnedChats = const [];
+  List<Map<String, dynamic>> _recentChats = const [];
 
   bool _loading = true;
   bool _loadingMessages = false;
@@ -161,32 +165,33 @@ class _ChatsScreenState extends State<ChatsScreen>
         var title = storedName?.isNotEmpty == true ? storedName! : 'Чат';
 
         if (members.length == 1) {
-          title = (await _appService.getNicknameForUser(members.first)) ??
-              'Чат';
+          title =
+              (await _appService.getNicknameForUser(members.first)) ?? 'Чат';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
             (memberId) => memberId != me,
             orElse: () => members.first,
           );
-          title =
-              (await _appService.getNicknameForUser(otherId)) ?? 'Чат';
+          title = (await _appService.getNicknameForUser(otherId)) ?? 'Чат';
         }
 
         final lastMessage =
             await _appService.fetchLastMessage(row['id'] as String);
         final createdAt =
             DateTime.tryParse(row['created_at'] as String? ?? '')?.toLocal();
-        final lastSeen =
-            await _appService.getLastSeen(row['id'] as String) ??
-                DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-        final unread = await _appService.countUnreadSince(
-            row['id'] as String, lastSeen);
+        final lastSeen = await _appService.getLastSeen(row['id'] as String) ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+        final unread =
+            await _appService.countUnreadSince(row['id'] as String, lastSeen);
+
+        final isPinned = row['isPinned'] as bool? ?? false;
 
         return {
           'id': row['id'],
           'name': title,
           'memberCount': members.length,
           'isPrivate': isPrivate,
+          'isPinned': isPinned,
           'timestamp': createdAt == null ? '' : _formatTimestamp(createdAt),
           'lastMessage': (lastMessage?['content'] as String? ?? '').trim(),
           'unreadCount': unread,
@@ -228,7 +233,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
   }
 
-
   Future<void> _selectChat(String chatId) async {
     if (_selectedChatId != null && _selectedChatId != chatId) {
       await _appService.setTypingStatus(
@@ -255,8 +259,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       });
     }
 
-    final rows =
-        await _appService.getMessages(chatId, limit: 40, offset: 0);
+    final rows = await _appService.getMessages(chatId, limit: 40, offset: 0);
     final otherLastReadAt = await _appService.getOtherLastReadAt(chatId);
     final pinnedMessage = await _appService.getPinnedMessage(chatId);
     if (!mounted) {
@@ -448,8 +451,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                   title: const Text('Удалить'),
                   onTap: () async {
                     Navigator.of(context).pop();
-                    await _appService.softDeleteMessage(
-                        messageId: messageId);
+                    await _appService.softDeleteMessage(messageId: messageId);
                     await _loadMessages(chatId);
                   },
                 ),
@@ -526,14 +528,22 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   void _updateFilters() {
     final query = _searchController.text.trim().toLowerCase();
-    _filteredChats = query.isEmpty
-        ? _chats
-        : _chats
-            .where(
-              (chat) =>
-                  (chat['name'] as String? ?? '').toLowerCase().contains(query),
-            )
-            .toList();
+    if (query.isEmpty) {
+      _filteredChats = _chats;
+      _pinnedChats =
+          _chats.where((c) => c['isPinned'] as bool? ?? false).toList();
+      _recentChats =
+          _chats.where((c) => !(c['isPinned'] as bool? ?? false)).toList();
+    } else {
+      _filteredChats = _chats
+          .where(
+            (chat) =>
+                (chat['name'] as String? ?? '').toLowerCase().contains(query),
+          )
+          .toList();
+      _pinnedChats = const [];
+      _recentChats = _filteredChats;
+    }
 
     final messageQuery = _messageSearchController.text.trim().toLowerCase();
     _filteredMessages = messageQuery.isEmpty
@@ -570,61 +580,62 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(
-          titleWidget: _selectedChatId == null
-              ? Text(
-                  'Чаты',
-                  style: AppTypography.headline.copyWith(color: Colors.white),
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      currentChat['name'] as String? ?? 'Чат',
-                      style: AppTypography.headline.copyWith(
-                        color: Colors.white,
-                        fontSize: 16,
+      appBar: GlassAppBar(
+        isLargeTitle: _selectedChatId == null,
+        titleWidget: _selectedChatId == null
+            ? const Text(
+                'Чаты',
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    currentChat['name'] as String? ?? 'Чат',
+                    style: AppTypography.headline.copyWith(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color:
+                              P2PService.instance.isP2PReady(_selectedChatId!)
+                                  ? AppColors.systemGreen
+                                  : AppColors.systemBlue,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: P2PService.instance.isP2PReady(_selectedChatId!)
-                                ? AppColors.systemGreen
-                                : AppColors.systemBlue,
-                            shape: BoxShape.circle,
-                          ),
+                      const SizedBox(width: 4),
+                      Text(
+                        P2PService.instance.isP2PReady(_selectedChatId!)
+                            ? 'P2P'
+                            : 'Локально',
+                        style: AppTypography.caption2.copyWith(
+                          color: Colors.white70,
+                          fontSize: 10,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'P2P' : 'Локально',
-                          style: AppTypography.caption2.copyWith(
-                            color: Colors.white70,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-          showBackButton: _selectedChatId != null,
-          onBack: () {
-            setState(() {
-              _selectedChatId = null;
-              _searchInConversation = false;
-            });
-          },
-        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+        showBackButton: _selectedChatId != null,
+        onBack: () {
+          setState(() {
+            _selectedChatId = null;
+            _searchInConversation = false;
+          });
+        },
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 960;
+          final isDesktop =
+              ResponsiveBreakpoints.isDesktop(constraints.maxWidth);
 
           if (isDesktop) {
             return Row(
@@ -731,23 +742,57 @@ class _ChatsScreenState extends State<ChatsScreen>
                       label: 'Нет чатов',
                       child: const StealthEmptyState.chats(),
                     )
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(
-                        0,
-                        0,
-                        0,
-                        MediaQuery.of(context).padding.bottom +
-                            AppSpacing.bottomBarOverlap,
-                      ),
-                      itemCount: chats.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppSpacing.xs),
-                      itemBuilder: (context, index) {
-                        final chat = chats[index];
-                        final isSelected = chat['id'] == _selectedChatId;
-                        return _buildChatTile(chat, isSelected);
-                      },
-                    ),
+                  : _pinnedChats.isEmpty && _recentChats.isEmpty
+                      ? ListView.separated(
+                          padding: EdgeInsets.fromLTRB(
+                            0,
+                            0,
+                            0,
+                            MediaQuery.of(context).padding.bottom +
+                                AppSpacing.bottomBarOverlap,
+                          ),
+                          itemCount: chats.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: AppSpacing.xs),
+                          itemBuilder: (context, index) {
+                            final chat = chats[index];
+                            final isSelected = chat['id'] == _selectedChatId;
+                            return _buildChatTile(chat, isSelected);
+                          },
+                        )
+                      : ListView(
+                          padding: EdgeInsets.fromLTRB(
+                            0,
+                            0,
+                            0,
+                            MediaQuery.of(context).padding.bottom +
+                                AppSpacing.bottomBarOverlap,
+                          ),
+                          children: [
+                            if (_pinnedChats.isNotEmpty) ...[
+                              SectionHeader(
+                                title: 'Закреплённые',
+                                count: _pinnedChats.length,
+                              ),
+                              ..._pinnedChats.map((chat) {
+                                final isSelected =
+                                    chat['id'] == _selectedChatId;
+                                return _buildChatTile(chat, isSelected);
+                              }),
+                            ],
+                            if (_recentChats.isNotEmpty) ...[
+                              SectionHeader(
+                                title: 'Последние',
+                                count: _recentChats.length,
+                              ),
+                              ..._recentChats.map((chat) {
+                                final isSelected =
+                                    chat['id'] == _selectedChatId;
+                                return _buildChatTile(chat, isSelected);
+                              }),
+                            ],
+                          ],
+                        ),
         ),
       ],
     );
@@ -758,6 +803,11 @@ class _ChatsScreenState extends State<ChatsScreen>
     return ChatTile(
       chat: chat,
       isSelected: isSelected,
+      isSent: chat['isSent'] as bool?,
+      isRead: chat['isRead'] as bool?,
+      isDelivered: chat['isDelivered'] as bool?,
+      isVerified: chat['isVerified'] as bool? ?? false,
+      isPinned: chat['isPinned'] as bool? ?? false,
       onTap: () => _selectChat(chat['id'] as String),
       onLongPress: isPrivate
           ? null

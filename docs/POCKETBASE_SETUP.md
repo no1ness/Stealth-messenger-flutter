@@ -1,3 +1,5 @@
+[← Security](SECURITY.md) · [Back to README](../README.md) · [Bypass Setup →](BYPASS_SETUP.md)
+
 # PocketBase Signaling Server — гайд по развёртыванию
 
 Этот документ описывает как развернуть PocketBase-бэкенд, который Stealth
@@ -309,3 +311,9 @@ flutter test test/services/signaling/pocketbase_signaling_smoke_test.dart
   параллельных SSE-клиентов на типовом железе. Horizontal scaling
   сейчас PocketBase'ом не поддерживается; если перерос один узел —
   переноси signaling на managed pub/sub.
+
+## See Also
+
+- [Security](SECURITY.md) — модель угроз и криптография
+- [Bypass Setup](BYPASS_SETUP.md) — bypass-прокси для обхода NAT
+- [Deployment](deployment.md) — деплой signaling + TURN

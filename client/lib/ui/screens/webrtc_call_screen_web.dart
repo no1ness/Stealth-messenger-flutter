@@ -34,7 +34,10 @@ class WebRTCCallScreen extends StatefulWidget {
     this.isVideoCall = false,
     this.initialOffer,
     this.callerUserId,
+    this.safetyNumber,
   });
+
+  final String? safetyNumber;
 
   @override
   State<WebRTCCallScreen> createState() => _WebRTCCallScreenState();
@@ -142,9 +145,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   connectionKind: _controller.connected
                       ? StatusKind.success
                       : StatusKind.pending,
+                  safetyNumber: widget.safetyNumber,
+                  avatarWidget: !widget.isVideoCall ? _buildAvatar() : null,
                 ),
                 const Spacer(),
-                if (widget.isVideoCall) _buildVideoArea() else _buildAvatar(),
+                if (widget.isVideoCall) _buildVideoArea(),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   widget.peerName,
@@ -295,7 +300,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
           active: _controller.connected,
         ),
         _buildStatusChip(
-          label: _controller.microphoneEnabled ? 'Микрофон вкл' : 'Микрофон выкл',
+          label:
+              _controller.microphoneEnabled ? 'Микрофон вкл' : 'Микрофон выкл',
           active: _controller.microphoneEnabled,
         ),
         _buildStatusChip(

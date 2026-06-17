@@ -9,13 +9,18 @@ transient signaling relay для `offer / answer / candidate / hangup` —
 
 ## Документация
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — обзор системы
-- [`docs/SECURITY.md`](docs/SECURITY.md) — модель угроз и криптография
-- [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) — развёртывание
-  signaling-сервера
-- [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) — сборка под Android
-- [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) — подпись release-сборки и lint
-- [`AGENTS.md`](AGENTS.md) — базовые правила для AI-ассистентов
+| Guide | Description |
+|-------|-------------|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Обзор системы |
+| [`docs/design-system.md`](docs/design-system.md) | Дизайн-система, токены и UI-компоненты |
+| [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) | Оптимизация производительности |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Модель угроз и криптография |
+| [`docs/POCKETBASE_SETUP.md`](docs/POCKETBASE_SETUP.md) | Развёртывание signaling-сервера |
+| [`docs/BYPASS_SETUP.md`](docs/BYPASS_SETUP.md) | Bypass-прокси для обхода NAT |
+| [`INSTALL_ANDROID.md`](INSTALL_ANDROID.md) | Сборка под Android |
+| [`docs/ANDROID_RELEASE.md`](docs/ANDROID_RELEASE.md) | Подпись release-сборки и lint |
+| [`docs/deployment.md`](docs/deployment.md) | Деплой и CI/CD |
+| [`AGENTS.md`](AGENTS.md) | Базовые правила для AI-ассистентов |
 
 ## Quality gates
 

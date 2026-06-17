@@ -9,6 +9,7 @@ class AccessibilityIds {
   static const String chatsTab = 'Chats';
   static const String contactsTab = 'Contacts';
   static const String profileTab = 'Profile';
+  static const String callsTab = 'Calls';
   static const String settingsTab = 'Settings';
 
   // Contacts screen

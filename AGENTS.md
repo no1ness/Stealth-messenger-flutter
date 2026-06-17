@@ -74,3 +74,18 @@
 - [ ] Решение — самое простое из допустимых.
 - [ ] Diff напрямую соответствует запросу.
 - [ ] Шаги верификации и их результаты задокументированы.
+
+## Documentation
+
+| Document | Path | Description |
+|----------|------|-------------|
+| README | `README.md` | Landing page |
+| Architecture | `docs/ARCHITECTURE.md` | Обзор системы |
+| Design System | `docs/design-system.md` | Дизайн-токены и UI-компоненты |
+| Performance | `docs/PERFORMANCE.md` | Оптимизация производительности |
+| Security | `docs/SECURITY.md` | Модель угроз и криптография |
+| PocketBase Setup | `docs/POCKETBASE_SETUP.md` | Развёртывание signaling-сервера |
+| Bypass Setup | `docs/BYPASS_SETUP.md` | Bypass-прокси для обхода NAT |
+| Install Android | `INSTALL_ANDROID.md` | Сборка под Android |
+| Android Release | `docs/ANDROID_RELEASE.md` | Подпись release-сборки |
+| Deployment | `docs/deployment.md` | Деплой и CI/CD |

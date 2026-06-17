@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
+
 class ChatSearchBar extends StatefulWidget {
   const ChatSearchBar({
     super.key,
@@ -39,21 +41,10 @@ class _ChatSearchBarState extends State<ChatSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return GlassSearchField(
       controller: widget.controller,
+      hintText: 'Поиск чатов',
       onChanged: _onChanged,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: 'Поиск чатов',
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        prefixIcon: const Icon(Icons.search, color: Colors.white70),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.1),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-      ),
     );
   }
 }

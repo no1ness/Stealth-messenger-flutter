@@ -40,7 +40,10 @@ class WebRTCCallScreen extends StatefulWidget {
     this.isVideoCall = false,
     this.initialOffer,
     this.callerUserId,
+    this.safetyNumber,
   });
+
+  final String? safetyNumber;
 
   @override
   State<WebRTCCallScreen> createState() => _WebRTCCallScreenState();
@@ -150,10 +153,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                     connectionKind: _controller.connected
                         ? StatusKind.success
                         : StatusKind.pending,
+                    safetyNumber: widget.safetyNumber,
+                    avatarWidget: !widget.isVideoCall ? _buildAvatar() : null,
                   ),
                 ),
                 const Spacer(),
-                if (widget.isVideoCall) _buildVideoArea() else _buildAvatar(),
+                if (widget.isVideoCall) _buildVideoArea(),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   widget.peerName,
@@ -203,15 +208,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   remoteStream.getVideoTracks().isNotEmpty)
                 RTCVideoView(
                   _controller.media.remoteRenderer,
-                  objectFit:
-                      RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
                 )
               else
                 Center(
                   child: Text(
                     'Ожидание видео...',
-                    style:
-                        AppTypography.body.copyWith(color: Colors.white70),
+                    style: AppTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
               Positioned(
@@ -267,9 +270,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
         child: Text(
           widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
           style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: Colors.white),
+              fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
     );
@@ -301,9 +302,8 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               color: _controller.microphoneEnabled
                   ? Colors.white.withValues(alpha: 0.2)
                   : Colors.white,
-              iconColor: _controller.microphoneEnabled
-                  ? Colors.white
-                  : Colors.black,
+              iconColor:
+                  _controller.microphoneEnabled ? Colors.white : Colors.black,
               onPressed: _controller.toggleMicrophone,
             ),
           ),

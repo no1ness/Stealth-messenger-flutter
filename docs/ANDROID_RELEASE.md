@@ -1,3 +1,5 @@
+[← Bypass Setup](BYPASS_SETUP.md) · [Back to README](../README.md) · [Deployment →](deployment.md)
+
 # Гайд по Android Release-сборке
 
 Как собрать публикабельный Stealth Messenger APK / App Bundle.
@@ -133,3 +135,9 @@ cd client/android
 `workflow_dispatch`), который гоняет `flutter analyze` + `flutter test`
 на `macos-latest`. В PR-матрице его НЕТ — это сохраняет короткий
 PR cycle time.
+
+## See Also
+
+- [Deployment](deployment.md) — деплой и CI/CD
+- [Architecture](ARCHITECTURE.md) — обзор системы
+- [PocketBase Setup](POCKETBASE_SETUP.md) — развёртывание signaling-сервера

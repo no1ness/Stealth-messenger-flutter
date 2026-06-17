@@ -1,3 +1,5 @@
+[← Architecture](ARCHITECTURE.md) · [Back to README](../README.md) · [Performance →](PERFORMANCE.md)
+
 # Дизайн-система Stealth
 
 > Единый источник истины для визуального языка, дизайн-токенов и переиспользуемых
@@ -194,3 +196,9 @@
 ## Контракт доступности
 
 Каждая интерактивная поверхность в приложении должна сохранять или расширять `client/lib/constants/accessibility_ids.dart`. Этот файл является единым источником истины для меток `Semantics` и также потребляется внерепозиторным набором тестов Appium. **Не меняйте значения без координации обновления набора Appium.**
+
+## See Also
+
+- [Architecture](ARCHITECTURE.md) — обзор системы и runtime-модель
+- [Performance](PERFORMANCE.md) — оптимизация производительности
+- [Android Release](ANDROID_RELEASE.md) — подпись release-сборки

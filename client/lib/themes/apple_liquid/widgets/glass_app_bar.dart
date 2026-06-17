@@ -28,7 +28,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => Size.fromHeight(
-        isLargeTitle ? 56 : 56, // Fixed height for now
+        isLargeTitle ? 72 : 56,
       );
 
   @override
@@ -50,33 +50,51 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: SafeArea(
               bottom: false,
               child: SizedBox(
-                height: 56,
-                child: Row(
-                  children: [
-                    if (showBackButton)
-                      IconButton(
-                        tooltip: 'Назад',
-                        icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                        color: AppColors.systemBlue,
-                        onPressed: onBack ?? () => Navigator.of(context).pop(),
-                      ),
-                    if (leading != null && !showBackButton) leading!,
-                    Expanded(
-                      child: titleWidget ??
-                          Text(
-                            title ?? '',
-                            style: AppTypography.headline.copyWith(
+                height: isLargeTitle ? 72 : 56,
+                child: isLargeTitle
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+                        child: Align(
+                          alignment: Alignment.bottomLeft,
+                          child: DefaultTextStyle(
+                            style: AppTypography.title1.copyWith(
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
                             ),
-                            textAlign: TextAlign.center,
+                            child: titleWidget ??
+                                Text(
+                                  title ?? '',
+                                ),
                           ),
-                    ),
-                    if (actions != null) ...actions!,
-                    if (actions == null && showBackButton)
-                      const SizedBox(width: 48), // Balance for back button
-                  ],
-                ),
+                        ),
+                      )
+                    : Row(
+                        children: [
+                          if (showBackButton)
+                            IconButton(
+                              tooltip: 'Назад',
+                              icon: const Icon(Icons.arrow_back_ios_new,
+                                  size: 20),
+                              color: AppColors.systemBlue,
+                              onPressed:
+                                  onBack ?? () => Navigator.of(context).pop(),
+                            ),
+                          if (leading != null && !showBackButton) leading!,
+                          Expanded(
+                            child: titleWidget ??
+                                Text(
+                                  title ?? '',
+                                  style: AppTypography.headline.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                          ),
+                          if (actions != null) ...actions!,
+                          if (actions == null && showBackButton)
+                            const SizedBox(width: 48),
+                        ],
+                      ),
               ),
             ),
           ),

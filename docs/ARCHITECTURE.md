@@ -1,3 +1,5 @@
+[Design System →](design-system.md)
+
 # Архитектура Stealth Messenger
 
 ## Принципы
@@ -95,3 +97,9 @@ TURNS_PASSWORD=
 ## Важное ограничение
 
 PocketBase сейчас не является адресной книгой. Обнаружение контактов без обмена бандлами - отдельная будущая задача.
+
+## See Also
+
+- [Design System](design-system.md) — дизайн-токены и UI-компоненты
+- [Security](SECURITY.md) — модель угроз и криптография
+- [Deployment](deployment.md) — деплой signaling + TURN

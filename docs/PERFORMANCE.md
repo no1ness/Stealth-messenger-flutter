@@ -1,3 +1,5 @@
+[← Design System](design-system.md) · [Back to README](../README.md) · [Security →](SECURITY.md)
+
 # Performance Optimisation — M18
 
 ## Baseline Problems
@@ -57,3 +59,9 @@
 - CircuitBoardBackground canvas cache
 - DecryptText AnimatedBuilder
 - Benchmark gates (test files)
+
+## See Also
+
+- [Design System](design-system.md) — дизайн-токены и UI-компоненты
+- [Architecture](ARCHITECTURE.md) — обзор системы
+- [Deployment](deployment.md) — деплой и CI/CD

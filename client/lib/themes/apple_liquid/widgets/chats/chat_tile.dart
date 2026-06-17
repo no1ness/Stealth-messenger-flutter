@@ -23,12 +23,22 @@ class ChatTile extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.onLongPress,
+    this.isSent,
+    this.isRead,
+    this.isDelivered,
+    this.isVerified = false,
+    this.isPinned = false,
   });
 
   final Map<String, dynamic> chat;
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final bool? isSent;
+  final bool? isRead;
+  final bool? isDelivered;
+  final bool isVerified;
+  final bool isPinned;
 
   @override
   Widget build(BuildContext context) {
@@ -67,14 +77,43 @@ class ChatTile extends StatelessWidget {
           onLongPress: onLongPress,
           leading: Semantics(
             label: AccessibilityIds.chatTileAvatar,
-            child: CircleAvatar(
-              backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
-              child: Text(
-                _initials(name),
-                style: AppTypography.calloutEmphasis.copyWith(
-                  color: AppColors.textOnGlass,
+            child: Stack(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: _avatarGradient(name),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initials(name),
+                    style: AppTypography.calloutEmphasis.copyWith(
+                      color: AppColors.textOnGlass,
+                    ),
+                  ),
                 ),
-              ),
+                if (isVerified)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.systemBlue,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.check,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           title: Text(
@@ -87,15 +126,32 @@ class ChatTile extends StatelessWidget {
           ),
           subtitle: Semantics(
             label: AccessibilityIds.chatTileLastMessage,
-            child: Text(
-              (lastMessage == null || lastMessage.isEmpty)
-                  ? (isPrivate ? 'Нет сообщений' : '$memberCount участников')
-                  : lastMessage,
-              style: AppTypography.subheadline.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                if (lastMessage != null && lastMessage.isNotEmpty) ...[
+                  Text(
+                    '⌬ ',
+                    style: AppTypography.subheadline.copyWith(
+                      color: AppColors.systemGreen,
+                    ),
+                  ),
+                ],
+                Expanded(
+                  child: Text(
+                    _buildDeliveryPrefix() +
+                        ((lastMessage == null || lastMessage.isEmpty)
+                            ? (isPrivate
+                                ? 'Нет сообщений'
+                                : '$memberCount участников')
+                            : lastMessage),
+                    style: AppTypography.subheadline.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
           trailing: SizedBox(
@@ -150,14 +206,40 @@ class ChatTile extends StatelessWidget {
     );
   }
 
+  static Gradient _avatarGradient(String name) {
+    final hash = name.hashCode;
+    final hue1 = (hash.abs() % 360).toDouble();
+    final hue2 = ((hash.abs() * 7 + 120) % 360).toDouble();
+    return LinearGradient(
+      colors: [
+        HSLColor.fromAHSL(1, hue1, 0.7, 0.4).toColor(),
+        HSLColor.fromAHSL(1, hue2, 0.7, 0.3).toColor(),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
+  String _buildDeliveryPrefix() {
+    if (isRead == true) {
+      return '✓✓ ';
+    }
+    if (isDelivered == true) {
+      return '✓ ';
+    }
+    if (isSent == true) {
+      return '✓ ';
+    }
+    return '';
+  }
+
   static String _initials(String? value) {
     if (value == null || value.trim().isEmpty) {
       return '?';
     }
     final parts = value.trim().split(RegExp(r'\s+'));
     final first = parts.first.isNotEmpty ? parts.first[0] : '';
-    final last =
-        parts.length > 1 && parts.last.isNotEmpty ? parts.last[0] : '';
+    final last = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0] : '';
     return (first + last).toUpperCase();
   }
 }

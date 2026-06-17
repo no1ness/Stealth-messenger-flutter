@@ -23,8 +23,7 @@ void main() {
     expect(find.text('Privacy'), findsOneWidget);
   });
 
-  testWidgets('renders optional trailing widget when provided',
-      (tester) async {
+  testWidgets('renders optional trailing widget when provided', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -60,5 +59,17 @@ void main() {
       isTrue,
       reason: 'SectionHeader must expose header: true to screen readers',
     );
+  });
+
+  testWidgets('renders count chip when count is provided', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SectionHeader(title: 'Закреплённые', count: 3),
+        ),
+      ),
+    );
+    expect(find.text('ЗАКРЕПЛЁННЫЕ'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
   });
 }
