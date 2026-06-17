@@ -52,7 +52,7 @@ class ConversationFooter extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '${isEditingMessage ? 'Editing' : 'Replying to'}: $replyToMessageText',
+                          '${isEditingMessage ? 'Редактирование' : 'Ответ на'}: $replyToMessageText',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.labelMedium,
@@ -80,7 +80,7 @@ class ConversationFooter extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '$messagesCount msgs',
+                    '$messagesCount сообщ.',
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                 ],
@@ -90,7 +90,7 @@ class ConversationFooter extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Typing...',
+                    'Печатает...',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: AppColors.systemGreen,
                           fontWeight: FontWeight.w600,

@@ -92,7 +92,7 @@ class ConversationPanel extends StatelessWidget {
                   onChanged: (_) => onSearchChanged(),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Search in conversation',
+                    hintText: 'Поиск в переписке',
                     hintStyle:
                         TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                     prefixIcon: const Icon(Icons.search, color: Colors.white70),
@@ -139,7 +139,7 @@ class ConversationPanel extends StatelessWidget {
                           child: Center(
                             child: OutlinedButton(
                               onPressed: onLoadOlder,
-                              child: const Text('Load older messages'),
+                              child: const Text('Загрузить предыдущие'),
                             ),
                           ),
                         );
@@ -171,7 +171,7 @@ class ConversationPanel extends StatelessWidget {
 
                     final bubble = glass.GlassChatBubble(
                       message:
-                          '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (edited)' : ''}',
+                          '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (ред.)' : ''}',
                       timestamp: message['timestamp'] as String?,
                       isDelivered: message['isDelivered'] as bool?,
                       isRead: message['isRead'] as bool?,

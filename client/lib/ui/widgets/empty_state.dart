@@ -93,23 +93,23 @@ class StealthEmptyState extends StatelessWidget {
   /// Chats list when the user has no conversations.
   const StealthEmptyState.chats({super.key, this.action})
       : icon = Icons.chat_bubble_outline,
-        title = 'No conversations yet.',
+        title = 'Нет переписок.',
         message =
-            'Send a contact bundle to start a thread. Stealth is silent until you reach out.';
+            'Отправьте контактный бандл, чтобы начать. Stealth хранит молчание, пока вы не сделаете первый шаг.';
 
   /// Contacts list when the user has no contacts.
   const StealthEmptyState.contacts({super.key, this.action})
       : icon = Icons.person_add_alt_1_outlined,
-        title = 'Your address book is private.',
+        title = 'Ваша адресная книга приватна.',
         message =
-            'Scan a contact bundle or paste an invite. Nothing leaves the device until you do.';
+            'Отсканируйте контактный бандл или вставьте приглашение. Ничто не покидает устройство без вашего ведома.';
 
   /// Calls list when there is no recent call activity.
   const StealthEmptyState.calls({super.key, this.action})
       : icon = Icons.call_outlined,
-        title = 'No calls. Stay silent.',
+        title = 'Нет звонков.',
         message =
-            'Outgoing or incoming — your history starts the first time you dial.';
+            'Исходящие или входящие — история начинается с первого вызова.';
 
   final IconData icon;
   final String title;
@@ -201,7 +201,7 @@ class EmptyState extends StatelessWidget {
       default:
         return const StealthEmptyState(
           icon: Icons.info_outline,
-          title: 'Nothing to see here',
+          title: 'Здесь ничего нет',
         );
     }
   }

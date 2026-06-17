@@ -22,7 +22,7 @@ class _UserDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = contact['name'] as String? ?? 'Unknown';
+    final name = contact['name'] as String? ?? 'Неизвестно';
     final userId = (contact['user_id'] ?? contact['contact_user_id'] ?? '').toString();
     final deviceModel = contact['deviceModel'] as String?;
     final platform = contact['platform'] as String?;
@@ -86,7 +86,7 @@ class _UserDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      isOnline ? 'Online' : 'Offline',
+                      isOnline ? 'В сети' : 'Не в сети',
                       style: AppTypography.caption1.copyWith(
                         color:
                             isOnline ? AppColors.systemGreen : AppColors.textSecondary,
@@ -97,29 +97,29 @@ class _UserDetailSheet extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.lg),
               if (deviceModel != null || platform != null) ...[
-                _sectionHeader('Device'),
-                if (deviceModel != null) _infoRow('Model', deviceModel),
-                if (platform != null) _infoRow('Platform', platform),
+                _sectionHeader('Устройство'),
+                if (deviceModel != null) _infoRow('Модель', deviceModel),
+                if (platform != null) _infoRow('Платформа', platform),
               ],
               if (appVersion != null) ...[
-                _sectionHeader('Application'),
-                _infoRow('Version', appVersion),
+                _sectionHeader('Приложение'),
+                _infoRow('Версия', appVersion),
               ],
               if (registeredAt != null || lastSeen != null || isOnline != null) ...[
-                _sectionHeader('Activity'),
+                _sectionHeader('Активность'),
                 if (registeredAt != null)
-                  _infoRow('Registered', _formatDate(registeredAt)),
+                  _infoRow('Зарегистрирован', _formatDate(registeredAt)),
                 if (lastSeen != null)
-                  _infoRow('Last seen', _formatDate(lastSeen)),
+                  _infoRow('Последний раз', _formatDate(lastSeen)),
                 if (isOnline != null)
-                  _infoRow('Status', isOnline ? 'Online' : 'Offline'),
+                  _infoRow('Статус', isOnline ? 'Online' : 'Offline'),
               ],
               const SizedBox(height: AppSpacing.lg),
               Row(
                 children: [
                   Expanded(
                     child: Semantics(
-                      label: 'Write message',
+                      label: 'Написать сообщение',
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
@@ -128,14 +128,14 @@ class _UserDetailSheet extends StatelessWidget {
                           _openChat(context, userId);
                         },
                         icon: const Icon(Icons.chat_bubble_outline),
-                        label: const Text('Write message'),
+                        label: const Text('Написать сообщение'),
                       ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Semantics(
-                      label: 'Call',
+                      label: 'Позвонить',
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
@@ -144,7 +144,7 @@ class _UserDetailSheet extends StatelessWidget {
                           _startCall(context, contact);
                         },
                         icon: const Icon(Icons.call),
-                        label: const Text('Call'),
+                        label: const Text('Позвонить'),
                       ),
                     ),
                   ),
@@ -153,12 +153,12 @@ class _UserDetailSheet extends StatelessWidget {
               if (!autoPopulated) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Semantics(
-                  label: 'Edit profile',
+                  label: 'Редактировать профиль',
                   button: true,
                   child: OutlinedButton.icon(
                     onPressed: null,
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit profile'),
+                    label: const Text('Редактировать профиль'),
                   ),
                 ),
               ],

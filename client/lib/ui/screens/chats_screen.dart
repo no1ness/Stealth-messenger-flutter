@@ -158,18 +158,18 @@ class _ChatsScreenState extends State<ChatsScreen>
         final members = (row['members'] as List<dynamic>? ?? []).cast<String>();
         final storedName = (row['name'] as String?)?.trim();
         final isPrivate = row['is_private'] as bool? ?? false;
-        var title = storedName?.isNotEmpty == true ? storedName! : 'Chat';
+        var title = storedName?.isNotEmpty == true ? storedName! : 'Чат';
 
         if (members.length == 1) {
           title = (await _appService.getNicknameForUser(members.first)) ??
-              'Chat';
+              'Чат';
         } else if (isPrivate || members.length == 2) {
           final otherId = members.firstWhere(
             (memberId) => memberId != me,
             orElse: () => members.first,
           );
           title =
-              (await _appService.getNicknameForUser(otherId)) ?? 'Chat';
+              (await _appService.getNicknameForUser(otherId)) ?? 'Чат';
         }
 
         final lastMessage =
@@ -221,7 +221,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (mounted) {
         showStealthSnackBar(
           context,
-          'Failed to load chats: $error',
+          'Ошибка загрузки чатов: $error',
           kind: SnackKind.danger,
         );
       }
@@ -400,7 +400,7 @@ class _ChatsScreenState extends State<ChatsScreen>
             children: [
               ListTile(
                 leading: const Icon(Icons.reply),
-                title: const Text('Reply'),
+                title: const Text('Ответить'),
                 onTap: () {
                   Navigator.of(context).pop();
                   setState(() {
@@ -414,7 +414,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               ListTile(
                 leading:
                     Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-                title: Text(isPinned ? 'Unpin message' : 'Pin message'),
+                title: Text(isPinned ? 'Открепить' : 'Закрепить'),
                 onTap: () async {
                   Navigator.of(context).pop();
                   if (isPinned) {
@@ -431,7 +431,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               if (isSent)
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Edit'),
+                  title: const Text('Редактировать'),
                   onTap: () {
                     Navigator.of(context).pop();
                     setState(() {
@@ -445,7 +445,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               if (isSent)
                 ListTile(
                   leading: const Icon(Icons.delete_outline),
-                  title: const Text('Delete'),
+                  title: const Text('Удалить'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _appService.softDeleteMessage(
@@ -489,7 +489,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       return DateFormat('HH:mm').format(dateTime);
     }
     if (diffDays == 1) {
-      return 'Yesterday';
+      return 'Вчера';
     }
     return DateFormat('dd.MM.yyyy').format(dateTime);
   }
@@ -565,7 +565,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     final currentChat = _chats.firstWhere(
       (chat) => chat['id'] == _selectedChatId,
-      orElse: () => const {'name': 'Chat'},
+      orElse: () => const {'name': 'Чат'},
     );
 
     return Scaffold(
@@ -575,14 +575,14 @@ class _ChatsScreenState extends State<ChatsScreen>
         child: GlassAppBar(
           titleWidget: _selectedChatId == null
               ? Text(
-                  'Chats',
+                  'Чаты',
                   style: AppTypography.headline.copyWith(color: Colors.white),
                 )
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      currentChat['name'] as String? ?? 'Chat',
+                      currentChat['name'] as String? ?? 'Чат',
                       style: AppTypography.headline.copyWith(
                         color: Colors.white,
                         fontSize: 16,
@@ -603,7 +603,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'Direct' : 'Local',
+                          P2PService.instance.isP2PReady(_selectedChatId!) ? 'P2P' : 'Локально',
                           style: AppTypography.caption2.copyWith(
                             color: Colors.white70,
                             fontSize: 10,
@@ -685,7 +685,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                   children: [
                     Expanded(
                       child: _StatCard(
-                        label: 'Chats',
+                        label: 'Чаты',
                         value: '${_chats.length}',
                         accent: AppColors.systemBlue,
                       ),
@@ -693,7 +693,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                     const SizedBox(width: 10),
                     Expanded(
                       child: _StatCard(
-                        label: 'Unread',
+                        label: 'Непрочитано',
                         value: '${_totalUnreadCount()}',
                         accent: AppColors.systemOrange,
                       ),
@@ -716,7 +716,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                       },
                     ),
                     icon: const Icon(Icons.group_add),
-                    label: const Text('New group'),
+                    label: const Text('Новая группа'),
                   ),
                 ),
               ],
@@ -728,7 +728,7 @@ class _ChatsScreenState extends State<ChatsScreen>
               ? const StealthSkeletonList(count: 6)
               : chats.isEmpty
                   ? Semantics(
-                      label: 'No chats',
+                      label: 'Нет чатов',
                       child: const StealthEmptyState.chats(),
                     )
                   : ListView.separated(
@@ -881,7 +881,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
       showStealthSnackBar(
         context,
-        'Selected file is not readable',
+        'Выбранный файл не читается',
         kind: SnackKind.danger,
       );
       return;
@@ -900,7 +900,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
       showStealthSnackBar(
         context,
-        'Failed to upload attachment',
+        'Ошибка загрузки вложения',
         kind: SnackKind.danger,
       );
       return;
@@ -930,7 +930,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
       showStealthSnackBar(
         context,
-        'Voice file is not readable',
+        'Голосовой файл не читается',
         kind: SnackKind.danger,
       );
       return;
@@ -948,7 +948,7 @@ class _ChatsScreenState extends State<ChatsScreen>
       }
       showStealthSnackBar(
         context,
-        'Failed to upload voice message',
+        'Ошибка загрузки голосового сообщения',
         kind: SnackKind.danger,
       );
       return;

@@ -22,9 +22,9 @@ class LevelFilterChips extends StatelessWidget {
   final ValueChanged<LogLevel> onSelected;
 
   static const _items = <(String, LogLevel)>[
-    ('All', LogLevel.debug),
-    ('Warnings', LogLevel.warn),
-    ('Errors', LogLevel.error),
+    ('Все', LogLevel.debug),
+    ('Предупреждения', LogLevel.warn),
+    ('Ошибки', LogLevel.error),
   ];
 
   @override

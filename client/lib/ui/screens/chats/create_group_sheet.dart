@@ -55,14 +55,14 @@ Future<void> showCreateGroupSheet({
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Create group chat',
+                  'Создать групповой чат',
                   style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    hintText: 'Group name',
+                    hintText: 'Название группы',
                     prefixIcon: Icon(Icons.group),
                   ),
                 ),
@@ -70,7 +70,7 @@ Future<void> showCreateGroupSheet({
                 SizedBox(
                   height: 300,
                   child: contacts.isEmpty
-                      ? const Center(child: Text('Add contacts first'))
+                      ? const Center(child: Text('Сначала добавьте контакты'))
                       : ListView.builder(
                           itemCount: contacts.length,
                           itemBuilder: (context, index) {
@@ -89,7 +89,7 @@ Future<void> showCreateGroupSheet({
                                 });
                               },
                               title:
-                                  Text(contact['name'] as String? ?? 'Unknown'),
+                                  Text(contact['name'] as String? ?? 'Неизвестно'),
                               subtitle: Text(
                                 userId,
                                 maxLines: 1,
@@ -103,7 +103,7 @@ Future<void> showCreateGroupSheet({
                 FilledButton.icon(
                   onPressed: selectedIds.length >= 2 ? createGroup : null,
                   icon: const Icon(Icons.group_add),
-                  label: const Text('Create group'),
+                  label: const Text('Создать группу'),
                 ),
               ],
             ),

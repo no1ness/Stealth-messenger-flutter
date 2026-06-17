@@ -32,7 +32,7 @@ class ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = chat['name'] as String? ?? 'Chat';
+    final name = chat['name'] as String? ?? 'Чат';
     final unreadCount = chat['unreadCount'] as int? ?? 0;
     final memberCount = chat['memberCount'] as int? ?? 0;
     final isPrivate = chat['isPrivate'] as bool? ?? true;
@@ -89,7 +89,7 @@ class ChatTile extends StatelessWidget {
             label: AccessibilityIds.chatTileLastMessage,
             child: Text(
               (lastMessage == null || lastMessage.isEmpty)
-                  ? (isPrivate ? 'No messages yet' : '$memberCount members')
+                  ? (isPrivate ? 'Нет сообщений' : '$memberCount участников')
                   : lastMessage,
               style: AppTypography.subheadline.copyWith(
                 color: AppColors.textSecondary,

@@ -44,7 +44,7 @@ class _ChatSearchBarState extends State<ChatSearchBar> {
       onChanged: _onChanged,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        hintText: 'Search chats',
+        hintText: 'Поиск чатов',
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
         prefixIcon: const Icon(Icons.search, color: Colors.white70),
         filled: true,

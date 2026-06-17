@@ -36,27 +36,27 @@ class InsightPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Session insight', style: theme.textTheme.titleMedium),
+          Text('Информация о сессии', style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
           const _InsightTile(
-            label: 'Realtime sync',
-            value: 'Active',
+            label: 'Синхронизация',
+            value: 'Активна',
             accent: AppColors.systemGreen,
           ),
           const SizedBox(height: 10),
           _InsightTile(
-            label: 'Platform',
+            label: 'Платформа',
             value: kIsWeb ? 'Web' : 'Mobile',
             accent: AppColors.systemBlue,
           ),
           const SizedBox(height: 10),
           _InsightTile(
-            label: 'Current user',
-            value: myUserId == null ? 'Unknown' : myUserId!.substring(0, 8),
+            label: 'Текущий пользователь',
+            value: myUserId == null ? 'Неизвестно' : myUserId!.substring(0, 8),
             accent: AppColors.systemOrange,
           ),
           const SizedBox(height: 22),
-          Text('Load profile', style: theme.textTheme.titleSmall),
+          Text('Профиль нагрузки', style: theme.textTheme.titleSmall),
           const SizedBox(height: 12),
           SizedBox(
             height: 130,

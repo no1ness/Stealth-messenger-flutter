@@ -15,7 +15,7 @@ String formatTimestamp(DateTime dateTime) {
     return DateFormat('HH:mm').format(dateTime);
   }
   if (diffDays == 1) {
-    return 'Yesterday';
+    return 'Вчера';
   }
   return DateFormat('dd.MM.yyyy').format(dateTime);
 }

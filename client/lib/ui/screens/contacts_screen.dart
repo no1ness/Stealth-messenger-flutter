@@ -219,7 +219,7 @@ class _ContactsScreenState extends State<ContactsScreen>
 
   Future<void> _verifySafetyNumber(Map<String, dynamic> contact) async {
     final userId = contact['user_id'] as String?;
-    final name = contact['name'] as String? ?? 'Contact';
+    final name = contact['name'] as String? ?? 'Контакт';
     if (userId == null) return;
 
     if (mounted) {
@@ -480,7 +480,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     await Navigator.of(context).push(
       GlassPageRoute.modal(
         builder: (_) => WebRTCCallScreen(
-          peerName: (contact['name'] as String?) ?? 'Contact',
+          peerName: (contact['name'] as String?) ?? 'Контакт',
           chatId: chatId,
           isCaller: true,
           isVideoCall: isVideoCall,

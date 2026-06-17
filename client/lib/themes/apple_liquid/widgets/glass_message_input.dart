@@ -169,7 +169,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
                     color: _isRecording ? AppColors.systemRed : null,
                     active: _isRecording,
                     semanticsLabel:
-                        _isRecording ? 'Stop recording' : 'Record voice',
+                        _isRecording ? 'Остановить запись' : 'Записать голос',
                   ),
               ],
             ),
@@ -199,7 +199,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
           minLines: 1,
           style: AppTypography.body.copyWith(color: Colors.white),
           decoration: InputDecoration(
-            hintText: 'Message',
+            hintText: 'Сообщение',
             hintStyle: AppTypography.body.copyWith(
               color: Colors.white.withValues(alpha: 0.5),
             ),
@@ -233,7 +233,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
               color: AppColors.systemRed, size: 12),
           const SizedBox(width: 8),
           Text(
-            'Recording...',
+            'Запись...',
             style: AppTypography.body.copyWith(color: AppColors.systemRed),
           ),
         ],

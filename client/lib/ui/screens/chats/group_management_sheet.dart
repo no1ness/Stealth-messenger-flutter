@@ -70,7 +70,7 @@ Future<void> showManageGroupSheet({
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Manage group',
+                  'Управление группой',
                   style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
@@ -85,13 +85,13 @@ Future<void> showManageGroupSheet({
                   ),
                   child: Text(
                     isAdmin
-                        ? 'You are an admin. You can manage members and roles.'
-                        : 'You are a member. You can view participants but not change them.',
+                        ? 'Вы администратор. Вы можете управлять участниками и ролями.'
+                        : 'Вы участник. Вы можете просматривать, но не изменять участников.',
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Members',
+                  'Участники',
                   style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
                 SizedBox(
@@ -107,7 +107,7 @@ Future<void> showManageGroupSheet({
                         leading: CircleAvatar(
                           child: Text(_initials(member['name'] as String?)),
                         ),
-                        title: Text(member['name'] as String? ?? 'Unknown'),
+                        title: Text(member['name'] as String? ?? 'Неизвестно'),
                         subtitle: Text(
                           '$userId • $role',
                           maxLines: 1,
@@ -160,16 +160,16 @@ Future<void> showManageGroupSheet({
                                   if (role != 'admin')
                                     const PopupMenuItem(
                                       value: 'promote',
-                                      child: Text('Promote to admin'),
+                                      child: Text('Назначить админом'),
                                     ),
                                   if (role == 'admin')
                                     const PopupMenuItem(
                                       value: 'demote',
-                                      child: Text('Demote to member'),
+                                      child: Text('Понизить до участника'),
                                     ),
                                   const PopupMenuItem(
                                     value: 'remove',
-                                    child: Text('Remove from group'),
+                                    child: Text('Удалить из группы'),
                                   ),
                                 ],
                               )
@@ -184,16 +184,16 @@ Future<void> showManageGroupSheet({
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Add contacts',
+                  'Добавить контакты',
                   style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
                 SizedBox(
                   height: 220,
                   child: availableContacts.isEmpty
-                      ? const Center(child: Text('No more contacts to add'))
+                      ? const Center(child: Text('Нет контактов для добавления'))
                       : !isAdmin
                           ? const Center(
-                              child: Text('Only admins can add members'),
+                              child: Text('Только админы могут добавлять участников'),
                             )
                           : ListView.builder(
                               itemCount: availableContacts.length,
@@ -207,7 +207,7 @@ Future<void> showManageGroupSheet({
                                     ),
                                   ),
                                   title: Text(
-                                      contact['name'] as String? ?? 'Unknown'),
+                                      contact['name'] as String? ?? 'Неизвестно'),
                                   subtitle: Text(
                                     userId,
                                     maxLines: 1,
@@ -233,7 +233,7 @@ Future<void> showManageGroupSheet({
                                         );
                                       }
                                     },
-                                    child: const Text('Add'),
+                                    child: const Text('Добавить'),
                                   ),
                                 );
                               },
