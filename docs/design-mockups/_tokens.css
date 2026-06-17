@@ -16,7 +16,7 @@
   /* ---- Stealth dark palette (signature identity) ---- */
   --bg-primary:        #0A0E1A;
   --bg-secondary:      #151922;
-  --bg-tertiary:       #1F2937;
+  --bg-tertiary:       #1E2330;
   --bg-deep:           #0D1117;
 
   --glass-light:       rgba(255, 255, 255, 0.44);
@@ -45,11 +45,11 @@
   --status-danger:     var(--system-red);
   --status-info:       var(--system-blue);
 
-  --separator:         rgba(255, 255, 255, 0.10);
+  --separator:         rgba(84, 84, 88, 0.16);
   --divider-subtle:    var(--separator);
 
-  --shadow:            rgba(0, 0, 0, 0.45);
-  --shadow-strong:     rgba(0, 0, 0, 0.70);
+  --shadow:            rgba(0, 0, 0, 0.20);
+  --shadow-strong:     rgba(0, 0, 0, 0.40);
   --glow-blue:         rgba(0, 122, 255, 0.40);
 
   /* ---- Stealth gradient (3-stop) ---- */
@@ -64,10 +64,10 @@
   --sp-xs:   4px;
   --sp-sm:   8px;
   --sp-md:   16px;
-  --sp-lg:   24px;
-  --sp-xl:   32px;
-  --sp-xxl:  48px;
-  --sp-xxxl: 64px;
+  --sp-lg:   20px;
+  --sp-xl:   24px;
+  --sp-xxl:  32px;
+  --sp-xxxl: 40px;
 
   --screen-edge:       16px;
   --card-padding:      16px;
@@ -79,7 +79,7 @@
   --radius-sm:  8px;
   --radius-md:  12px;
   --radius-lg:  16px;
-  --radius-xl:  24px;
+  --radius-xl:  20px;
 
   /* ---- Motion ---- */
   --motion-fast:   150ms;
@@ -118,21 +118,21 @@ html, body {
   min-height: 100vh;
 }
 
-/* Type ladder — matches AppTypography */
-.t-large-title   { font: 600 32px/1.2 var(--font-sans); letter-spacing: -0.5px; }
-.t-title-1       { font: 600 26px/1.3 var(--font-sans); letter-spacing: -0.3px; }
-.t-title-2       { font: 600 22px/1.3 var(--font-sans); letter-spacing: -0.2px; }
-.t-title-3       { font: 600 18px/1.3 var(--font-sans); }
-.t-headline      { font: 600 16px/1.4 var(--font-sans); }
-.t-body          { font: 400 14px/1.45 var(--font-sans); }
-.t-body-emph     { font: 600 14px/1.45 var(--font-sans); }
-.t-callout       { font: 400 13px/1.4 var(--font-sans); }
-.t-footnote      { font: 400 12px/1.4 var(--font-sans); color: var(--text-secondary); }
-.t-caption-1     { font: 400 11px/1.36 var(--font-sans); color: var(--text-secondary); }
-.t-caption-2     { font: 400 10px/1.36 var(--font-sans); color: var(--text-tertiary); }
-.t-mono          { font: 400 14px/1.4 var(--font-mono); }
-.t-mono-caption  { font: 400 11px/1.36 var(--font-mono); color: var(--text-secondary); }
-.t-mono-numeric  { font: 500 28px/1.1 var(--font-mono); letter-spacing: 1px; }
+/* Type ladder — matches AppTypography (iOS-native point sizes) */
+.t-large-title   { font: 700 34px/1.18 var(--font-sans); letter-spacing: -0.5px; }
+.t-title-1       { font: 700 28px/1.21 var(--font-sans); letter-spacing: -0.3px; }
+.t-title-2       { font: 700 22px/1.27 var(--font-sans); letter-spacing: -0.2px; }
+.t-title-3       { font: 600 20px/1.25 var(--font-sans); }
+.t-headline      { font: 600 17px/1.29 var(--font-sans); }
+.t-body          { font: 400 17px/1.29 var(--font-sans); }
+.t-body-emph     { font: 600 17px/1.29 var(--font-sans); }
+.t-callout       { font: 400 16px/1.31 var(--font-sans); }
+.t-footnote      { font: 400 13px/1.38 var(--font-sans); color: var(--text-secondary); }
+.t-caption-1     { font: 400 12px/1.33 var(--font-sans); color: var(--text-secondary); }
+.t-caption-2     { font: 400 11px/1.36 var(--font-sans); color: var(--text-tertiary); }
+.t-mono          { font: 400 16px/1.31 var(--font-mono); }
+.t-mono-caption  { font: 400 12px/1.33 var(--font-mono); color: var(--text-secondary); }
+.t-mono-numeric  { font: 500 28px/1.21 var(--font-mono); letter-spacing: 1px; }
 .t-mono-display  { font: 600 42px/1.0 var(--font-mono); letter-spacing: 4px; }
 
 /* Glass primitives — match GlassContainer intensity ladder */

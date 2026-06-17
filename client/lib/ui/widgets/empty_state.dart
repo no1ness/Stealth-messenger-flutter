@@ -130,10 +130,22 @@ class StealthEmptyState extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    icon,
-                    size: 64,
-                    color: AppColors.textSecondary,
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.textTertiary,
+                        width: 1,
+                      ),
+                      color: AppColors.shadow,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 32,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(

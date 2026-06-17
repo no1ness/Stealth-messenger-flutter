@@ -85,11 +85,11 @@ class ChromaticAberration extends StatelessWidget {
               child: Transform.translate(
                 offset: Offset(-dx, 0),
                 child: Opacity(
-                  opacity: 0.45,
+                  opacity: 0.55,
                   child: ColorFiltered(
                     colorFilter: const ColorFilter.mode(
                       Color(0xFFFF1A1A),
-                      BlendMode.srcATop,
+                      BlendMode.screen,
                     ),
                     child: ghost,
                   ),
@@ -103,11 +103,11 @@ class ChromaticAberration extends StatelessWidget {
               child: Transform.translate(
                 offset: Offset(dx, 0),
                 child: Opacity(
-                  opacity: 0.45,
+                  opacity: 0.55,
                   child: ColorFiltered(
                     colorFilter: const ColorFilter.mode(
                       Color(0xFF1AFFFF),
-                      BlendMode.srcATop,
+                      BlendMode.screen,
                     ),
                     child: ghost,
                   ),

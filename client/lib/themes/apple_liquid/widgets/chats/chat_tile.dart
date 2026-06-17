@@ -120,10 +120,18 @@ class ChatTile extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.statusWarn,
+                        color: AppColors.systemBlue,
                         borderRadius: BorderRadius.circular(
                           AppSpacing.radiusRound,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.systemBlue.withValues(alpha: 0.15),
+                            blurRadius: 3,
+                            spreadRadius: 0,
+                            offset: Offset.zero,
+                          ),
+                        ],
                       ),
                       child: Text(
                         '$unreadCount',

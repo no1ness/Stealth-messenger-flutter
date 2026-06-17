@@ -20,12 +20,12 @@ class GlassBottomNavBar extends StatelessWidget {
     return ClipRRect(
       child: RepaintBoundary(
         child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           height:
               AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
           decoration: BoxDecoration(
-            color: AppColors.darkGray2.withValues(alpha: 0.8),
+            color: AppColors.backgroundPrimary.withValues(alpha: 0.8),
             border: const Border(
               top: BorderSide(
                 color: AppColors.separator,
@@ -59,11 +59,13 @@ class GlassBottomNavBarItem {
   final IconData icon;
   final IconData? selectedIcon;
   final String label;
+  final String? semanticLabel;
 
   const GlassBottomNavBarItem({
     required this.icon,
     this.selectedIcon,
     required this.label,
+    this.semanticLabel,
   });
 }
 
@@ -122,7 +124,7 @@ class _GlassBottomNavBarItemWidgetState
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: widget.item.label,
+      label: widget.item.semanticLabel ?? widget.item.label,
       button: true,
       excludeSemantics: true,
       child: GestureDetector(
@@ -151,7 +153,7 @@ class _GlassBottomNavBarItemWidgetState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  widget.item.label,
+                  widget.item.label.toUpperCase(),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight:
