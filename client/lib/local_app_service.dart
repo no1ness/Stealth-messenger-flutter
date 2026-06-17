@@ -219,6 +219,7 @@ class LocalAppService {
     _messages.clearCaches();
     _groupSecrets.clearOnLogout();
     _contacts.clearCaches();
+    P2PService.instance.dispose();
   }
 
   Future<String> generateQRCode() => _identity.generateQRCode();

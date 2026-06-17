@@ -75,7 +75,7 @@ class _ScanlinePainter extends CustomPainter {
     if (alpha <= 0) {
       return;
     }
-    final key = _SizeKey.fromSize(size);
+    final key = _SizeKey(size.width, size.height, intensity);
     final cached = _pictureCache[key];
     if (cached != null) {
       canvas.drawPicture(cached);
@@ -105,13 +105,16 @@ class _ScanlinePainter extends CustomPainter {
 class _SizeKey {
   final double width;
   final double height;
-  const _SizeKey(this.width, this.height);
-  _SizeKey.fromSize(Size s) : this(s.width, s.height);
+  final double intensity;
+  const _SizeKey(this.width, this.height, this.intensity);
 
   @override
   bool operator ==(Object other) =>
-      other is _SizeKey && other.width == width && other.height == height;
+      other is _SizeKey &&
+      other.width == width &&
+      other.height == height &&
+      other.intensity == intensity;
 
   @override
-  int get hashCode => Object.hash(width, height);
+  int get hashCode => Object.hash(width, height, intensity);
 }

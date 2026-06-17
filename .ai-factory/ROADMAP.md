@@ -30,6 +30,7 @@ This roadmap is the source of truth for milestone-level direction. `/aif-plan` l
 - [x] **M9 — Android release hardening.** `applicationId` renamed off `com.example.turbo`, release signing config, lint re-enabled. (`post-pocketbase-hardening` Phase 8.)
 - [x] **M10.1 — GlassTextField focus-pulse perf budget for web.** `ChromaticAberration.ghostBuilder` API + `kIsWeb` cheap-ghost path (`_GlassFieldGhost`). Transplanted from `perf/glass-text-field-web-budget` into `main` (commit `761f8c2`). **2026-06-14.**
 - [x] **M17 — Sing-box/обход блокировок.** Интеграция Sing-box (VLESS-Reality) под маскировкой Яндекс.Телемоста. Server: Caddy на :8443 + Sing-box на :443 с Reality. Client: BypassManager (Kotlin) + Flutter channel + тумблер в Settings. Backing plan: `.ai-factory/plans/feature-sing-box-vless-bypass.md`. **2026-06-16.**
+- [x] **M18 — Performance optimisation sprint.** 12 задач в 5 фазах: UI caching + debounce, pagination + N+1, crypto isolate, GPU/shaders (Picture cache, sigma reduction, ghostBuilder), singleton + dispose audit, deferred startup I/O. Backing plan: `.ai-factory/plans/feature-optimize-code-speed-smoothness-ux.md`. **2026-06-17.****
 
 ## In flight
 

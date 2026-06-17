@@ -201,11 +201,13 @@ class MessageService {
   }
 
   Future<Map<String, dynamic>?> fetchLastMessage(String chatId) async {
-    final message = await _localDb.getLastMessage(chatId);
-    if (message == null) return null;
-    if (message['deleted_at'] != null) return null;
-    final decrypted = await decryptRawMessage(message);
-    return decrypted;
+    final messages = await _localDb.getMessages(chatId, limit: 5);
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]['deleted_at'] == null) {
+        return messages[i];
+      }
+    }
+    return null;
   }
 
   Future<Map<String, dynamic>?> getPinnedMessage(String chatId) async {
