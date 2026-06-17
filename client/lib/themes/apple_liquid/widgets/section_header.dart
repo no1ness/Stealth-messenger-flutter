@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../logging/logger.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 import '../constants/app_typography.dart';
@@ -32,7 +33,7 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[ds:section-header] title=$title count=$count');
+    Logger.debug('[ds:section-header] title=$title count=$count');
     return Padding(
       padding: padding ??
           const EdgeInsets.fromLTRB(
