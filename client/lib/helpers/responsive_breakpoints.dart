@@ -28,7 +28,7 @@ class ResponsiveBreakpoints {
 
   /// Shorthand for `deviceType(width) == DeviceType.tablet`.
   static bool isTablet(double width) =>
-      width > mobileMaxWidth && width < desktopMinWidth;
+      !isMobile(width) && !isDesktop(width);
 }
 
 /// Semantic device-type enum.
