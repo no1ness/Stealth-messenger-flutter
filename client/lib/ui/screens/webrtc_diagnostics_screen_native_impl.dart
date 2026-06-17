@@ -118,7 +118,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'WebRTC Diagnostics', showBackButton: true),
+        child: GlassAppBar(title: 'Диагностика WebRTC', showBackButton: true),
       ),
       body: StealthAnimatedBackground(
         child: SafeArea(
@@ -130,7 +130,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'Microphone Test',
+                        title: 'Тест микрофона',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       if (_error.isNotEmpty)
@@ -153,12 +153,12 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                           ElevatedButton.icon(
                             onPressed: _startTest,
                             icon: const Icon(Icons.mic),
-                            label: const Text('Start Test'),
+                            label: const Text('Начать тест'),
                           ),
                           ElevatedButton.icon(
                             onPressed: _stopTest,
                             icon: const Icon(Icons.stop),
-                            label: const Text('Stop'),
+                            label: const Text('Остановить'),
                           ),
                         ],
                       ),
@@ -170,7 +170,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'Connectivity Test',
+                        title: 'Тест соединения',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       Text(_connectivityStatus, textAlign: TextAlign.center),
@@ -178,7 +178,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                       ElevatedButton.icon(
                         onPressed: _testConnectivity,
                         icon: const Icon(Icons.network_check),
-                        label: const Text('Test STUN/ICE'),
+                        label: const Text('Тест STUN/ICE'),
                       ),
                     ],
                   ),
@@ -188,7 +188,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'System Info',
+                        title: 'Системная информация',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       _buildInfoRow('Flutter WebRTC', 'Installed'),

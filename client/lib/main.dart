@@ -64,11 +64,11 @@ class _MyAppState extends State<MyApp> {
       final pocketbaseUrl = dotenv.env['POCKETBASE_URL']?.trim() ?? '';
       if (pocketbaseUrl.isEmpty || _isPlaceholderPocketbaseUrl(pocketbaseUrl)) {
         throw Exception(
-          'POCKETBASE_URL is unset or pointing at the bundled placeholder '
-          '"$pocketbaseUrl". Provide a real signaling endpoint via '
-          '--dart-define=POCKETBASE_URL=https://signal.your.tld (recommended) '
-          'or by editing client/.env.defaults locally. See '
-          'docs/POCKETBASE_SETUP.md for the full deployment guide.',
+          'Переменная POCKETBASE_URL не задана или указывает на заглушку '
+          '"$pocketbaseUrl". Укажите реальный сигнальный эндпоинт через '
+          '--dart-define=POCKETBASE_URL=https://signal.your.tld (рекомендуется) '
+          'или отредактировав client/.env.defaults локально. См. '
+          'docs/POCKETBASE_SETUP.md для полного руководства по развертыванию.',
         );
       }
       Logger.info('[bootstrap] PocketBase URL configured',

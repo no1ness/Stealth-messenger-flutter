@@ -34,14 +34,14 @@ class UpdateStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Updates', style: AppTypography.headline),
+          Text('Обновления', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           Text('Stealth $appVersionLabel', style: AppTypography.title3),
           const SizedBox(height: AppSpacing.sm),
           Text(
             latest == null
                 ? updateStatusLabel(status)
-                : '${updateStatusLabel(status)}\nLatest: $latest',
+                : '${updateStatusLabel(status)}\nНовая: $latest',
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
           if (isInstallingUpdate) ...[
@@ -59,14 +59,14 @@ class UpdateStatusCard extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: isCheckingUpdate ? null : onCheckForUpdates,
             icon: const Icon(Icons.refresh),
-            label: Text(isCheckingUpdate ? 'Checking...' : 'Check for updates'),
+            label: Text(isCheckingUpdate ? 'Проверка...' : 'Проверить обновления'),
           ),
           if (canInstall) ...[
             const SizedBox(height: AppSpacing.sm),
             FilledButton.icon(
               onPressed: isInstallingUpdate ? null : onInstallUpdate,
               icon: const Icon(Icons.download),
-              label: const Text('Update now'),
+              label: const Text('Обновить сейчас'),
             ),
           ],
         ],
@@ -78,18 +78,18 @@ class UpdateStatusCard extends StatelessWidget {
 String updateStatusLabel(AppUpdateStatus? status) {
   switch (status?.kind) {
     case AppUpdateStatusKind.upToDate:
-      return 'You are up to date';
+      return 'У вас последняя версия';
     case AppUpdateStatusKind.optionalUpdateAvailable:
-      return 'Update available';
+      return 'Доступно обновление';
     case AppUpdateStatusKind.mandatoryUpdateAvailable:
-      return 'Required update available';
+      return 'Требуется обновление';
     case AppUpdateStatusKind.unsupportedPlatform:
-      return 'APK updates are supported only on Android';
+      return 'Обновление APK доступно только на Android';
     case AppUpdateStatusKind.notConfigured:
-      return 'Update checks are not configured';
+      return 'Проверка обновлений не настроена';
     case AppUpdateStatusKind.checkFailed:
-      return 'Update check failed';
+      return 'Ошибка проверки обновлений';
     case null:
-      return 'Update status unknown';
+      return 'Статус обновления неизвестен';
   }
 }

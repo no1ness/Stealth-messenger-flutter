@@ -211,7 +211,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
     if (!mounted) {
       return;
     }
-    showStealthSnackBar(context, 'Diagnostics copied',
+    showStealthSnackBar(context, 'Диагностика скопирована',
         kind: SnackKind.success);
   }
 
@@ -221,7 +221,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'WebRTC Diagnostics', showBackButton: true),
+        child: GlassAppBar(title: 'Диагностика WebRTC', showBackButton: true),
       ),
       body: StealthAnimatedBackground(
         child: SafeArea(
@@ -233,7 +233,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'Microphone Test',
+                        title: 'Тест микрофона',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       if (_error.isNotEmpty)
@@ -269,22 +269,22 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                           ElevatedButton.icon(
                             onPressed: _startTest,
                             icon: const Icon(Icons.mic),
-                            label: const Text('Start Test'),
+                            label: const Text('Начать тест'),
                           ),
                           ElevatedButton.icon(
                             onPressed: _stopTest,
                             icon: const Icon(Icons.stop),
-                            label: const Text('Stop'),
+                            label: const Text('Остановить'),
                           ),
                           OutlinedButton.icon(
                             onPressed: _loadSupport,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh'),
+                            label: const Text('Обновить'),
                           ),
                           OutlinedButton.icon(
                             onPressed: _copyDiagnosticsSummary,
                             icon: const Icon(Icons.copy_all),
-                            label: const Text('Copy summary'),
+                            label: const Text('Копировать сводку'),
                           ),
                         ],
                       ),
@@ -296,7 +296,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'Connectivity Test',
+                        title: 'Тест соединения',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       Text(
@@ -308,19 +308,19 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                       ElevatedButton.icon(
                         onPressed: _testConnectivity,
                         icon: const Icon(Icons.network_check),
-                        label: const Text('Test STUN/ICE'),
+                        label: const Text('Тест STUN/ICE'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       OutlinedButton.icon(
                         onPressed: _loadSupport,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Reload environment'),
+                        label: const Text('Перезагрузить окружение'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       OutlinedButton.icon(
                         onPressed: _copyDiagnosticsSummary,
                         icon: const Icon(Icons.copy_all),
-                        label: const Text('Copy summary'),
+                        label: const Text('Копировать сводку'),
                       ),
                     ],
                   ),
@@ -330,7 +330,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                   child: Column(
                     children: [
                       const SectionHeader(
-                        title: 'System Info',
+                        title: 'Системная информация',
                         padding: EdgeInsets.only(bottom: AppSpacing.sm),
                       ),
                       _buildInfoRow('Browser WebRTC', 'Enabled'),

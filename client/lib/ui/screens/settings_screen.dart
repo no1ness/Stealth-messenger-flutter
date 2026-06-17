@@ -169,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       backgroundColor: Colors.transparent,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Settings'),
+        child: GlassAppBar(title: 'Настройки'),
       ),
       body: _isLoading
           ? const Center(child: StealthLoadingIndicator())
@@ -203,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           child: FilledButton.icon(
             onPressed: _logout,
             icon: const Icon(Icons.logout),
-            label: const Text('Sign out'),
+            label: const Text('Выйти'),
           ),
         ),
       ),
@@ -216,24 +216,24 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Privacy & security',
+            title: 'Конфиденциальность и безопасность',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           SwitchListTile.adaptive(
             value: true,
             onChanged: null,
-            title: const Text('End-to-end encryption'),
-            subtitle: const Text('Always enabled for private chats'),
+            title: const Text('Сквозное шифрование'),
+            subtitle: const Text('Всегда включено для личных чатов'),
           ),
           SwitchListTile.adaptive(
             value: _autoDeleteMessages,
             onChanged: (value) => setState(() => _autoDeleteMessages = value),
-            title: const Text('Auto-delete preview'),
+            title: const Text('Предпросмотр автоудаления'),
           ),
           SwitchListTile.adaptive(
             value: _contactVerification,
             onChanged: (value) => setState(() => _contactVerification = value),
-            title: const Text('Contact verification'),
+            title: const Text('Проверка контактов'),
           ),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
@@ -243,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Preview timer: ${_countdown}s',
+            'Таймер предпросмотра: ${_countdown}с',
             style: AppTypography.body.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -259,7 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Connection & Storage',
+            title: 'Подключение и Хранилище',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           SwitchListTile.adaptive(
@@ -269,13 +269,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               await prefs.setBool('useP2P', value);
               setState(() => _useP2P = value);
             },
-            title: const Text('Direct P2P messaging'),
+            title: const Text('Прямые P2P сообщения'),
             subtitle:
-                const Text('Send messages directly to devices when online'),
+                const Text('Отправляйте сообщения напрямую на устройства, когда они онлайн'),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Local-only storage active',
+            'Активно только локальное хранилище',
             style: AppTypography.body.copyWith(
               color: AppColors.systemGreen,
               fontWeight: FontWeight.w600,
@@ -295,9 +295,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 if (mounted) setState(() => _bypassEnabled = false);
               }
             },
-            title: const Text('Censorship bypass'),
+            title: const Text('Обход цензуры'),
             subtitle: Text(
-              _bypassEnabled ? 'Proxy active — traffic via sing-box' : 'Direct connection',
+              _bypassEnabled ? 'Прокси активен — трафик через sing-box' : 'Прямое подключение',
             ),
           ),
         ],
@@ -311,19 +311,19 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Notifications',
+            title: 'Уведомления',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           SwitchListTile.adaptive(
             value: _newMessageNotifications,
             onChanged: (value) =>
                 setState(() => _newMessageNotifications = value),
-            title: const Text('New messages'),
+            title: const Text('Новые сообщения'),
           ),
           SwitchListTile.adaptive(
             value: _callNotifications,
             onChanged: (value) => setState(() => _callNotifications = value),
-            title: const Text('Calls'),
+            title: const Text('Звонки'),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -345,9 +345,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           Row(
             children: [
               Expanded(
-                  child: _MiniStat(label: 'Messages', value: '$_messageCount')),
+                  child: _MiniStat(label: 'Сообщения', value: '$_messageCount')),
               SizedBox(width: AppSpacing.sm),
-              Expanded(child: _MiniStat(label: 'Calls', value: '$_callCount')),
+              Expanded(child: _MiniStat(label: 'Звонки', value: '$_callCount')),
             ],
           ),
         ],
@@ -361,21 +361,21 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Appearance',
+            title: 'Оформление',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           SegmentedButton<ThemeMode>(
             segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-              ButtonSegment(value: ThemeMode.system, label: Text('System')),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+              ButtonSegment(value: ThemeMode.light, label: Text('Светлая')),
+              ButtonSegment(value: ThemeMode.system, label: Text('Матч ОС')),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Темная')),
             ],
             selected: {_themeMode},
             onSelectionChanged: (selection) => _changeTheme(selection.first),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Current mode: ${_themeMode.name}',
+            'Текущий режим: ${_themeMode.name == 'system' ? 'Матч ОС' : _themeMode.name == 'dark' ? 'Темная' : 'Светлая'}',
             style: AppTypography.body.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -391,7 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Diagnostics',
+            title: 'Диагностика',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           SizedBox(
@@ -419,18 +419,18 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Chats', value: '$_chatCount')),
+              Expanded(child: _MiniStat(label: 'Чаты', value: '$_chatCount')),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _MiniStat(
-                  label: 'Local media',
-                  value: _bucketReady ? 'Ready' : 'Check',
+                  label: 'Локальные медиа',
+                  value: _bucketReady ? 'Готово' : 'Проверить',
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: _MiniStat(
-                  label: 'Audio inputs',
+                  label: 'Аудиовходы',
                   value: '$_webrtcAudioInputs',
                 ),
               ),
@@ -446,13 +446,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               );
             },
             icon: const Icon(Icons.network_check),
-            label: const Text('Open WebRTC diagnostics'),
+            label: const Text('Открыть диагностику WebRTC'),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(
             onPressed: _loadSettings,
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh diagnostics'),
+            label: const Text('Обновить диагностику'),
           ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
@@ -466,7 +466,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               );
             },
             icon: const Icon(Icons.bug_report),
-            label: const Text('Open diagnostics & logs'),
+            label: const Text('Открыть диагностику и логи'),
           ),
         ],
       ),
@@ -526,13 +526,13 @@ class _SignalServerLine extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Signal server',
+                'Сигнальный сервер',
                 style: AppTypography.caption1.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
               Text(
-                hasUrl ? url : 'not configured (set POCKETBASE_URL in .env)',
+                hasUrl ? url : 'не настроено (установите POCKETBASE_URL в .env)',
                 style: AppTypography.body.copyWith(
                   color:
                       hasUrl ? AppColors.systemGreen : AppColors.systemOrange,

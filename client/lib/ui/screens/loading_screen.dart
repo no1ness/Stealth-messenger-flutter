@@ -31,9 +31,9 @@ class _LoadingScreenState extends State<LoadingScreen>
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   final List<String> _steps = const [
-    'Initializing secure session',
-    'Loading chats',
-    'Preparing adaptive interface',
+    'Инициализация защищенной сессии',
+    'Загрузка чатов',
+    'Подготовка адаптивного интерфейса',
   ];
   int _currentStep = 0;
 

@@ -34,49 +34,49 @@ flowchart TD
 - `WebRtcSignalingService` - PocketBase SSE transport для offer/answer/candidate/hangup.
 - `IncomingCallSignalingService` - глобальная подписка на входящие звонки.
 
-## UI / Design System
+## UI / Дизайн-система
 
-Все экраны зависят от единого design layer `client/lib/themes/apple_liquid/`:
+Все экраны зависят от единого слоя дизайна `client/lib/themes/apple_liquid/`:
 
 - **`constants/`** — `AppColors`, `AppSpacing`, `AppTypography` (Geist + Geist Mono), `AppMotion`, `AppElevation`, `AppEffects`, `AppHaptics`, `GlassStyles`.
-- **`widgets/`** — `GlassContainer`, `GlassAppBar`, `GlassBottomNavBar`, `GlassChatBubble`, `GlassMessageInput`, `SectionHeader`, `ListDivider`, `StatusChip`. Сабпапки `chats/` (`ChatTile`), `contacts/` (`ContactTile`), `profile/` (5 cards), `call/` (`CallHudOverlay`, `CallControlButtons`).
+- **`widgets/`** — `GlassContainer`, `GlassAppBar`, `GlassBottomNavBar`, `GlassChatBubble`, `GlassMessageInput`, `SectionHeader`, `ListDivider`, `StatusChip`. Подпапки `chats/` (`ChatTile`), `contacts/` (`ContactTile`), `profile/` (5 cards), `call/` (`CallHudOverlay`, `CallControlButtons`).
 - **`feedback/`** — `showStealthSnackBar`, `showStealthDialog`, `StealthHaptics`, `StealthLoadingIndicator`, `StealthSkeletonTile`.
-- **`effects/`** — `ScanlineOverlay`, `GrainOverlay` (signature visual moments; auto-disable в light theme).
-- **`navigation/`** — `GlassPageRoute` (custom transition).
-- **`motion/`** — `StaggeredListView` (orchestrated first-render reveal).
+- **`effects/`** — `ScanlineOverlay`, `GrainOverlay` (фирменные визуальные моменты; автоотключение в светлой теме).
+- **`navigation/`** — `GlassPageRoute` (пользовательский переход).
+- **`motion/`** — `StaggeredListView` (оркестрированное появление элементов списка).
 
-Tokens, signature elements, и dual-identity (dark = signature, light = high-contrast)
-задокументированы в `docs/design-system.md`. Тема контроллируется через
-`ThemeController` (`ValueNotifier<ThemeMode>`); при merge с feature/hardening-di-secure-storage
+Токены, фирменные элементы и двойная идентичность (темная = фирменная, светлая = высокая контрастность)
+задокументированы в `docs/design-system.md`. Тема управляется через
+`ThemeController` (`ValueNotifier<ThemeMode>`); при слиянии с `feature/hardening-di-secure-storage`
 будет заменена на Riverpod-провайдер.
 
 ## Контакты
 
-Контакт создается из contact bundle:
+Контакт создается из бандла (bundle) контакта:
 
 ```text
 stealth:<base64url({"v":1,"user_id":"...","name":"...","public_key":"..."})>
 ```
 
-Raw user id недостаточен для E2E-чата, потому что без `public_key` невозможно получить shared secret. UI предлагает копировать bundle из Profile.
+Сырой `user_id` недостаточен для E2E-чата, потому что без `public_key` невозможно получить общий секрет. UI предлагает копировать bundle из Профиля.
 
 ## Сообщения
 
-1. Клиент получает peer public key из локального контакта.
-2. Создает shared secret через X25519.
-3. Шифрует content через AES-GCM и ratchet helpers.
-4. Сохраняет ciphertext в локальную БД.
-5. Если DataChannel открыт, отправляет encrypted message peer-у.
+1. Клиент получает публичный ключ пира (peer public key) из локального контакта.
+2. Создает общий секрет (shared secret) через X25519.
+3. Шифрует контент через AES-GCM и ratchet helpers.
+4. Сохраняет зашифрованный текст в локальную БД.
+5. Если DataChannel открыт, отправляет зашифрованное сообщение пиру.
 
-Вложения кодируются как local encrypted descriptor (`local-attachment:<base64url(json)>`) и расшифровываются только локально.
+Вложения кодируются как локальный зашифрованный дескриптор (`local-attachment:<base64url(json)>`) и расшифровываются только локально.
 
 ## Звонки
 
-1. Caller открывает `WebRTCCallScreen`.
+1. Звонящий открывает `WebRTCCallScreen`.
 2. Экран отправляет `offer` через PocketBase.
-3. Peer получает event через SSE, принимает звонок и отправляет `answer`.
-4. ICE candidates идут через ту же transient collection.
-5. Аудио/видео идут P2P через WebRTC, PocketBase не переносит media.
+3. Пир получает событие через SSE, принимает звонок и отправляет `answer`.
+4. Кандидаты ICE (ICE candidates) идут через ту же временную коллекцию.
+5. Аудио/видео идут P2P через WebRTC, PocketBase не переносит медиаданные.
 
 ## Конфигурация
 
@@ -94,4 +94,4 @@ TURNS_PASSWORD=
 
 ## Важное ограничение
 
-PocketBase сейчас не является адресной книгой. Discovery контактов вне обмена bundle - отдельная будущая задача.
+PocketBase сейчас не является адресной книгой. Обнаружение контактов без обмена бандлами - отдельная будущая задача.

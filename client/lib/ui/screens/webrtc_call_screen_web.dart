@@ -134,11 +134,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   duration: _controller.connected
                       ? _formatDuration(_controller.callDurationSeconds)
                       : _controller.initializing
-                          ? 'Connecting…'
-                          : 'Calling…',
+                          ? 'Подключение…'
+                          : 'Звонок…',
                   connectionLabel: _controller.connected
-                      ? 'CONNECTED'
-                      : 'NEGOTIATING',
+                      ? 'СОЕДИНЕНО'
+                      : 'УСТАНОВЛЕНИЕ СВЯЗИ',
                   connectionKind: _controller.connected
                       ? StatusKind.success
                       : StatusKind.pending,
@@ -182,7 +182,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               else
                 Center(
                   child: Text(
-                    'Waiting for video...',
+                    'Ожидание видео...',
                     style: AppTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
@@ -261,7 +261,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               FilledButton.icon(
                 onPressed: _controller.retry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: const Text('Повторить'),
               ),
               OutlinedButton.icon(
                 onPressed: () {
@@ -272,7 +272,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   );
                 },
                 icon: const Icon(Icons.network_check),
-                label: const Text('Diagnostics'),
+                label: const Text('Диагностика'),
               ),
             ],
           ),
@@ -291,15 +291,15 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       alignment: WrapAlignment.center,
       children: [
         _buildStatusChip(
-          label: _controller.connected ? 'Connected' : 'Negotiating',
+          label: _controller.connected ? 'Соединено' : 'Установка связи',
           active: _controller.connected,
         ),
         _buildStatusChip(
-          label: _controller.microphoneEnabled ? 'Mic on' : 'Mic muted',
+          label: _controller.microphoneEnabled ? 'Микрофон вкл' : 'Микрофон выкл',
           active: _controller.microphoneEnabled,
         ),
         _buildStatusChip(
-          label: _controller.speakerEnabled ? 'Speaker on' : 'Speaker off',
+          label: _controller.speakerEnabled ? 'Динамик вкл' : 'Динамик выкл',
           active: _controller.speakerEnabled,
         ),
         _buildStatusChip(

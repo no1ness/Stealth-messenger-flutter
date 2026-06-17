@@ -43,7 +43,7 @@ class _CallManagerState extends State<CallManager> {
   String? _currentUserId;
   bool _isInCall = false;
   bool _answeringCall = false;
-  String _incomingCallSupportSummary = 'Checking call support...';
+  String _incomingCallSupportSummary = 'Проверка поддержки звонков...';
   List<String> _incomingCallBlockingIssues = const <String>[];
 
   /// roomId → закрытие текущего диалога входящего звонка. Используется,
@@ -184,7 +184,7 @@ class _CallManagerState extends State<CallManager> {
 
     showStealthDialog<void>(
       context: context,
-      title: 'Incoming call',
+      title: 'Входящий звонок',
       barrierDismissible: false,
       importance: DialogImportance.high,
       // No top-level actions — the three buttons (Diagnostics / Decline /
@@ -208,7 +208,7 @@ class _CallManagerState extends State<CallManager> {
               });
             }
 
-            if (_incomingCallSupportSummary == 'Checking call support...') {
+            if (_incomingCallSupportSummary == 'Проверка поддержки звонков...') {
               refreshSupport();
             }
 
@@ -242,8 +242,8 @@ class _CallManagerState extends State<CallManager> {
                 const SizedBox(height: 8),
                 Text(
                   isVideoCall
-                      ? 'Wants to start a secure video call'
-                      : 'Wants to start a secure audio call',
+                      ? 'Хочет начать защищенный видеозвонок'
+                      : 'Хочет начать защищенный аудиозвонок',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 12),
@@ -273,7 +273,7 @@ class _CallManagerState extends State<CallManager> {
                         );
                       },
                       icon: const Icon(Icons.network_check),
-                      label: const Text('Diagnostics'),
+                      label: const Text('Диагностика'),
                     ),
                     Semantics(
                       label: AccessibilityIds.decline,
@@ -298,7 +298,7 @@ class _CallManagerState extends State<CallManager> {
                         },
                         icon: const Icon(Icons.call_end, color: Colors.red),
                         label: const Text(
-                          'Decline',
+                          'Отклонить',
                           style: TextStyle(color: Colors.red),
                         ),
                         style: TextButton.styleFrom(
@@ -383,7 +383,7 @@ class _CallManagerState extends State<CallManager> {
                                 strokeWidth: 2,
                               )
                             : const Icon(Icons.phone),
-                        label: Text(canAnswer ? 'Answer' : 'Unavailable'),
+                        label: Text(canAnswer ? 'Ответить' : 'Недоступно'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,

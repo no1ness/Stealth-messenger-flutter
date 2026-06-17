@@ -42,13 +42,13 @@ class UpdatePromptScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    status.isMandatory ? 'Update required' : 'Update available',
+                    status.isMandatory ? 'Требуется обновление' : 'Доступно обновление',
                     textAlign: TextAlign.center,
                     style: AppTypography.largeTitle,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Current: $current\nLatest: $latest',
+                    'Текущая: $current\nНовая: $latest',
                     textAlign: TextAlign.center,
                     style: AppTypography.body.copyWith(
                       color: AppColors.textSecondary,
@@ -56,7 +56,7 @@ class UpdatePromptScreen extends StatelessWidget {
                   ),
                   if (manifest != null && manifest.releaseNotes.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    Text('Release notes', style: AppTypography.headline),
+                    Text('Что нового', style: AppTypography.headline),
                     const SizedBox(height: AppSpacing.sm),
                     Text(manifest.releaseNotes, style: AppTypography.body),
                   ],
@@ -64,13 +64,13 @@ class UpdatePromptScreen extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: onUpdateNow,
                     icon: const Icon(Icons.download),
-                    label: const Text('Update now'),
+                    label: const Text('Обновить сейчас'),
                   ),
                   if (!status.isMandatory) ...[
                     const SizedBox(height: AppSpacing.sm),
                     OutlinedButton(
                       onPressed: onSkip,
-                      child: const Text('Not now'),
+                      child: const Text('Не сейчас'),
                     ),
                   ],
                 ],

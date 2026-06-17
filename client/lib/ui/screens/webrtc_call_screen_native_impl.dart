@@ -142,11 +142,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                     duration: _controller.connected
                         ? _formatDuration(_controller.callDurationSeconds)
                         : _controller.initializing
-                            ? 'Connecting…'
-                            : 'Calling…',
+                            ? 'Подключение…'
+                            : 'Звонок…',
                     connectionLabel: _controller.connected
-                        ? 'CONNECTED'
-                        : 'NEGOTIATING',
+                        ? 'СОЕДИНЕНО'
+                        : 'УСТАНОВЛЕНИЕ СВЯЗИ',
                     connectionKind: _controller.connected
                         ? StatusKind.success
                         : StatusKind.pending,
@@ -166,13 +166,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                   children: [
                     _buildStatusChip(
                         label: _controller.microphoneEnabled
-                            ? 'Mic on'
-                            : 'Mic muted',
+                            ? 'Микрофон вкл'
+                            : 'Микрофон выкл',
                         active: _controller.microphoneEnabled),
                     _buildStatusChip(
                         label: _controller.speakerEnabled
-                            ? 'Speaker on'
-                            : 'Speaker off',
+                            ? 'Динамик вкл'
+                            : 'Динамик выкл',
                         active: _controller.speakerEnabled),
                   ],
                 ),
@@ -209,7 +209,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               else
                 Center(
                   child: Text(
-                    'Waiting for video...',
+                    'Ожидание видео...',
                     style:
                         AppTypography.body.copyWith(color: Colors.white70),
                   ),

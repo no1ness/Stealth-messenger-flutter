@@ -128,7 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showStealthSnackBar(
       context,
-      'Contact bundle copied',
+      'Контакт скопирован',
       kind: SnackKind.success,
     );
   }
@@ -161,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     showStealthSnackBar(
       context,
-      'Nickname updated',
+      'Никнейм обновлен',
       kind: SnackKind.success,
     );
   }
@@ -185,13 +185,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Unable to load profile',
+                'Не удалось загрузить профиль',
                 style: AppTypography.headline.copyWith(color: Colors.white),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'User ID is missing. Check logs or retry.',
+                'Отсутствует ID пользователя. Проверьте логи или повторите попытку.',
                 style:
                     AppTypography.body.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
@@ -200,7 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               FilledButton.icon(
                 onPressed: _loadProfile,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: const Text('Повторить'),
               ),
             ],
           ),
@@ -223,12 +223,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: AppColors.statusDanger,
           foregroundColor: AppColors.textOnGlass,
           icon: const Icon(Icons.logout),
-          label: const Text('Logout'),
+          label: const Text('Выйти'),
         ),
       ),
       body: Column(
         children: [
-          const GlassAppBar(title: 'Profile'),
+          const GlassAppBar(title: 'Профиль'),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -279,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Identity', style: AppTypography.headline),
+          Text('Идентификация', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           if (_userId != null && _userId!.isNotEmpty)
             Center(
@@ -304,7 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: _nicknameController,
               textAlign: TextAlign.center,
               decoration: const InputDecoration(
-                hintText: 'Your nickname',
+                hintText: 'Ваш никнейм',
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _saveNickname(),
@@ -315,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: AccessibilityIds.userId,
             readOnly: true,
             child: Text(
-              _userId ?? 'Loading profile',
+              _userId ?? 'Загрузка профиля',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -334,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: _copyContactBundle,
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copy contact'),
+                    label: const Text('Скопировать контакт'),
                   ),
                 ),
               ),
@@ -343,7 +343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _saveNickname,
                   icon: const Icon(Icons.save),
-                  label: const Text('Save alias'),
+                  label: const Text('Сохранить алиас'),
                 ),
               ),
             ],
@@ -366,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Security posture', style: AppTypography.headline),
+          Text('Безопасность', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: readinessScore,
@@ -375,19 +375,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '${(readinessScore * 100).round()}% configured',
+            '${(readinessScore * 100).round()}% настроено',
             style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.md),
+              'E2E ключи', _secureStorageReady ? 'Готово' : 'Отсутствуют'),
+          _buildMetricRow('Безопасное хранилище',
+              _secureStorageReady ? 'Включено' : 'Проверьте устройство'),
           _buildMetricRow(
-              'E2E keypair', _secureStorageReady ? 'Ready' : 'Missing'),
-          _buildMetricRow('Secure storage',
-              _secureStorageReady ? 'Enabled' : 'Check device'),
+              'Локальные медиа', _bucketReady ? 'Готово' : 'Отсутствуют'),
           _buildMetricRow(
-              'Local media store', _bucketReady ? 'Ready' : 'Missing'),
-          _buildMetricRow(
-            'Contact bundle',
-            _contactBundle?.isNotEmpty == true ? 'Available' : 'Missing',
+            'Данные контакта',
+            _contactBundle?.isNotEmpty == true ? 'Доступны' : 'Отсутствуют',
           ),
           const SizedBox(height: AppSpacing.lg),
           Semantics(
@@ -396,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: OutlinedButton.icon(
               onPressed: _copyContactBundle,
               icon: const Icon(Icons.copy),
-              label: const Text('Copy contact bundle'),
+              label: const Text('Скопировать данные контакта'),
             ),
           ),
         ],
@@ -405,13 +404,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildActivityCard() {
-    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
     return GlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Weekly activity', style: AppTypography.headline),
+          Text('Недельная активность', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             height: 180,
@@ -451,19 +450,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildMiniKpi('Chats', _chatCount.toString()),
+                child: _buildMiniKpi('Чаты', _chatCount.toString()),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _buildMiniKpi('Contacts', _contactCount.toString()),
+                child: _buildMiniKpi('Контакты', _contactCount.toString()),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _buildMiniKpi('Messages', _messageCount.toString()),
+                child: _buildMiniKpi('Сообщения', _messageCount.toString()),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _buildMiniKpi('Calls', _callCount.toString()),
+                child: _buildMiniKpi('Звонки', _callCount.toString()),
               ),
             ],
           ),
@@ -477,12 +476,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Storage debug', style: AppTypography.headline),
+          Text('Отладка хранилища', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
-          _buildMetricRow('Local media', _bucketReady ? 'Ready' : 'Missing'),
-          _buildMetricRow('Files', _storageFileCount.toString()),
+          _buildMetricRow('Локальные медиа', _bucketReady ? 'Готово' : 'Отсутствуют'),
+          _buildMetricRow('Файлы', _storageFileCount.toString()),
           _buildMetricRow(
-              'Platform', kIsWeb ? 'web' : Platform.operatingSystem),
+              'Платформа', kIsWeb ? 'веб' : Platform.operatingSystem),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: _bucketReady ? 1 : 0.25,
@@ -493,7 +492,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'This card verifies encrypted local attachment storage.',
+            'Эта карточка проверяет зашифрованное локальное хранилище вложений.',
             style: AppTypography.caption1.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -502,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           FilledButton.icon(
             onPressed: _loadProfile,
             icon: const Icon(Icons.sync),
-            label: const Text('Refresh debug'),
+            label: const Text('Обновить данные'),
           ),
         ],
       ),
@@ -514,14 +513,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Recent calls', style: AppTypography.headline),
+          Text('Недавние звонки', style: AppTypography.headline),
           const SizedBox(height: AppSpacing.md),
           if (_recentCalls.isEmpty)
             SizedBox(
               height: 80,
               child: Center(
                 child: Text(
-                  'No calls recorded yet.',
+                  'Пока нет записанных звонков.',
                   style: AppTypography.body.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -542,8 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                   final durationSeconds = call['duration_seconds'] as int? ?? 0;
                   final isOutgoing = call['is_outgoing'] as bool? ?? false;
-                  final peerName = call['peer_name'] as String? ?? 'Unknown';
-                  final status = call['status'] as String? ?? 'unknown';
+                  final peerName = call['peer_name'] as String? ?? 'Неизвестный';
+                  final status = call['status'] as String? ?? 'неизвестно';
 
                   // Compact call history tile for both web and mobile layouts.
                   return Container(
@@ -605,7 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body),
+          Flexible(child: Text(label, style: AppTypography.body)),
           Text(
             value,
             style: AppTypography.body.copyWith(

@@ -41,7 +41,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       if (!mounted) return;
       showStealthSnackBar(
         context,
-        'Registration failed: $e',
+        'Ошибка регистрации: $e',
         kind: SnackKind.danger,
       );
     } finally {
@@ -90,7 +90,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Secure & Private Messaging',
+                    'Безопасный и приватный мессенджер',
                     style: AppTypography.subheadline.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -99,8 +99,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(height: AppSpacing.xxl * 2),
                   GlassTextField(
                     controller: _nicknameController,
-                    labelText: 'Choose a Nickname',
-                    hintText: 'Enter your alias...',
+                    labelText: 'Выберите никнейм',
+                    hintText: 'Введите ваш алиас...',
                     prefixIcon: const Icon(Icons.person_outline,
                         color: AppColors.systemBlue),
                     onChanged: (_) => setState(() {}),
@@ -116,11 +116,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             size: 20,
                             strokeWidth: 2,
                           )
-                        : const Text('GET STARTED'),
+                        : const Text('НАЧАТЬ'),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Text(
-                    'No phone number. No email.\nYour privacy is our priority.',
+                    'Без номера телефона. Без email.\nВаша приватность — наш приоритет.',
                     style: AppTypography.caption1.copyWith(
                       color: AppColors.textSecondary.withValues(alpha: 0.6),
                     ),

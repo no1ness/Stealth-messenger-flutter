@@ -76,7 +76,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('Дашборд'),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -104,25 +104,25 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Overview'),
+          const SectionHeader(title: 'Обзор'),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Expanded(child: _buildStatCard('Users', '${_aggregated['totalUsers'] ?? '-'}')),
+              Expanded(child: _buildStatCard('Пользователи', '${_aggregated['totalUsers'] ?? '-'}')),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildStatCard('Chats', '${_aggregated['totalChats'] ?? '-'}')),
+              Expanded(child: _buildStatCard('Чаты', '${_aggregated['totalChats'] ?? '-'}')),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Expanded(child: _buildStatCard('Messages', '${_aggregated['totalMessages'] ?? '-'}')),
+              Expanded(child: _buildStatCard('Сообщения', '${_aggregated['totalMessages'] ?? '-'}')),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildStatCard('Calls', '${_aggregated['totalCalls'] ?? '-'}')),
+              Expanded(child: _buildStatCard('Звонки', '${_aggregated['totalCalls'] ?? '-'}')),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _buildStatCard('Contacts', '${_aggregated['totalContacts'] ?? '-'}'),
+          _buildStatCard('Контакты', '${_aggregated['totalContacts'] ?? '-'}'),
         ],
       ),
     );
@@ -135,12 +135,12 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Platforms'),
+          const SectionHeader(title: 'Платформы'),
           const SizedBox(height: AppSpacing.sm),
           if (entries.isEmpty)
             const Padding(
               padding: EdgeInsets.all(AppSpacing.sm),
-              child: Text('No data'),
+              child: Text('Нет данных'),
             )
           else
             ...entries.map((e) => Padding(
@@ -163,12 +163,12 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Recent pushes'),
+          const SectionHeader(title: 'Последние события'),
           const SizedBox(height: AppSpacing.sm),
           if (_recentRecords.isEmpty)
             const Padding(
               padding: EdgeInsets.all(AppSpacing.sm),
-              child: Text('No records yet'),
+              child: Text('Пока нет записей'),
             )
           else
             Table(
@@ -180,9 +180,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               children: [
                 TableRow(
                   children: [
-                    Text('User', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
-                    Text('Platform', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
-                    Text('Msgs', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
+                    Text('Пользователь', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
+                    Text('Платформа', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
+                    Text('Сообщ', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
                   ],
                 ),
                 ..._recentRecords.map((r) => TableRow(

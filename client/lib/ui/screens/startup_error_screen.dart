@@ -45,7 +45,7 @@ class StartupErrorScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         Text(
-                          'Environment setup required',
+                          'Требуется настройка окружения',
                           textAlign: TextAlign.center,
                           style: AppTypography.title1.copyWith(
                             color: Colors.white,
@@ -71,7 +71,7 @@ class StartupErrorScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Provide a real POCKETBASE_URL via one of:',
+                                'Укажите настоящий POCKETBASE_URL одним из способов:',
                                 textAlign: TextAlign.center,
                                 style: AppTypography.caption1.copyWith(
                                   color: Colors.white,
@@ -80,8 +80,8 @@ class StartupErrorScreen extends StatelessWidget {
                               const SizedBox(height: AppSpacing.sm),
                               Text(
                                 '• flutter run --dart-define=POCKETBASE_URL=…\n'
-                                '• edit client/.env.defaults locally\n'
-                                '• see docs/POCKETBASE_SETUP.md',
+                                '• отредактируйте client/.env.defaults\n'
+                                '• см. docs/POCKETBASE_SETUP.md',
                                 textAlign: TextAlign.left,
                                 style: AppTypography.caption1.copyWith(
                                   color: AppColors.textSecondary,
@@ -94,7 +94,7 @@ class StartupErrorScreen extends StatelessWidget {
                         FilledButton.icon(
                           onPressed: () => onRetry(),
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Retry startup'),
+                          label: const Text('Повторить запуск'),
                         ),
                       ],
                     ),

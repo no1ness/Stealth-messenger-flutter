@@ -136,11 +136,11 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: GlassAppBar(
-        title: 'Diagnostics & logs',
+        title: 'Диагностика и логи',
         showBackButton: true,
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: 'Обновить',
             icon: const Icon(Icons.refresh),
             onPressed: _refreshLogs,
           ),
@@ -152,7 +152,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  const _SectionHeader(title: 'Services'),
+                  const _SectionHeader(title: 'Сервисы'),
                   SliverToBoxAdapter(
                     child: StreamBuilder<List<ServiceStatus>>(
                       initialData: _diagnostics.lastKnownSnapshot,
@@ -162,7 +162,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         if (statuses.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.all(AppSpacing.md),
-                            child: Text('Loading...'),
+                            child: Text('Загрузка...'),
                           );
                         }
                         return Column(
@@ -174,7 +174,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       },
                     ),
                   ),
-                  const _SectionHeader(title: 'Recent logs'),
+                  const _SectionHeader(title: 'Последние логи'),
                   SliverToBoxAdapter(
                     child: LevelFilterChips(
                       selected: _filter,
@@ -186,7 +186,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       child: Padding(
                         padding: EdgeInsets.all(AppSpacing.md),
                         child: Text(
-                          'No log entries yet',
+                          'Пока нет записей в логе',
                           style: AppTypography.body,
                         ),
                       ),
@@ -223,7 +223,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       else
                         const Icon(Icons.ios_share),
                       const SizedBox(width: AppSpacing.sm),
-                      const Text('Share logs'),
+                      const Text('Поделиться логами'),
                     ],
                   ),
                 ),

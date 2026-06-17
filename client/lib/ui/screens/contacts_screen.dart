@@ -137,7 +137,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       return;
     }
 
-    final name = contact['name'] as String? ?? 'Unknown';
+    final name = contact['name'] as String? ?? 'Неизвестный';
     final autoPopulated = contact['auto_populated'] == true;
 
     await showModalBottomSheet<void>(
@@ -151,7 +151,7 @@ class _ContactsScreenState extends State<ContactsScreen>
               children: [
                 ListTile(
                   leading: const Icon(Icons.info_outline),
-                  title: const Text('Information'),
+                  title: const Text('Информация'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await showUserDetailSheet(context, contact);
@@ -159,7 +159,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.chat_bubble_outline),
-                  title: const Text('Open chat'),
+                  title: const Text('Открыть чат'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _openChat(contact);
@@ -167,7 +167,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.security_rounded),
-                  title: const Text('Verify Safety Number'),
+                  title: const Text('Проверить код безопасности'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _verifySafetyNumber(contact);
@@ -175,7 +175,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.call),
-                  title: const Text('Start call'),
+                  title: const Text('Начать звонок'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _startCall(contact, isVideoCall: false);
@@ -183,7 +183,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.videocam_outlined),
-                  title: const Text('Start video call'),
+                  title: const Text('Начать видеозвонок'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     await _startCall(contact, isVideoCall: true);
@@ -193,7 +193,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                   leading: autoPopulated
                       ? const Icon(Icons.visibility_off_outlined)
                       : const Icon(Icons.delete_outline),
-                  title: Text(autoPopulated ? 'Hide' : 'Remove $name'),
+                  title: Text(autoPopulated ? 'Скрыть' : 'Удалить $name'),
                   onTap: () async {
                     Navigator.of(context).pop();
                     final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString();
@@ -204,7 +204,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                     if (!mounted) return;
                     showStealthSnackBar(
                       context,
-                      autoPopulated ? '$name hidden' : '$name removed',
+                      autoPopulated ? '$name скрыт' : '$name удален',
                       kind: SnackKind.success,
                     );
                   },
@@ -225,14 +225,14 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (mounted) {
       showStealthDialog<void>(
         context: context,
-        title: 'Generating fingerprint',
+        title: 'Генерация отпечатка',
         barrierDismissible: false,
         body: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             StealthLoadingIndicator(size: 20, strokeWidth: 2),
             SizedBox(width: AppSpacing.md),
-            Text('Generating fingerprint...'),
+            Text('Генерация отпечатка...'),
           ],
         ),
       );
@@ -245,18 +245,18 @@ class _ContactsScreenState extends State<ContactsScreen>
 
       showStealthDialog<void>(
         context: context,
-        title: 'Safety Number — $name',
+        title: 'Код безопасности — $name',
         body: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Compare this number with your contact. If it matches exactly, your end-to-end encryption is secure and no one can intercept your chats.',
+              'Сравните этот номер с контактом. Если он точно совпадает, ваше сквозное шифрование безопасно.',
               style: AppTypography.caption1
                   .copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
-              safetyNumber ?? 'Error generating number',
+              safetyNumber ?? 'Ошибка генерации номера',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -304,7 +304,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 }
                 showStealthSnackBar(
                   context,
-                  'Clipboard is empty',
+                  'Буфер обмена пуст',
                   kind: SnackKind.warn,
                 );
                 return;
@@ -330,7 +330,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                     child: TextField(
                       controller: _addContactController,
                       decoration: const InputDecoration(
-                        hintText: 'Paste contact bundle',
+                        hintText: 'Вставьте данные контакта',
                         prefixIcon: Icon(Icons.search),
                       ),
                       onChanged: (_) => search(),
@@ -340,7 +340,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Tip: open Profile on the other device and copy its contact bundle for E2E messaging.',
+                      'Подсказка: откройте Профиль на другом устройстве и скопируйте данные контакта для E2E-сообщений.',
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -349,14 +349,14 @@ class _ContactsScreenState extends State<ContactsScreen>
                     child: OutlinedButton.icon(
                       onPressed: pasteAndSearch,
                       icon: const Icon(Icons.content_paste),
-                      label: const Text('Paste contact'),
+                      label: const Text('Вставить контакт'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   SizedBox(
                     height: 280,
                     child: results.isEmpty
-                        ? const Center(child: Text('No users found'))
+                        ? const Center(child: Text('Пользователи не найдены'))
                         : ListView.builder(
                             itemCount: results.length,
                             itemBuilder: (context, index) {
@@ -367,7 +367,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                     _initials(result['name'] as String?),
                                   ),
                                 ),
-                                title: Text(result['name'] as String? ?? 'Unknown'),
+                                title: Text(result['name'] as String? ?? 'Неизвестный'),
                                 subtitle: Text(
                                   result['user_id'] as String? ?? '',
                                   maxLines: 1,
@@ -387,7 +387,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       Navigator.of(context).pop();
                                       await _loadContacts();
                                     },
-                                    child: const Text('Add'),
+                                    child: const Text('Добавить'),
                                   ),
                                 ),
                               );
@@ -521,7 +521,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       backgroundColor: Colors.transparent,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Contacts'),
+        child: GlassAppBar(title: 'Контакты'),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -533,7 +533,7 @@ class _ContactsScreenState extends State<ContactsScreen>
               children: [
                 GlassTextField(
                   controller: _searchController,
-                  hintText: 'Search contacts',
+                  hintText: 'Поиск контактов',
                   prefixIcon: const Icon(
                     Icons.search,
                     color: AppColors.textSecondary,
@@ -549,7 +549,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                     child: FilledButton.icon(
                       onPressed: _showAddContactSheet,
                       icon: const Icon(Icons.person_add_alt_1),
-                      label: const Text('Add contact'),
+                      label: const Text('Добавить контакт'),
                     ),
                   ),
                 ),
@@ -561,7 +561,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                         ? const Center(child: StealthLoadingIndicator())
                         : filtered.isEmpty
                             ? Semantics(
-                                label: 'No contacts',
+                                label: 'Нет контактов',
                                 child: const StealthEmptyState.contacts(),
                               )
                             : GridView.builder(
@@ -599,7 +599,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
-                                          tooltip: 'Open chat',
+                                          tooltip: 'Открыть чат',
                                           onPressed: _startingCall
                                               ? null
                                               : () => _openChat(contact),
@@ -613,7 +613,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                           button: true,
                                           excludeSemantics: true,
                                           child: IconButton(
-                                            tooltip: 'Start call',
+                                            tooltip: 'Начать звонок',
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _startCall(
@@ -643,7 +643,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                           button: true,
                                           excludeSemantics: true,
                                           child: IconButton(
-                                            tooltip: 'Start video call',
+                                            tooltip: 'Начать видеозвонок',
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _startCall(
@@ -657,7 +657,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                           ),
                                         ),
                                         IconButton(
-                                          tooltip: 'More options',
+                                          tooltip: 'Дополнительные опции',
                                           onPressed: () =>
                                               _showContactActions(contact),
                                           icon: const Icon(
