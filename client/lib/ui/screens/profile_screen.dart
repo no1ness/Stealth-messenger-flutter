@@ -379,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.md),
-              'E2E ключи', _secureStorageReady ? 'Готово' : 'Отсутствуют'),
+          _buildMetricRow('E2E ключи', _secureStorageReady ? 'Готово' : 'Отсутствуют'),
           _buildMetricRow('Безопасное хранилище',
               _secureStorageReady ? 'Включено' : 'Проверьте устройство'),
           _buildMetricRow(
