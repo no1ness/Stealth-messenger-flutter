@@ -17,7 +17,8 @@
   }],
   "outbounds": [{
     "type": "direct", "tag": "caddy-out",
-    "override_address": "127.0.0.1", "override_port": 8443
+    "override_address": "127.0.0.1",
+    "override_port": 8443
   }],
   "route": {
     "rules": [{ "inbound": ["vless-in"], "outbound": "caddy-out" }]
