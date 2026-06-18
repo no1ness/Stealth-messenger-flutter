@@ -300,3 +300,59 @@ jobs:
 
       - name: flutter test
         run: flutter test --reporter expanded
+
+  pw-test-e2e:
+    name: pw-test E2E (web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-web
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       github.event.pusher.name != 'github-actions[bot]')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter build web --release
+        run: flutter build web --release
+
+      - name: Install Playwright
+        working-directory: ${{ github.workspace }}/pw-test
+        run: |
+          npm install
+          npx playwright install chromium
+
+      - name: Start web static server + run E2E
+        working-directory: ${{ github.workspace }}/pw-test
+        env:
+          STEALTH_WEB_PORT: "57575"
+        run: |
+          node serve-static-web.mjs &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:57575 > /dev/null 2>&1; then
+              echo "Web server ready"
+              break
+            fi
+            sleep 1
+          done
+          STEALTH_WEB_URL=http://127.0.0.1:57575 \
+          node scenarios/chat-basic.mjs || true
+          STEALTH_WEB_URL=http://127.0.0.1:57575 \
+          node scenarios/call-basic.mjs || true
+          STEALTH_WEB_URL=http://127.0.0.1:57575 \
+          node scenarios/registration.mjs || true
+          kill $SERVER_PID 2>/dev/null || true
