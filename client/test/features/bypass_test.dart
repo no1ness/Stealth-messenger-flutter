@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stealth/services/bypass/bypass_manager.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('com.stealth.messenger/bypass');
 
   setUp(() {

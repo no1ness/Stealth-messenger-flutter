@@ -48,7 +48,7 @@ class BypassStateController {
       Logger.info('[bypass] enabled');
       return true;
     } catch (e) {
-      Logger.error('[bypass] enable failed', error: e);
+      Logger.error('[bypass] enable failed: $e');
       return false;
     }
   }
@@ -64,7 +64,7 @@ class BypassStateController {
       await prefs.setBool(_prefsKey, false);
       Logger.info('[bypass] disabled');
     } catch (e) {
-      Logger.error('[bypass] disable failed', error: e);
+      Logger.error('[bypass] disable failed: $e');
     }
   }
 }
