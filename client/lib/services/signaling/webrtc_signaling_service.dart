@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
+import 'package:stealth/test_controller/test_event.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
 import 'package:stealth/services/signaling/pocketbase_auth_service.dart';
 import 'package:stealth/services/signaling/pocketbase_client.dart';
@@ -69,6 +70,11 @@ class WebRtcSignalingService implements SignalingTransport {
   final StreamController<SignalingConnectionState> _stateController =
       StreamController<SignalingConnectionState>.broadcast();
 
+  void Function(TestEvent)? _onTestEvent;
+
+  void attachTestEventEmitter(void Function(TestEvent) cb) =>
+      _onTestEvent = cb;
+
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   StreamSubscription<void>? _reconfigureSub;
   UnsubscribeFunc? _unsubscribe;
@@ -115,8 +121,12 @@ class WebRtcSignalingService implements SignalingTransport {
     required String roomId,
     required String targetUserId,
     required Map<String, dynamic> sdp,
-  }) {
-    return _send(RtcMessageType.offer, roomId, targetUserId, sdp);
+  }) async {
+    await _send(RtcMessageType.offer, roomId, targetUserId, sdp);
+    _onTestEvent?.call(CallOfferCreated(
+      roomId: roomId,
+      targetUserId: targetUserId,
+    ));
   }
 
   @override
@@ -124,8 +134,12 @@ class WebRtcSignalingService implements SignalingTransport {
     required String roomId,
     required String targetUserId,
     required Map<String, dynamic> sdp,
-  }) {
-    return _send(RtcMessageType.answer, roomId, targetUserId, sdp);
+  }) async {
+    await _send(RtcMessageType.answer, roomId, targetUserId, sdp);
+    _onTestEvent?.call(CallAnswered(
+      roomId: roomId,
+      fromUserId: _activeSelfUserId ?? '',
+    ));
   }
 
   @override
@@ -133,8 +147,9 @@ class WebRtcSignalingService implements SignalingTransport {
     required String roomId,
     required String targetUserId,
     required Map<String, dynamic> candidate,
-  }) {
-    return _send(RtcMessageType.candidate, roomId, targetUserId, candidate);
+  }) async {
+    await _send(RtcMessageType.candidate, roomId, targetUserId, candidate);
+    _onTestEvent?.call(IceConnected(roomId: roomId));
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../local_database_service.dart';
 import '../../logging/logger.dart';
+import '../../test_controller/test_event.dart';
 
 /// Local call-log facade: records incoming, declined, and ended calls
 /// into the `calls` store and surfaces the recent-history list.
@@ -30,6 +31,11 @@ class CallHistoryService {
 
   final LocalDatabaseService _localDb;
   final Uuid _uuid;
+
+  void Function(TestEvent)? _onTestEvent;
+
+  void attachTestEventEmitter(void Function(TestEvent) cb) =>
+      _onTestEvent = cb;
 
   Future<void> recordIncomingCall({
     required String chatId,
@@ -79,6 +85,7 @@ class CallHistoryService {
       'status': 'ended',
       'started_at': DateTime.now().toIso8601String(),
     });
+    _onTestEvent?.call(CallEnded(chatId: chatId));
   }
 
   Future<List<Map<String, dynamic>>> getRecentCallHistory(

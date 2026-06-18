@@ -7,8 +7,10 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
+import 'package:stealth/test_controller/test_controller.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
 import 'package:stealth/themes/theme_controller.dart';
@@ -81,6 +83,9 @@ class _MyAppState extends State<MyApp> {
       await _checkRegistration();
       await BypassStateController.init();
       Logger.info('[bootstrap] bypass state initialized');
+      if (kDebugMode) {
+        TestController.instance.start();
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         DeviceRegistryService.instance.init();
         _appService?.startPBBasedWorkers();

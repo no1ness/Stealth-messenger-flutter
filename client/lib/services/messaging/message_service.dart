@@ -11,6 +11,7 @@ import '../../crypto/ratchet_service.dart';
 import '../../local_database_service.dart';
 import '../../logging/logger.dart';
 import '../../p2p_service.dart';
+import '../../test_controller/test_event.dart';
 import '../contacts/contact_service.dart';
 import '../identity/identity_service.dart';
 
@@ -55,6 +56,11 @@ class MessageService {
     _encryptGroup = encryptGroup;
     _decryptGroup = decryptGroup;
   }
+
+  void Function(TestEvent)? _onTestEvent;
+
+  void attachTestEventEmitter(void Function(TestEvent) cb) =>
+      _onTestEvent = cb;
 
   /// Wires the attachment-descriptor compactor (drops inline payload
   /// before local persistence; the wire envelope keeps it).
@@ -365,6 +371,7 @@ class MessageService {
         );
       }
     }
+    _onTestEvent?.call(MessageSent(chatId: chatId, text: content));
   }
 
   /// If [content] is a v2 `local-attachment:` descriptor, kick off the

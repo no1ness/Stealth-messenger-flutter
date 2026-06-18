@@ -12,6 +12,7 @@ import 'package:stealth/services/signaling/rtc_message.dart';
 import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
 import 'package:stealth/services/webrtc/ice_config.dart';
 import 'package:stealth/storage_service.dart';
+import 'package:stealth/test_controller/test_event.dart';
 
 /// Per-message in-memory retry state. Resets on app restart — that is
 /// intentional: a fresh tab/launch should re-try cleanly, and the
@@ -88,6 +89,11 @@ class P2PService {
       StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onMessage => _messageController.stream;
+
+  void Function(TestEvent)? _onTestEvent;
+
+  void attachTestEventEmitter(void Function(TestEvent) cb) =>
+      _onTestEvent = cb;
 
   Future<RTCPeerConnection> _createConnection(String chatId) async {
     final config = {
@@ -237,6 +243,11 @@ class P2PService {
               DateTime.now().toIso8601String();
           await _localDb.saveChat(chat);
         }
+
+        _onTestEvent?.call(MessageReceived(
+          chatId: chatId,
+          text: message['content']?.toString() ?? '',
+        ));
 
         // Send ACK back so the sender can flip their local row to
         // `delivered`. Best-effort: if the DC is open we just got a

@@ -6,6 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import '../../local_database_service.dart';
 import '../../logging/logger.dart';
 import '../../storage_service.dart';
+import '../../test_controller/test_event.dart';
 import '../identity/identity_service.dart';
 
 /// Contact-book facade: peer bundles, nicknames, safety numbers, search.
@@ -32,6 +33,11 @@ class ContactService {
   /// the peer's public key — search results carry the bundle, the
   /// `addContact(userId)` call site only forwards the id.
   final Map<String, Map<String, dynamic>> _lastSearchResults = {};
+
+  void Function(TestEvent)? _onTestEvent;
+
+  void attachTestEventEmitter(void Function(TestEvent) cb) =>
+      _onTestEvent = cb;
 
   // ------------- public API -------------
 
@@ -246,6 +252,7 @@ class ContactService {
     };
     await _localDb.saveContact(contact);
     _nicknameCache[userId] = contact['nickname']?.toString();
+    _onTestEvent?.call(ContactAdded(userId: userId));
     Logger.info('[contacts] saved local contact', extras: {'userId': userId});
   }
 
