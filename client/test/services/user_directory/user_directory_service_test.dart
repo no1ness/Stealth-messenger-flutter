@@ -106,6 +106,82 @@ void main() {
     });
   });
 
+  group('UserDirectoryService edge cases', () {
+    test('handles null and empty fields without crash', () async {
+      final h = _Harness.build();
+      h.fakeProfiles.items = [
+        RecordModel({
+          'id': 'r4',
+          'collectionName': 'user_profiles',
+          'userId': 'user-D',
+          'publicKey': null,
+          'deviceModel': '',
+          'platform': null,
+          'appVersion': '',
+          'registeredAt': null,
+          'isOnline': null,
+          'lastSeen': null,
+        }),
+      ];
+
+      final profiles = await h.service.fetchAllProfiles('user-A');
+      expect(profiles, hasLength(1));
+      expect(profiles[0]['userId'], 'user-D');
+      expect(profiles[0]['publicKey'], isNull);
+      expect(profiles[0]['deviceModel'], '');
+    });
+
+    test('handles incomplete schema (missing fields) without error', () async {
+      final h = _Harness.build();
+      h.fakeProfiles.items = [
+        RecordModel({
+          'id': 'r5',
+          'collectionName': 'user_profiles',
+          'userId': 'user-E',
+          // missing: publicKey, deviceModel, platform, appVersion, etc.
+        }),
+      ];
+
+      final profiles = await h.service.fetchAllProfiles('user-A');
+      expect(profiles, hasLength(1));
+      expect(profiles[0]['userId'], 'user-E');
+    });
+
+    test('handles non-bool isOnline without crash', () async {
+      final h = _Harness.build();
+      h.fakeProfiles.items = [
+        RecordModel({
+          'id': 'r6',
+          'collectionName': 'user_profiles',
+          'userId': 'user-F',
+          'publicKey': 'pk-f',
+          'isOnline': 'yes', // string instead of bool
+          'lastSeen': '2025-01-05T00:00:00Z',
+        }),
+        RecordModel({
+          'id': 'r7',
+          'collectionName': 'user_profiles',
+          'userId': 'user-G',
+          'publicKey': 'pk-g',
+          'isOnline': 42, // int instead of bool
+          'lastSeen': '2025-01-06T00:00:00Z',
+        }),
+      ];
+
+      final profiles = await h.service.fetchAllProfiles('user-A');
+      expect(profiles, hasLength(2));
+      // Should not throw — callers must handle type coercion.
+    });
+
+    test('returns empty list when PocketBase returns empty items', () async {
+      final h = _Harness.build();
+      h.fakeProfiles.items = [];
+
+      final profiles = await h.service.fetchAllProfiles('user-A');
+      expect(profiles, isEmpty);
+    });
+  });
+
   group('UserDirectoryService clearCache', () {
     test('clears cached profiles', () async {
       final h = _Harness.build();
