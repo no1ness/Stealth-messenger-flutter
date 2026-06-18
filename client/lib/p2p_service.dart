@@ -246,6 +246,7 @@ class P2PService {
 
         _onTestEvent?.call(MessageReceived(
           chatId: chatId,
+          fromUserId: message['sender_id']?.toString() ?? '',
           text: message['content']?.toString() ?? '',
         ));
 

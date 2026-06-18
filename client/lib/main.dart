@@ -84,7 +84,7 @@ class _MyAppState extends State<MyApp> {
       await BypassStateController.init();
       Logger.info('[bootstrap] bypass state initialized');
       if (kDebugMode) {
-        TestController.instance.start();
+        TestController.instance.attach();
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         DeviceRegistryService.instance.init();
