@@ -68,6 +68,9 @@ android {
                 // builds. Real publish builds MUST populate key.properties.
                 signingConfigs.getByName("debug")
             }
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 

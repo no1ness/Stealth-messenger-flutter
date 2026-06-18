@@ -46,9 +46,8 @@ Future<ShareOutcome> shareDiagnosticsReport(
     if (kIsWeb) {
       // No filesystem on web — hand the text straight to Web Share API.
       Logger.info('[diag.share] share intent invoked');
-      final result = await Share.share(
-        reportText,
-        subject: 'Stealth diagnostics $ts',
+      final result = await SharePlus.instance.share(
+        ShareParams(text: reportText, subject: 'Stealth diagnostics $ts'),
       );
       if (!context.mounted) return _outcomeFromStatusNoContext(result);
       return _outcomeFromStatus(result, context, reportText);
@@ -64,10 +63,12 @@ Future<ShareOutcome> shareDiagnosticsReport(
     });
 
     Logger.info('[diag.share] share intent invoked');
-    final result = await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'text/plain')],
-      subject: 'Stealth diagnostics $ts',
-      text: preview,
+    final result = await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'text/plain')],
+        subject: 'Stealth diagnostics $ts',
+        text: preview,
+      ),
     );
     if (!context.mounted) return _outcomeFromStatusNoContext(result);
     return _outcomeFromStatus(result, context, reportText);

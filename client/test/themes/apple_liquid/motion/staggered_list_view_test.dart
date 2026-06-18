@@ -74,16 +74,18 @@ void main() {
       ));
       await tester.pump();
       for (var i = 0; i < 3; i++) {
-        final fadeAncestors = find.ancestor(
+        // The item is inside RepaintBoundary → check that
+        // RepaintBoundary's direct child is NOT a FadeTransition.
+        final repaintBoundary = find.ancestor(
           of: find.text('row-$i'),
-          // Look for the private _StaggeredEntry's FadeTransition by
-          // checking ANY FadeTransition that's a direct ancestor —
-          // when reduce-motion is on, no FadeTransition should wrap
-          // the item.
+          matching: find.byType(RepaintBoundary),
+        );
+        final directChild = find.descendant(
+          of: repaintBoundary.first,
           matching: find.byType(FadeTransition),
         );
         expect(
-          fadeAncestors,
+          directChild,
           findsNothing,
           reason:
               'reduce-motion users must not get the staggered entrance fade',

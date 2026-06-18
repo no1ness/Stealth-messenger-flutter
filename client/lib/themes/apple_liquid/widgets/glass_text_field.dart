@@ -143,7 +143,7 @@ class _GlassTextFieldState extends State<GlassTextField>
             final input = ClipRRect(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                 child: Container(
                   decoration: _glassFieldDecoration(
                     focused: _isFocused,
@@ -217,7 +217,7 @@ class GlassSearchField extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.glassMedium,

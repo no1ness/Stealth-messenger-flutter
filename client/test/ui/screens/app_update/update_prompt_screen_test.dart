@@ -19,15 +19,15 @@ void main() {
         ),
       );
 
-      expect(find.text('Update available'), findsOneWidget);
-      expect(find.text('Current: 0.1.0+1\nLatest: 0.2.0+2'), findsOneWidget);
-      expect(find.text('Not now'), findsOneWidget);
+      expect(find.text('Доступно обновление'), findsOneWidget);
+      expect(find.text('Текущая: 0.1.0+1\nНовая: 0.2.0+2'), findsOneWidget);
+      expect(find.text('Не сейчас'), findsOneWidget);
 
-      await tester.tap(find.text('Update now'));
+      await tester.tap(find.text('Обновить сейчас'));
       await tester.pump();
       expect(updated, isTrue);
 
-      await tester.tap(find.text('Not now'));
+      await tester.tap(find.text('Не сейчас'));
       await tester.pump();
       expect(skipped, isTrue);
     });
@@ -43,9 +43,9 @@ void main() {
         ),
       );
 
-      expect(find.text('Update required'), findsOneWidget);
-      expect(find.text('Update now'), findsOneWidget);
-      expect(find.text('Not now'), findsNothing);
+      expect(find.text('Требуется обновление'), findsOneWidget);
+      expect(find.text('Обновить сейчас'), findsOneWidget);
+      expect(find.text('Не сейчас'), findsNothing);
     });
   });
 }

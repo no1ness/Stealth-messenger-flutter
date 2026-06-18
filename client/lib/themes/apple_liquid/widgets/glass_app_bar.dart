@@ -36,7 +36,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
     return ClipRRect(
       child: RepaintBoundary(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.glassUltraDark,
@@ -152,7 +152,7 @@ class GlassSliverAppBar extends StatelessWidget {
       flexibleSpace: ClipRRect(
         child: RepaintBoundary(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.darkGray2.withValues(alpha: 0.8),

@@ -57,7 +57,7 @@ class CallHudOverlay extends StatefulWidget {
 }
 
 class _CallHudOverlayState extends State<CallHudOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// Drives the E2E badge pulse (2.4 s cycle).
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseAnim;

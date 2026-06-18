@@ -1,4 +1,6 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/ui/screens/calls/native_call_controller.dart';
 
 // Лёгкие state-transition тесты контроллера. Полный lifecycle (initialize →
@@ -15,6 +17,11 @@ NativeCallController _buildController({bool isCaller = true}) {
 }
 
 void main() {
+  setUp(() async {
+    await dotenv.load(fileName: '.env.defaults');
+    PocketBaseClient.resetForTests();
+  });
+
   group('NativeCallController state flags', () {
     test(
         'default state: initializing=true, connected=false, mic/speaker/camera on',

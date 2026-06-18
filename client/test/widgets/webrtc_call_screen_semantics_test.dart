@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen_native_impl.dart';
 
 // Validates: Requirements 5.1, 5.2, 5.3, 5.4
@@ -8,6 +10,8 @@ import 'package:stealth/ui/screens/webrtc_call_screen_native_impl.dart';
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
+    await dotenv.load(fileName: '.env.defaults');
+    PocketBaseClient.resetForTests();
   });
 
   testWidgets(

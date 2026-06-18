@@ -36,7 +36,7 @@
 | Task | Change | Expected Improvement |
 |---|---|---|
 | T6 | `_ScanlinePainter` — `Picture` cache: paint once, reuse via `drawPicture()` | 1 `drawPicture` per bubble instead of 320 `drawLine` |
-| T7 | BackdropFilter sigma: bubble body 10→6, input bar 20→8, attachment bar 10→6 | 1 BackdropFilter per bubble (was 3), GPU < 1ms total |
+| T7 | BackdropFilter sigma: bubble body 10→6, input bar 20→8, glass_app_bar 10→6, glass_text_field 10→6, debug_status_bar 10→6, call screens 10→6 | 1 BackdropFilter per bubble (was 3), GPU < 1ms total; consistent sigma=6 across all glass surfaces |
 | T8 | `ChromaticAberration.ghostBuilder` enabled on all platforms (was `kIsWeb` only) | No duplicate full child build on mobile during focus animation |
 
 ### Phase 4 — Architecture
@@ -56,9 +56,30 @@
 
 - ChatListPanel swap (7 blockers unresolved)
 - PresenceService heartbeat event model (timer lifecycle already clean)
-- CircuitBoardBackground canvas cache
-- DecryptText AnimatedBuilder
+- DecryptText AnimatedBuilder (widget tree minimal — one Text node — low ROI)
 - Benchmark gates (test files)
+
+## Phase 7 — M20: GPU & Bundle
+
+| Task | Change | Expected Improvement |
+|------|--------|-------------------|
+| T9a | `CircuitBoardBackground` — static chip/trace/via base cached in `Picture` via `_SizeKey`; only animated lines + pulsing vias redrawn per frame | ~130 draw calls per frame (from ~571 — 77% reduction); cache invalidated only on resize |
+| T9b | `BackdropFilter` sigma reduced from `10→6` on remaining components: `glass_app_bar.dart`, `glass_text_field.dart`, `debug_status_bar.dart`, `webrtc_call_screen_native_impl.dart`, `webrtc_call_screen_web.dart` | Consistent sigma=6 across all glass surfaces; GPU shader cost reduced 40% on these components |
+| T13 | Fonts properly registered: Geist (4 weights) + GeistMono (3 weights) declared under `flutter: fonts:` in `pubspec.yaml` (were only bundled as raw assets via `assets/`) | Fonts actually render on mobile — no silent `fontFamily` fallback to system fonts |
+| T14 | `ndk.debugSymbolLevel = "SYMBOL_TABLE"` in `android/app/build.gradle.kts` | Reduces native debug info footprint in release APK |
+
+### M20 Baseline Benchmarks
+
+| Metric | Value |
+|--------|-------|
+| FPS (within 16.67ms) | 59 / 60 (98.3%) |
+| Frame time avg | 0.78 ms |
+| Frame time min | 0.05 ms |
+| Frame time max | 40.60 ms |
+| Web main.dart.js | 3.4 MB |
+| Web total (with canvaskit) | 43 MB |
+| Web build time | 74.5 s |
+| Icon fonts tree-shaken | CupertinoIcons: 258 KB → 1.4 KB (99.4%); MaterialIcons: 1.6 MB → 15 KB (99.1%) |
 
 ## See Also
 

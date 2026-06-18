@@ -61,7 +61,7 @@ void main() {
         message: 'reconnect attempt',
       ),
     ];
-    await tester.pumpWidget(wrap(buildScreen(logs: logs)));
+    await tester.pumpWidget(wrap(buildScreen(logs: logs, statuses: [])));
     await tester.pump();
 
     expect(find.byType(LogEntryTile), findsOneWidget);
@@ -70,7 +70,7 @@ void main() {
     expect(find.text('reconnect attempt'), findsOneWidget);
   });
 
-  testWidgets('filter chip "Errors" hides WARN entries', (tester) async {
+  testWidgets('filter chip Errors hides WARN entries', (tester) async {
     final logs = [
       LogEntry(
         level: LogLevel.warn,
@@ -83,12 +83,12 @@ void main() {
         message: 'error line',
       ),
     ];
-    await tester.pumpWidget(wrap(buildScreen(logs: logs)));
+    await tester.pumpWidget(wrap(buildScreen(logs: logs, statuses: [])));
     await tester.pump();
 
     expect(find.byType(LogEntryTile), findsNWidgets(2));
 
-    await tester.tap(find.text('Errors'));
+    await tester.tap(find.text('Ошибки'));
     await tester.pump();
 
     expect(find.byType(LogEntryTile), findsOneWidget);
@@ -96,21 +96,18 @@ void main() {
     expect(find.text('error line'), findsOneWidget);
   });
 
-  testWidgets('empty buffer shows "No log entries yet"', (tester) async {
-    await tester.pumpWidget(wrap(buildScreen()));
+  testWidgets('empty buffer shows no log entries message', (tester) async {
+    await tester.pumpWidget(wrap(buildScreen(statuses: [])));
     await tester.pump();
-    expect(find.text('No log entries yet'), findsOneWidget);
+    expect(find.text('Пока нет записей в логе'), findsOneWidget);
   });
 
-  testWidgets('"Share logs" invokes shareInvoker with report text',
+  testWidgets('share logs invokes shareInvoker with report text',
       (tester) async {
     await tester.pumpWidget(wrap(buildScreen()));
     await tester.pump();
 
-    await tester.tap(find.text('Share logs'));
-    // Don't pumpAndSettle — the CircularProgressIndicator on the
-    // sharing-in-progress button never finishes its animation. Pump
-    // a few frames for the async work to land.
+    await tester.tap(find.text('Поделиться логами'));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -125,8 +122,6 @@ void main() {
     await tester.pumpWidget(wrap(buildScreen()));
     await tester.pump();
 
-    // Three OK statuses in the default fixture → three Semantics nodes
-    // each labeled 'OK'.
     final okLabels = find.byWidgetPredicate(
       (w) => w is Semantics && (w.properties.label ?? '') == 'OK',
     );
@@ -138,7 +133,6 @@ void main() {
     await tester.pumpWidget(wrap(buildScreen()));
     await tester.pump();
     expect(fake.disposeCalls, 0);
-    // Replace widget tree -> state.dispose runs.
     await tester.pumpWidget(wrap(const SizedBox.shrink()));
     expect(fake.disposeCalls, 0,
         reason: 'caller-owned service must not be disposed by the screen');

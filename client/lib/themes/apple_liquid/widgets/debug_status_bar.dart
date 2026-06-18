@@ -50,7 +50,7 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(

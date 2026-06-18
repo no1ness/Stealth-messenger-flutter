@@ -25,16 +25,16 @@ void main() {
       ),
     );
 
-    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Обновления'), findsOneWidget);
     expect(find.text('Stealth 0.1.0+1'), findsOneWidget);
-    expect(find.text('Check for updates'), findsOneWidget);
-    expect(find.text('Update now'), findsOneWidget);
+    expect(find.text('Проверить обновления'), findsOneWidget);
+    expect(find.text('Обновить сейчас'), findsOneWidget);
 
-    await tester.tap(find.text('Check for updates'));
+    await tester.tap(find.text('Проверить обновления'));
     await tester.pump();
     expect(checked, isTrue);
 
-    await tester.tap(find.text('Update now'));
+    await tester.tap(find.text('Обновить сейчас'));
     await tester.pump();
     expect(installed, isTrue);
   });
@@ -62,8 +62,8 @@ void main() {
       ),
     );
 
-    expect(find.text('You are up to date\nLatest: 0.2.0+2'), findsOneWidget);
-    expect(find.text('Update now'), findsNothing);
+    expect(find.text('У вас последняя версия\nНовая: 0.2.0+2'), findsOneWidget);
+    expect(find.text('Обновить сейчас'), findsNothing);
   });
 }
 

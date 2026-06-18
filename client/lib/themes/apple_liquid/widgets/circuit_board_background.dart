@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 /// Фон в стиле микросхем/печатной платы (circuit board)
@@ -43,36 +45,35 @@ class _CircuitBoardBackgroundState extends State<CircuitBoardBackground>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Базовый градиент (темный фон)
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF050812), // Очень темный синий
-                Color(0xFF0A0E1A), // Темно-синеватый
-                Color(0xFF0D1117), // Очень темный
+                Color(0xFF050812),
+                Color(0xFF0A0E1A),
+                Color(0xFF0D1117),
               ],
               stops: [0.0, 0.5, 1.0],
             ),
           ),
         ),
 
-        // Circuit board паттерн
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: CircuitBoardPainter(
-                animation: widget.animated ? _controller.value : 0.0,
-              ),
-              size: Size.infinite,
-            );
-          },
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: CircuitBoardPainter(
+                  animation: widget.animated ? _controller.value : 0.0,
+                ),
+                size: Size.infinite,
+              );
+            },
+          ),
         ),
 
-        // Subtle gradient overlay для глубины
         Container(
           decoration: BoxDecoration(
             gradient: RadialGradient(
@@ -86,145 +87,87 @@ class _CircuitBoardBackgroundState extends State<CircuitBoardBackground>
           ),
         ),
 
-        // Контент поверх
         widget.child,
       ],
     );
   }
 }
 
-/// Рисует паттерн печатной платы с линиями и точками
+class _SizeKey {
+  const _SizeKey(this.w, this.h);
+  final double w, h;
+  @override
+  bool operator ==(Object other) =>
+      other is _SizeKey && w == other.w && h == other.h;
+  @override
+  int get hashCode => Object.hash(w, h);
+}
+
 class CircuitBoardPainter extends CustomPainter {
   final double animation;
 
   CircuitBoardPainter({required this.animation});
 
+  static final Map<_SizeKey, ui.Picture> _staticCache = {};
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final key = _SizeKey(size.width, size.height);
+    final cached = _staticCache[key];
+    if (cached == null) {
+      final recorder = ui.PictureRecorder();
+      final cacheCanvas = Canvas(recorder);
+      _paintStatic(cacheCanvas, size);
+      final picture = recorder.endRecording();
+      _staticCache[key] = picture;
+      canvas.drawPicture(picture);
+    } else {
+      canvas.drawPicture(cached);
+    }
+
+    _paintAnimated(canvas, size);
+  }
+
+  void _paintStatic(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
     final dotPaint = Paint()..style = PaintingStyle.fill;
+    final random = math.Random(42);
 
-    final random = math.Random(42); // Фиксированный seed для консистентности
+    final lineColor = const Color(0xFF1E3A8A).withValues(alpha: 0.3);
+    final accentColor = const Color(0xFF3B82F6).withValues(alpha: 0.15);
+    final glowColor = const Color(0xFF60A5FA).withValues(alpha: 0.1);
 
-    // Цвета для circuit lines
-    final lineColor =
-        const Color(0xFF1E3A8A).withValues(alpha: 0.3); // Темно-синий
-    final accentColor =
-        const Color(0xFF3B82F6).withValues(alpha: 0.15); // Синий
-    final glowColor =
-        const Color(0xFF60A5FA).withValues(alpha: 0.1); // Светло-синий
-
-    // Рисуем горизонтальные линии
-    for (int i = 0; i < 20; i++) {
-      final y = (size.height / 20) * i;
-      final offset = math.sin(animation * math.pi * 2 + i * 0.5) * 10;
-
-      paint.color = i % 3 == 0 ? accentColor : lineColor;
-
-      // Главная линия
-      canvas.drawLine(
-        Offset(0, y + offset),
-        Offset(size.width, y + offset),
-        paint,
-      );
-
-      // Параллельная thin линия для эффекта PCB
-      paint.strokeWidth = 0.5;
-      paint.color = lineColor.withValues(alpha: 0.5);
-      canvas.drawLine(
-        Offset(0, y + offset + 2),
-        Offset(size.width, y + offset + 2),
-        paint,
-      );
-      paint.strokeWidth = 1.0;
-    }
-
-    // Рисуем вертикальные линии
-    for (int i = 0; i < 30; i++) {
-      final x = (size.width / 30) * i;
-      final offset = math.cos(animation * math.pi * 2 + i * 0.3) * 15;
-
-      paint.color = i % 4 == 0 ? accentColor : lineColor;
-
-      canvas.drawLine(
-        Offset(x + offset, 0),
-        Offset(x + offset, size.height),
-        paint,
-      );
-    }
-
-    // Рисуем "чипы" (прямоугольники)
     for (int i = 0; i < 12; i++) {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
-      final width = 30 + random.nextDouble() * 40;
-      final height = 20 + random.nextDouble() * 30;
+      final w = 30 + random.nextDouble() * 40;
+      final h = 20 + random.nextDouble() * 30;
+      final chipRect = Rect.fromLTWH(x, y, w, h);
 
-      final chipRect = Rect.fromLTWH(x, y, width, height);
-
-      // Корпус чипа
       paint.color = const Color(0xFF1E3A8A).withValues(alpha: 0.2);
       paint.style = PaintingStyle.fill;
       canvas.drawRRect(
-        RRect.fromRectAndRadius(chipRect, const Radius.circular(3)),
-        paint,
-      );
+        RRect.fromRectAndRadius(chipRect, const Radius.circular(3)), paint);
 
-      // Обводка чипа
       paint.style = PaintingStyle.stroke;
       paint.strokeWidth = 1.5;
       paint.color = const Color(0xFF3B82F6).withValues(alpha: 0.4);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(chipRect, const Radius.circular(3)),
-        paint,
-      );
+        RRect.fromRectAndRadius(chipRect, const Radius.circular(3)), paint);
 
-      // "Ножки" чипа (pins)
       paint.strokeWidth = 0.8;
       for (int j = 0; j < 8; j++) {
-        final pinY = y + (height / 9) * (j + 1);
-        // Левые ножки
-        canvas.drawLine(
-          Offset(x - 5, pinY),
-          Offset(x, pinY),
-          paint,
-        );
-        // Правые ножки
-        canvas.drawLine(
-          Offset(x + width, pinY),
-          Offset(x + width + 5, pinY),
-          paint,
-        );
+        final pinY = y + (h / 9) * (j + 1);
+        canvas.drawLine(Offset(x - 5, pinY), Offset(x, pinY), paint);
+        canvas.drawLine(Offset(x + w, pinY), Offset(x + w + 5, pinY), paint);
       }
     }
 
-    // Рисуем соединительные точки (vias)
-    for (int i = 0; i < 50; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-
-      // Анимированное свечение
-      final pulsePhase = (animation + (i * 0.02)) % 1.0;
-      final pulseOpacity = 0.2 + (math.sin(pulsePhase * math.pi * 2) * 0.1);
-
-      // Внешний glow
-      dotPaint.color = glowColor.withValues(alpha: pulseOpacity * 0.5);
-      canvas.drawCircle(Offset(x, y), 4, dotPaint);
-
-      // Средний круг
-      dotPaint.color = accentColor.withValues(alpha: pulseOpacity);
-      canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
-
-      // Внутренний яркий центр
-      dotPaint.color =
-          const Color(0xFF60A5FA).withValues(alpha: pulseOpacity * 1.5);
-      canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
-    }
-
-    // Рисуем traces (дорожки) между точками
     paint.style = PaintingStyle.stroke;
     paint.strokeWidth = 1.5;
     for (int i = 0; i < 25; i++) {
@@ -233,24 +176,86 @@ class CircuitBoardPainter extends CustomPainter {
       final endX = startX + (random.nextDouble() - 0.5) * 150;
       final endY = startY + (random.nextDouble() - 0.5) * 150;
 
-      final gradient = LinearGradient(
-        colors: [
-          lineColor,
-          accentColor,
-          lineColor,
-        ],
+      paint.shader = LinearGradient(
+        colors: [lineColor, accentColor, lineColor],
         stops: const [0.0, 0.5, 1.0],
-      );
+      ).createShader(
+        Rect.fromLTWH(startX, startY, endX - startX, endY - startY));
 
-      paint.shader = gradient.createShader(
-        Rect.fromLTWH(startX, startY, endX - startX, endY - startY),
-      );
-
-      // Рисуем L-образную дорожку (как на PCB)
       final midX = startX + (endX - startX) * 0.7;
       canvas.drawLine(Offset(startX, startY), Offset(midX, startY), paint);
       canvas.drawLine(Offset(midX, startY), Offset(midX, endY), paint);
       canvas.drawLine(Offset(midX, endY), Offset(endX, endY), paint);
+    }
+
+    paint.shader = null;
+
+    for (int i = 0; i < 50; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+
+      dotPaint.color = glowColor.withValues(alpha: 0.3);
+      canvas.drawCircle(Offset(x, y), 4, dotPaint);
+
+      dotPaint.color = accentColor.withValues(alpha: 0.3);
+      canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
+
+      dotPaint.color =
+          const Color(0xFF60A5FA).withValues(alpha: 0.3);
+      canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
+    }
+  }
+
+  void _paintAnimated(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final lineColor = const Color(0xFF1E3A8A).withValues(alpha: 0.3);
+    final accentColor = const Color(0xFF3B82F6).withValues(alpha: 0.15);
+    final glowColor = const Color(0xFF60A5FA).withValues(alpha: 0.1);
+    final anim = animation;
+
+    for (int i = 0; i < 20; i++) {
+      final y = (size.height / 20) * i;
+      final offset = math.sin(anim * math.pi * 2 + i * 0.5) * 10;
+
+      paint.color = i % 3 == 0 ? accentColor : lineColor;
+      canvas.drawLine(
+        Offset(0, y + offset), Offset(size.width, y + offset), paint);
+
+      paint.strokeWidth = 0.5;
+      paint.color = lineColor.withValues(alpha: 0.5);
+      canvas.drawLine(
+        Offset(0, y + offset + 2), Offset(size.width, y + offset + 2), paint);
+      paint.strokeWidth = 1.0;
+    }
+
+    for (int i = 0; i < 30; i++) {
+      final x = (size.width / 30) * i;
+      final offset = math.cos(anim * math.pi * 2 + i * 0.3) * 15;
+      paint.color = i % 4 == 0 ? accentColor : lineColor;
+      canvas.drawLine(
+        Offset(x + offset, 0), Offset(x + offset, size.height), paint);
+    }
+
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+    final random = math.Random(42);
+    for (int i = 0; i < 50; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final pulsePhase = (anim + (i * 0.02)) % 1.0;
+      final pulseOpacity = 0.2 + (math.sin(pulsePhase * math.pi * 2) * 0.1);
+
+      dotPaint.color = glowColor.withValues(alpha: pulseOpacity * 0.5);
+      canvas.drawCircle(Offset(x, y), 4, dotPaint);
+
+      dotPaint.color = accentColor.withValues(alpha: pulseOpacity);
+      canvas.drawCircle(Offset(x, y), 2.5, dotPaint);
+
+      dotPaint.color =
+          const Color(0xFF60A5FA).withValues(alpha: pulseOpacity * 1.5);
+      canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
     }
   }
 

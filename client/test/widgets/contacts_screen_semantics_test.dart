@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/ui/screens/contacts_data_source.dart';
 import 'package:stealth/ui/screens/contacts_screen.dart';
 
@@ -32,6 +34,11 @@ class _FakeContactsDataSource implements ContactsDataSource {
 }
 
 void main() {
+  setUp(() async {
+    await dotenv.load(fileName: '.env.defaults');
+    PocketBaseClient.resetForTests();
+  });
+
   testWidgets(
     'ContactsScreen exposes Add contact, Start call, and Contact Alice semantics labels',
     (WidgetTester tester) async {
