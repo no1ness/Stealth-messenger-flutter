@@ -10,9 +10,13 @@ void main() {
 
   setUpAll(() async {
     // Clean any leftover test DB from previous runs.
-    final dir = Directory('/tmp/stealth_test');
-    if (dir.existsSync()) {
-      await dir.delete(recursive: true);
+    try {
+      final dir = Directory('/tmp/stealth_test');
+      if (dir.existsSync()) {
+        await dir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Non-critical cleanup; ignore if directory is locked.
     }
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

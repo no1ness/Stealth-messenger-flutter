@@ -22,7 +22,10 @@ class LocalDatabaseService {
   // messagesStore for the pending-message worker. Schema is additive —
   // legacy rows without `deliveryStatus` read as `'sent'` (computed by
   // MessageService at read time).
-  static const int dbVersion = 6;
+  // v7: callsStore schema changed from autoIncrement to keyPath:'id' so that
+  // deleteCall(id) uses the UUID string key instead of an auto-increment integer
+  // (which never matched). Existing v6 DBs are migrated during upgrade.
+  static const int dbVersion = 7;
 
   static const String messagesStore = 'messages';
   static const String chatsStore = 'chats';
@@ -50,8 +53,8 @@ class LocalDatabaseService {
         ? dbName
         : join((await getApplicationDocumentsDirectory()).path, dbName);
 
-    _db =
-        await factory.open(path, version: dbVersion, onUpgradeNeeded: (event) {
+        _db =
+            await factory.open(path, version: dbVersion, onUpgradeNeeded: (event) async {
       final db = event.database;
       if (!db.objectStoreNames.contains(messagesStore)) {
         final store = db.createObjectStore(messagesStore, autoIncrement: true);
@@ -87,6 +90,18 @@ class LocalDatabaseService {
       if (!db.objectStoreNames.contains(callsStore)) {
         final store = db.createObjectStore(callsStore, keyPath: 'id');
         store.createIndex('chatId', 'chatId');
+      } else if (event.oldVersion < 7) {
+        // v7 migration: recreate callsStore with keyPath:'id' instead of
+        // autoIncrement so deleteCall(id) matches the UUID string key.
+        final txn = event.transaction;
+        final oldStore = txn.objectStore(callsStore);
+        final allCalls = await oldStore.getAll();
+        db.deleteObjectStore(callsStore);
+        final newStore = db.createObjectStore(callsStore, keyPath: 'id');
+        newStore.createIndex('chatId', 'chatId');
+        for (final call in allCalls) {
+          await newStore.put(call);
+        }
       }
       if (!db.objectStoreNames.contains(attachmentsStore)) {
         final store = db.createObjectStore(attachmentsStore, keyPath: 'id');

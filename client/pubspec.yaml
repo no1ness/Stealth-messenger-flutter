@@ -59,9 +59,12 @@ dependencies:
     path: ^1.9.1
     pocketbase: ^0.24.0
     http: ^1.2.0
-    device_info_plus: ^12.4.0
-    package_info_plus: ^9.0.1
-    share_plus: ^12.0.2
+    device_info_plus: ^13.1.0
+    package_info_plus: ^10.1.0
+    share_plus: ^13.1.0
+
+dependency_overrides:
+    win32: ^6.0.1
 
 dev_dependencies:
     flutter_test:
