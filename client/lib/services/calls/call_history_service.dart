@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../local_database_service.dart';
@@ -16,11 +17,19 @@ import '../../logging/logger.dart';
 /// hardening plan (`.ai-factory/plans/client-hardening-followup.md`).
 class CallHistoryService {
   factory CallHistoryService() => _instance;
-  CallHistoryService._();
+  CallHistoryService._()
+      : _localDb = LocalDatabaseService(),
+        _uuid = const Uuid();
+
+  @visibleForTesting
+  CallHistoryService.test({LocalDatabaseService? localDb})
+      : _localDb = localDb ?? LocalDatabaseService(),
+        _uuid = const Uuid();
+
   static final CallHistoryService _instance = CallHistoryService._();
 
-  final LocalDatabaseService _localDb = LocalDatabaseService();
-  final Uuid _uuid = const Uuid();
+  final LocalDatabaseService _localDb;
+  final Uuid _uuid;
 
   Future<void> recordIncomingCall({
     required String chatId,

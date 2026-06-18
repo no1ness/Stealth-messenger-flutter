@@ -438,6 +438,14 @@ class LocalDatabaseService {
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
+  Future<void> deleteCall(String id) async {
+    await _ensureInitialized();
+    final txn = _db!.transaction(callsStore, idbModeReadWrite);
+    final store = txn.objectStore(callsStore);
+    await store.delete(id);
+    await txn.completed;
+  }
+
   // --- Attachments ---
 
   Future<void> saveAttachment(Map<String, dynamic> attachment) async {
