@@ -19,7 +19,7 @@
 
 ## Phase 0 — Production fixes (calls & messages)
 
-### Task 0.1: Commit existing production fixes
+### Task 0.1: Commit existing production fixes `[x]`
 
 **Что уже сделано:** rtc_signaling rules, user_profiles collection, PB hooks — всё закоммитить.
 
@@ -42,7 +42,7 @@
 
 ---
 
-### Task 0.2: Add BypassStateController.init() to main.dart startup
+### Task 0.2: Add BypassStateController.init() to main.dart startup `[x]`
 
 **Что:** `BypassStateController.init()` никогда не вызывается при старте приложения. Это нужно для автоматического включения bypass-прокси (VLESS) при перезапуске, если пользователь ранее включил bypass в настройках.
 
@@ -57,7 +57,7 @@
 
 ---
 
-### Task 0.3: Build debug APK + deploy for two-device testing
+### Task 0.3: Build debug APK + deploy for two-device testing `[x]`
 
 **Что:** Собрать debug APK с dart-defines bypass и установить на два устройства для проверки звонков/сообщений.
 
@@ -80,7 +80,7 @@ flutter build apk --debug \
 
 ## Phase 1 — Test suite hardening
 
-### Task 1.1: Run full test suite, fix regressions
+### Task 1.1: Run full test suite, fix regressions `[x]`
 
 **Что:** Запустить полный `flutter test`, зафиксировать счёт. Если есть сломанные тесты после production фиксов — починить.
 
@@ -90,7 +90,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 1.1a: Refactor CallHistoryService for testability
+### Task 1.1a: Refactor CallHistoryService for testability `[x]`
 
 **Что:** `CallHistoryService` — singleton с hard-wired зависимостями (`LocalDatabaseService()`, `Uuid()`), без DI. Перед написанием тестов (Task 1.2) нужно добавить возможность инъекции fakes.
 
@@ -118,7 +118,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 1.2: Add call_history_service tests
+### Task 1.2: Add call_history_service tests `[x]`
 
 **Блокировано:** Task 1.1a (refactoring)
 
@@ -139,7 +139,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 1.3: Add user_directory_service tests for edge cases
+### Task 1.3: Add user_directory_service tests for edge cases `[x]`
 
 **Что:** Дополнительные edge case тесты для `UserDirectoryService.fetchAllProfiles`.
 
@@ -155,7 +155,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 1.4: Add incoming_call_service subscription tests
+### Task 1.4: Add incoming_call_service subscription tests `[x]`
 
 **Что:** Написать unit-тесты для `IncomingCallSignalingService`: подписка на `rtc_signaling` и обработка offer/hangup.
 
@@ -177,7 +177,7 @@ flutter build apk --debug \
 
 ## Phase 2 — TestController (debug-only test API)
 
-### Task 2.1: Implement TestController class
+### Task 2.1: Implement TestController class `[x]`
 
 **Что:** Реализовать `TestController` — debug-only API для E2E тестов, управляющий клиентом через `window.test` (web) или HTTP (mobile).
 
@@ -207,7 +207,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 2.2: Implement Event System
+### Task 2.2: Implement Event System `[x]`
 
 **Что:** Детерминированная event-система для TestController.
 
@@ -228,7 +228,7 @@ flutter build apk --debug \
 
 ---
 
-### Task 2.3: Wire TestController into existing services
+### Task 2.3: Wire TestController into existing services `[x]`
 
 **Что:** Подключить TestController к существующим сервисам через callback injection.
 
@@ -253,7 +253,7 @@ void attachTestEventEmitter(void Function(TestEvent) cb) => _onTestEvent = cb;
 
 ## Phase 3 — E2E test infrastructure
 
-### Task 3.1: Set up Playwright + headless Web client
+### Task 3.1: Set up Playwright + headless Web client `[x]`
 
 **Что:** Создать базовую инфраструктуру для Playwright E2E тестов. Включает установку Playwright, конфигурацию и scripts для управления Flutter web dev server.
 
@@ -278,7 +278,7 @@ void attachTestEventEmitter(void Function(TestEvent) cb) => _onTestEvent = cb;
 
 ---
 
-### Task 3.2: Multi-client scenario runner
+### Task 3.2: Multi-client scenario runner `[x]`
 
 **Что:** Абстракция для запуска multi-client сценариев.
 
@@ -296,7 +296,7 @@ await scenario(env);
 
 ---
 
-### Task 3.3: Basic E2E scenarios
+### Task 3.3: Basic E2E scenarios `[x]`
 
 **Что:** Написать базовые E2E сценарии.
 
@@ -311,7 +311,7 @@ await scenario(env);
 
 ## Phase 4 — Documentation & CI
 
-### Task 4.1: Document test infrastructure
+### Task 4.1: Document test infrastructure `[x]`
 
 **Что:** Документация по тестовой инфраструктуре.
 
@@ -322,7 +322,7 @@ await scenario(env);
 
 ---
 
-### Task 4.2: Update CI with E2E tests
+### Task 4.2: Update CI with E2E tests `[x]`
 
 **Что:** Добавить E2E тесты в GitHub Actions CI (web-only, fast path). Текущий CI работает только по `workflow_dispatch` — опционально добавить `push`/`pull_request` триггеры.
 
@@ -340,13 +340,15 @@ await scenario(env);
 
 | Commit | Tasks | Message |
 |--------|-------|---------|
-| C1 | 0.1 | `chore: commit production fixes (rtc_signaling rules, user_profiles, perf)` |
-| C2 | 0.2 | `fix: add BypassStateController.init() to app startup` |
-| C3 | 1.1 | `test: run full suite, fix regressions` |
-| C4 | 1.1a, 1.2 | `refactor: make CallHistoryService testable + add tests` |
-| C5 | 1.3, 1.4 | `test: add edge case and incoming_call tests` |
-| C6 | 2.1–2.3 | `feat: add TestController debug-only test API` |
-| C7 | 3.1–3.3 | `test: add Playwright E2E infrastructure and scenarios` |
-| C8 | 4.1–4.2 | `docs: add TESTING.md and CI integration` |
+| Commit | Tasks | Message | Status |
+|--------|-------|---------|--------|
+| C1 | 0.1 | `chore: commit production fixes (rtc_signaling rules, user_profiles, perf)` | `[x]` |
+| C2 | 0.2 | `fix: add BypassStateController.init() to app startup` | `[x]` |
+| C3 | 1.1 | `test: run full suite, fix regressions` | `[x]` (311 pass, 0 fail) |
+| C4 | 1.1a, 1.2 | `refactor: make CallHistoryService testable + add tests` | `[x]` |
+| C5 | 1.3, 1.4 | `test: add edge case and incoming_call tests` | `[x]` |
+| C6 | 2.1–2.3 | `feat: add TestController debug-only test API` | `[x]` |
+| C7 | 3.1–3.3 | `test: add Playwright E2E infrastructure and scenarios` | `[x]` |
+| C8 | 4.1–4.2 | `docs: add TESTING.md and CI integration` | `[x]` |
 
-After C5 — build + deploy APK for two-device verification (Task 0.3).
+After C5 — build + deploy APK for two-device verification (Task 0.3, blocked).

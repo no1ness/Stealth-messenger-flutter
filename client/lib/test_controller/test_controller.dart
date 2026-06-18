@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/test_controller/test_event.dart';
 
@@ -15,6 +14,7 @@ import 'package:stealth/test_controller/test_event.dart';
 /// [TestEvent]s. On web, it's available via `window.test`. On mobile,
 /// it starts a debug HTTP server on `localhost:9876`.
 class TestController {
+  static TestController get instance => _instance;
   factory TestController() => _instance;
   TestController._();
   static final TestController _instance = TestController._();

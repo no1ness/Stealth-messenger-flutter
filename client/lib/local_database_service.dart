@@ -85,7 +85,7 @@ class LocalDatabaseService {
         db.createObjectStore(contactsStore, keyPath: 'contact_user_id');
       }
       if (!db.objectStoreNames.contains(callsStore)) {
-        final store = db.createObjectStore(callsStore, autoIncrement: true);
+        final store = db.createObjectStore(callsStore, keyPath: 'id');
         store.createIndex('chatId', 'chatId');
       }
       if (!db.objectStoreNames.contains(attachmentsStore)) {

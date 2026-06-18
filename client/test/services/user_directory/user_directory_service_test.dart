@@ -127,7 +127,7 @@ void main() {
       final profiles = await h.service.fetchAllProfiles('user-A');
       expect(profiles, hasLength(1));
       expect(profiles[0]['userId'], 'user-D');
-      expect(profiles[0]['publicKey'], isNull);
+      expect(profiles[0]['publicKey'], isEmpty);
       expect(profiles[0]['deviceModel'], '');
     });
 

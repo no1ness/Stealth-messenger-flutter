@@ -1,8 +1,55 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stealth/local_database_service.dart';
 import 'package:stealth/services/calls/call_history_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    // Clean any leftover test DB from previous runs.
+    final dir = Directory('/tmp/stealth_test');
+    if (dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async {
+        if (call.method == 'getApplicationDocumentsDirectory') {
+          return '/tmp/stealth_test';
+        }
+        return null;
+      },
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      MethodChannel('plugins.koji-1009.com/flutter_secure_storage'),
+      (call) async {
+        if (call.method == 'read') return null;
+        if (call.method == 'write') return null;
+        if (call.method == 'deleteAll') return null;
+        return null;
+      },
+    );
+  });
+
+  tearDownAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      MethodChannel('plugins.koji-1009.com/flutter_secure_storage'),
+      null,
+    );
+  });
+
   group('CallHistoryService', () {
     late _Harness h;
 

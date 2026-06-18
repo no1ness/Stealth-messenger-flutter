@@ -30,6 +30,7 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - Экран мониторинга (`MonitoringScreen`) с автообновлением 3с, разделами статистики, устройства и P2P/WebRTC
 - **Design system:** Geist + Geist Mono (SIL OFL 1.1, bundled под `client/assets/fonts/`) + `apple_liquid` design layer под `client/lib/themes/apple_liquid/`. Источник правды — `docs/design-system.md` (плюс HTML-mockups в `docs/design-mockups/`).
 - **Testing:** `flutter_test` (axiom); `golden_toolkit` dev-dep для golden infra (Phase 9.0, инфра ready, visual-reel deferred).
+- **E2E:** Playwright (pw-test/) для Web E2E сценариев (чат, звонок, регистрация); TestController (client/lib/test_controller/) — debug-only HTTP API для E2E управления клиентом.
 
 ## Ключевые файлы
 
@@ -58,7 +59,9 @@ Stealth Messenger - Flutter-мессенджер с архитектурой loc
 - `client/lib/themes/apple_liquid/` — design-system layer: `constants/` (AppColors, AppSpacing, AppTypography, AppMotion, AppElevation, AppEffects, AppHaptics, GlassStyles), `widgets/` (GlassContainer, ChatTile, ContactTile, SectionHeader, StatusChip, ...), `feedback/` (showStealthSnackBar, showStealthDialog, StealthHaptics, StealthLoadingIndicator, StealthSkeletonTile), `effects/` (ScanlineOverlay, GrainOverlay, ChromaticAberration — signature visual moments, auto-disable в light brightness), `navigation/GlassPageRoute`, `motion/` (StaggeredListView, DecryptText)
 - `docs/design-system.md` — source of truth для tokens, signature elements, dual-identity, performance discipline, accessibility contract
 - `docs/design-mockups/` — visual HTML companion к design-system.md (8 standalone files, no build step)
-- `.github/workflows/ci.yml` — quality gate (analyze + test + build web + build apk + optional signaling smoke)
+- `.github/workflows/ci.yml` — quality gate (analyze + test + build web + build apk + pw-test-e2e job + optional signaling smoke)
+- `client/lib/test_controller/` — debug-only E2E test API (TestController, events, HTTP server), активируется `kDebugMode` guard в `main.dart`
+- `pw-test/` — Playwright E2E test infrastructure (core abstractions, multi-client runner, scenarios для чат/звонок/регистрация)
 
 ## Правило проекта
 
