@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_elevation.dart';
@@ -70,7 +71,7 @@ Future<T?> showStealthDialog<T>({
   bool barrierDismissible = true,
   DialogImportance importance = DialogImportance.normal,
 }) {
-  debugPrint('[ds:dialog] shown title=$title importance=$importance');
+  Logger.debug('[ds:dialog] shown title=$title importance=$importance');
   return showDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
@@ -111,7 +112,7 @@ class _StealthDialogState<T> extends State<_StealthDialog<T>> {
         action.variant == StealthDialogActionVariant.destructive &&
             action.confirmInline;
     if (needsConfirm && _armedIndex != index) {
-      debugPrint('[ds:dialog] destructive armed action=${action.label}');
+      Logger.debug('[ds:dialog] destructive armed action=${action.label}');
       setState(() => _armedIndex = index);
       showStealthSnackBar(
         context,
@@ -121,7 +122,7 @@ class _StealthDialogState<T> extends State<_StealthDialog<T>> {
       );
       return;
     }
-    debugPrint('[ds:dialog] action=${action.label}');
+    Logger.debug('[ds:dialog] action=${action.label}');
     Navigator.of(context).pop(action.result);
   }
 

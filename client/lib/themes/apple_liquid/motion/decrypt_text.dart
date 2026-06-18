@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_motion.dart';
 import '../constants/app_typography.dart';
@@ -83,10 +84,8 @@ class _DecryptTextState extends State<DecryptText>
       duration: widget.duration,
     );
     _controller.addListener(_onTick);
-    debugPrint(
-      '[ds:decrypt] mount text="${widget.text}" '
-      'duration=${widget.duration.inMilliseconds}ms',
-    );
+    Logger.debug('[ds:decrypt] mount text="${widget.text}" '
+        'duration=${widget.duration.inMilliseconds}ms');
     // Defer to post-frame so MediaQuery is available for the
     // reduce-motion check.
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -243,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Таймер предпросмотра: ${_countdown}с',
+            'Таймер предпросмотра: $_countdownс',
             style: AppTypography.body.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -295,9 +295,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 if (mounted) setState(() => _bypassEnabled = false);
               }
             },
-            title: const Text('Обход цензуры'),
+            title: const Text('Белый список'),
             subtitle: Text(
-              _bypassEnabled ? 'Прокси активен — трафик через sing-box' : 'Прямое подключение',
+              _bypassEnabled ? 'Прокси активен' : 'Выключено',
             ),
           )),
         ],

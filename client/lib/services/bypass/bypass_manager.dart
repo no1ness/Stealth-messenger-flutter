@@ -2,8 +2,8 @@ import 'package:flutter/services.dart';
 
 class BypassManager {
   static const _channel = MethodChannel('com.stealth.messenger/bypass');
-  static const SOCKS_PORT = 10808;
-  static const HTTP_PORT = 10809;
+  static const socksPort = 10808;
+  static const httpPort = 10809;
 
   static Future<void> start({
     required String serverIp,

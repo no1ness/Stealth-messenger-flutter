@@ -72,7 +72,7 @@ class _CallManagerState extends State<CallManager> {
     try {
       final rawContacts = await _appService.getContacts();
       _knownContactUuidsCache = rawContacts
-          .map((c) => (c is Map ? c['user_id']?.toString() ?? '' : '') as String)
+          .map((c) => (c is Map ? c['user_id']?.toString() ?? '' : ''))
           .where((id) => id.isNotEmpty)
           .toList();
       Logger.info('[stealth-call] contact cache warmed',

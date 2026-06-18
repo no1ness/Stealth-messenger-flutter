@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
@@ -37,13 +38,13 @@ void showStealthSnackBar(
   final accent = _accentFor(kind);
   final haptic = _hapticFor(kind);
 
-  debugPrint('[ds:snack] kind=$kind msg=$message');
+  Logger.debug('[ds:snack] kind=$kind msg=$message');
 
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) {
     // Defensive: caller passed a context outside a Scaffold. Log
     // and bail rather than throw — a missing snackbar is recoverable.
-    debugPrint('[ds:snack] no ScaffoldMessenger in context — dropping');
+    Logger.debug('[ds:snack] no ScaffoldMessenger in context — dropping');
     return;
   }
 

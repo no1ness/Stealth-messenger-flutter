@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_motion.dart';
 
@@ -57,10 +58,8 @@ class _StaggeredListViewState extends State<StaggeredListView> {
   void initState() {
     super.initState();
     _mountedAt = DateTime.now();
-    debugPrint(
-      '[ds:stagger] mount itemCount=${widget.itemCount} '
-      'stagger=${widget.stagger.inMilliseconds}ms max=${widget.maxStaggered}',
-    );
+    Logger.debug('[ds:stagger] mount itemCount=${widget.itemCount} '
+        'stagger=${widget.stagger.inMilliseconds}ms max=${widget.maxStaggered}');
   }
 
   @override

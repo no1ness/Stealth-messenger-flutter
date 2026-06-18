@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Responsive breakpoint constants for the Stealth design system.
 class ResponsiveBreakpoints {
   ResponsiveBreakpoints._();

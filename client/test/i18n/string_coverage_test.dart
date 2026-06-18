@@ -48,6 +48,28 @@ void main() {
       RegExp(r"'Unknown'"),
       RegExp(r"'Idle'"),
       RegExp(r"'Stopped'"),
+      // Diagnostics technical labels
+      RegExp(r"'Installed'"),
+      RegExp(r"'Platform'"),
+      RegExp(r"'Chats'"),
+      RegExp(r"'Unread'"),
+      RegExp(r"'Chat'"),
+      RegExp(r"'Enabled'"),
+      RegExp(r"'Support'"),
+      RegExp(r"'Available'"),
+      RegExp(r"'Missing'"),
+      RegExp(r"'Browser'"),
+      // Presence labels
+      RegExp(r"'Online'"),
+      RegExp(r"'Offline'"),
+      // Font family names (non-translatable)
+      RegExp(r"'Geist'"),
+      RegExp(r"'Roboto'"),
+      RegExp(r"'Menlo'"),
+      RegExp(r"'Consolas'"),
+      // UI widget placeholder labels
+      RegExp(r"'Search'"),
+      RegExp(r"'Message'"),
     ];
 
     final issues = <String>[];

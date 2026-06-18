@@ -64,7 +64,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor>
       sum += t;
     }
     _avgFrameTime = sum / _frameTimes.length;
-    _currentFps = _frameTimes.length > 0
+    _currentFps = _frameTimes.isNotEmpty
         ? _frameTimes.where((t) => t <= 16.67).length / _frameTimes.length * 60
         : 0;
   }

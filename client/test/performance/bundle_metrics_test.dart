@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// ignore_for_file: avoid_print
+
 /// Reports JS bundle / APK sizes. Skips when build artifacts are absent.
 /// Designed for CI: run `flutter build web` or `flutter build apk` first.
 void main() {
@@ -15,7 +17,7 @@ void main() {
     final kb = bytes / 1024;
     final mb = kb / 1024;
     print('--- Bundle Metrics (web) ---');
-    print('main.dart.js: ${bytes} bytes (${kb.toStringAsFixed(1)} KB / '
+    print('main.dart.js: $bytes bytes (${kb.toStringAsFixed(1)} KB / '
         '${mb.toStringAsFixed(2)} MB)');
     expect(kb, lessThan(5000),
         reason: 'JS bundle should stay under 5 MB gzip-friendly');

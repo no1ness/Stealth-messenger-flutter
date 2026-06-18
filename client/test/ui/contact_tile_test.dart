@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/themes/apple_liquid/widgets/contacts/contact_tile.dart';
 
 void main() {

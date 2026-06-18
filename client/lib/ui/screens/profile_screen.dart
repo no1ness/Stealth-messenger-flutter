@@ -61,9 +61,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Logger.debug('[Profile] loading storageSummary');
       final storageSummary = await _appService.getStorageDebugSummary();
       Logger.debug('[Profile] storageSummary loaded', extras: storageSummary);
-      if (contactBundle != null && contactBundle.isNotEmpty) {
+      if (contactBundle.isNotEmpty) {
         Logger.info('[Profile] CONTACT_BUNDLE for E2E test', extras: {'bundle': contactBundle});
-        print('E2E_TEST_CONTACT_BUNDLE=$contactBundle');
+        Logger.info('[Profile] E2E_TEST_CONTACT_BUNDLE=$contactBundle');
       }
 
       Logger.debug('[Profile] loading recentCalls');

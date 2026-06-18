@@ -1,6 +1,8 @@
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_haptics.dart';
 
@@ -67,10 +69,10 @@ class StealthHaptics {
     }
     final disable = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (disable) {
-      debugPrint('[haptics] $intensity (suppressed: disableAnimations)');
+      Logger.debug('[haptics] $intensity (suppressed: disableAnimations)');
       return;
     }
-    debugPrint('[haptics] $intensity');
+    Logger.debug('[haptics] $intensity');
     switch (intensity) {
       case HapticIntensity.light:
         await HapticFeedback.lightImpact();

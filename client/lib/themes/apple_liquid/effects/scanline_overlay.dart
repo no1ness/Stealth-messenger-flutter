@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_effects.dart';
@@ -37,14 +38,10 @@ class ScanlineOverlay extends StatelessWidget {
       // Light mode: skip the overlay entirely. Logging once at
       // mount makes it easy to verify in dev that the gate is
       // firing as expected.
-      debugPrint(
-        '[fx:scanline] gated-out brightness=light intensity=$intensity',
-      );
+      Logger.debug('[fx:scanline] gated-out brightness=light intensity=$intensity');
       return child;
     }
-    debugPrint(
-      '[fx:scanline] mount brightness=$brightness intensity=$intensity',
-    );
+    Logger.debug('[fx:scanline] mount brightness=$brightness intensity=$intensity');
     return RepaintBoundary(
       child: Stack(
         children: [

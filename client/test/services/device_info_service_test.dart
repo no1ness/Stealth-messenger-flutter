@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:stealth/services/device/device_info.dart';
 import 'package:stealth/services/device/device_info_service.dart';
 
 void main() {

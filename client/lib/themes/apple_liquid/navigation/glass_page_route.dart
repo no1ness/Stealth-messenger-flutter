@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_motion.dart';
 
@@ -53,7 +55,7 @@ abstract class GlassPageRoute<T> extends PageRoute<T> {
 class _GlassCupertinoPageRoute<T> extends CupertinoPageRoute<T>
     implements GlassPageRoute<T> {
   _GlassCupertinoPageRoute({required super.builder, super.settings}) {
-    debugPrint('[ds:route] push (iOS cupertino) name=${settings.name ?? "<unnamed>"}');
+    Logger.debug('[ds:route] push (iOS cupertino) name=${settings.name ?? "<unnamed>"}');
   }
 }
 
@@ -64,10 +66,8 @@ class _GlassSlidePageRoute<T> extends PageRoute<T>
     required this.modal,
     super.settings,
   }) {
-    debugPrint(
-      '[ds:route] push (slide ${modal ? "modal" : "forward"}) '
-      'name=${settings.name ?? "<unnamed>"}',
-    );
+    Logger.debug('[ds:route] push (slide ${modal ? "modal" : "forward"}) '
+        'name=${settings.name ?? "<unnamed>"}');
   }
 
   final WidgetBuilder builder;

@@ -83,8 +83,6 @@ class _CallsScreenState extends State<CallsScreen> {
     final startedAt = call['started_at'] as String? ?? '';
     final isIncoming = direction == 'incoming';
     final isMissed = isIncoming && status == 'declined';
-    final isOutgoing = direction == 'local';
-
     IconData icon;
     Color iconColor;
     if (isMissed) {

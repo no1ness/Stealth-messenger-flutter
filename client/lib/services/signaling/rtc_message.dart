@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/pb_user_id.dart';
@@ -59,7 +58,7 @@ class RtcMessage {
   }) {
     final r = resolver ?? PbUserIdResolver.empty;
     if (resolver == null) {
-      debugPrint('[rtc] no resolver provided, using empty');
+      Logger.debug('[rtc] no resolver provided, using empty');
     }
     final typeRaw = record.getStringValue('type');
     final type = RtcMessageType.fromString(typeRaw);

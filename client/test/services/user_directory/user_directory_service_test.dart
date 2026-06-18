@@ -135,7 +135,6 @@ class _Harness {
   late final _FakeAuthStore fakeAuth;
   late final _FakeConnectivity fakeConnectivity;
   late final UserDirectoryService service;
-  bool _disposed = false;
 
   _Harness._();
 
@@ -163,9 +162,7 @@ class _Harness {
     return h;
   }
 
-  Future<void> dispose() async {
-    _disposed = true;
-  }
+  Future<void> dispose() async {}
 }
 
 class _FakeConnectivity implements Connectivity {

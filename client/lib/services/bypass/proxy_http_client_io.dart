@@ -11,7 +11,7 @@ http.Client proxyAwareClient() {
     return IOClient(
       HttpClient()
         ..findProxy = (url) {
-          return 'PROXY 127.0.0.1:${BypassManager.HTTP_PORT}';
+          return 'PROXY 127.0.0.1:${BypassManager.httpPort}';
         }
         ..connectionTimeout = const Duration(seconds: 10),
     );

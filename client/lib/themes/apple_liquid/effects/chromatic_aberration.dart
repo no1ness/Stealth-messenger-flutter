@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:stealth/logging/logger.dart';
 import '../constants/app_effects.dart';
 
 /// Signature chromatic-aberration overlay.
@@ -67,15 +68,13 @@ class ChromaticAberration extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     if (intensity <= 0 || (brightness == Brightness.light && !force)) {
       if (brightness == Brightness.light) {
-        debugPrint('[fx:aberration] gated-out brightness=light');
+        Logger.debug('[fx:aberration] gated-out brightness=light');
       }
       return child;
     }
     final dx = AppEffects.aberrationDxPx * intensity;
     final ghost = ghostBuilder != null ? ghostBuilder!(context) : child;
-    debugPrint(
-      '[fx:aberration] mount brightness=$brightness dx=$dx ghostBuilder=${ghostBuilder != null}',
-    );
+    Logger.debug('[fx:aberration] mount brightness=$brightness dx=$dx ghostBuilder=${ghostBuilder != null}');
     return RepaintBoundary(
       child: Stack(
         children: [

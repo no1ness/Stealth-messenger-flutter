@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
+import 'package:stealth/logging/logger.dart';
 
 /// Length of PocketBase record ids used in `rtc_signaling`.
 ///
@@ -47,7 +47,7 @@ class PbUserIdResolver {
     for (final uuid in knownLocalUuids) {
       _pbToLocal[pbIdFromLocalUuid(uuid)] = uuid;
     }
-    debugPrint('[pb-id] resolver built with ${_pbToLocal.length} entries');
+    Logger.debug('[pb-id] resolver built with ${_pbToLocal.length} entries');
   }
 
   final Map<String, String> _pbToLocal = <String, String>{};

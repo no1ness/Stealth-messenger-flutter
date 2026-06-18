@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_effects.dart';
@@ -32,14 +33,10 @@ class GrainOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     if (brightness == Brightness.light && !force) {
-      debugPrint(
-        '[fx:grain] gated-out brightness=light opacity=$opacity',
-      );
+      Logger.debug('[fx:grain] gated-out brightness=light opacity=$opacity');
       return child;
     }
-    debugPrint(
-      '[fx:grain] mount brightness=$brightness opacity=$opacity',
-    );
+    Logger.debug('[fx:grain] mount brightness=$brightness opacity=$opacity');
     return RepaintBoundary(
       child: Stack(
         children: [

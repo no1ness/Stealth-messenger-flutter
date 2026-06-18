@@ -195,6 +195,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                       : const Icon(Icons.delete_outline),
                   title: Text(autoPopulated ? 'Скрыть' : 'Удалить $name'),
                   onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final snackMsg = autoPopulated ? '$name скрыт' : '$name удален';
                     Navigator.of(context).pop();
                     final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString();
                     if (userId != null && userId.isNotEmpty) {
@@ -202,10 +204,11 @@ class _ContactsScreenState extends State<ContactsScreen>
                       await _loadContacts();
                     }
                     if (!mounted) return;
-                    showStealthSnackBar(
-                      context,
-                      autoPopulated ? '$name скрыт' : '$name удален',
-                      kind: SnackKind.success,
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(snackMsg),
+                        behavior: SnackBarBehavior.floating,
+                      ),
                     );
                   },
                 ),

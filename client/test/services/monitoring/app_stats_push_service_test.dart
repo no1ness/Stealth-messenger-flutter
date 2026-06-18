@@ -5,7 +5,7 @@ import 'package:stealth/services/monitoring/app_stats_push_service.dart';
 
 void main() {
   group('AppStatsPushService', () {
-    Future<Map<String, dynamic>> _mockStats() async => {
+    Future<Map<String, dynamic>> mockStats() async => {
           'userId': 'test-user',
           'deviceId': 'test-device',
           'platformType': 'android',
@@ -28,7 +28,7 @@ void main() {
       final pb = _FakePocketBase();
       final service = AppStatsPushService(
         pocketBase: pb,
-        statsProvider: _mockStats,
+        statsProvider: mockStats,
       );
 
       await service.pushStats();
@@ -48,7 +48,7 @@ void main() {
       final pb = _FakePocketBase();
       final service = AppStatsPushService(
         pocketBase: pb,
-        statsProvider: _mockStats,
+        statsProvider: mockStats,
       );
 
       await service.pushStats();
@@ -69,7 +69,7 @@ void main() {
       final errorPb = _FailingPocketBase();
       final service = AppStatsPushService(
         pocketBase: errorPb,
-        statsProvider: _mockStats,
+        statsProvider: mockStats,
       );
 
       await service.pushStats();

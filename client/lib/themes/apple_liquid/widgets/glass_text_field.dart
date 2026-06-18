@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:stealth/logging/logger.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
 import '../constants/app_spacing.dart';
@@ -95,7 +96,7 @@ class _GlassTextFieldState extends State<GlassTextField>
       value: 0,
     );
     if (kIsWeb) {
-      debugPrint('[ds:glass-text-field] perf-budget cheap-ghost path active');
+      Logger.debug('[ds:glass-text-field] perf-budget cheap-ghost path active');
     }
   }
 

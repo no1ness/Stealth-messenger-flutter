@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -118,7 +119,7 @@ class StealthEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[ds:empty-state] title=$title');
+    Logger.debug('[ds:empty-state] title=$title');
     return GrainOverlay(
       child: Stack(
         alignment: Alignment.center,

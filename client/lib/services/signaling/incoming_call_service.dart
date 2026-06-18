@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/logging/logger.dart';
@@ -213,11 +212,9 @@ class IncomingCallSignalingService {
       ];
       final resolver = PbUserIdResolver(knownUuids);
       final message = RtcMessage.fromRecord(record, resolver: resolver);
-      debugPrint(
-        '[incoming] resolved creatorUuid=${message.payload['creatorUuid']} '
-        'pbCreator=${record.getStringValue('creator')} '
-        'knownUuids=${knownUuids.length}',
-      );
+      Logger.debug('[incoming] resolved creatorUuid=${message.payload['creatorUuid']} '
+          'pbCreator=${record.getStringValue('creator')} '
+          'knownUuids=${knownUuids.length}');
       switch (message.type) {
         case RtcMessageType.offer:
           if (message.payload['purpose'] == 'datachannel') {
