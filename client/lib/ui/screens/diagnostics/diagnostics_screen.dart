@@ -15,6 +15,7 @@ import '../../../themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'widgets/level_filter_chips.dart';
 import 'widgets/log_entry_tile.dart';
 import 'widgets/service_status_tile.dart';
+import 'widgets/performance_monitor.dart';
 
 /// Function used by [DiagnosticsScreen] to read the log buffer. Defaults
 /// to `Logger.snapshot`; widget tests inject a fake to assert filter
@@ -173,6 +174,10 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         );
                       },
                     ),
+                  ),
+                  const _SectionHeader(title: 'Производительность'),
+                  const SliverToBoxAdapter(
+                    child: PerformanceMonitor(),
                   ),
                   const _SectionHeader(title: 'Последние логи'),
                   SliverToBoxAdapter(

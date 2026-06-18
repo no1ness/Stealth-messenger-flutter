@@ -219,22 +219,22 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             title: 'Конфиденциальность и безопасность',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
-          SwitchListTile.adaptive(
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: true,
             onChanged: null,
             title: const Text('Сквозное шифрование'),
             subtitle: const Text('Всегда включено для личных чатов'),
-          ),
-          SwitchListTile.adaptive(
+          )),
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _autoDeleteMessages,
             onChanged: (value) => setState(() => _autoDeleteMessages = value),
             title: const Text('Предпросмотр автоудаления'),
-          ),
-          SwitchListTile.adaptive(
+          )),
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _contactVerification,
             onChanged: (value) => setState(() => _contactVerification = value),
             title: const Text('Проверка контактов'),
-          ),
+          )),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: _countdown / 24,
@@ -262,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             title: 'Подключение и Хранилище',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
-          SwitchListTile.adaptive(
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _useP2P,
             onChanged: (value) async {
               final prefs = await SharedPreferences.getInstance();
@@ -272,7 +272,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             title: const Text('Прямые P2P сообщения'),
             subtitle:
                 const Text('Отправляйте сообщения напрямую на устройства, когда они онлайн'),
-          ),
+          )),
           const SizedBox(height: AppSpacing.md),
           Text(
             'Активно только локальное хранилище',
@@ -284,7 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           const SizedBox(height: AppSpacing.md),
           _SignalServerLine(),
           const SizedBox(height: AppSpacing.md),
-          SwitchListTile.adaptive(
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _bypassEnabled,
             onChanged: (value) async {
               if (value) {
@@ -299,7 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             subtitle: Text(
               _bypassEnabled ? 'Прокси активен — трафик через sing-box' : 'Прямое подключение',
             ),
-          ),
+          )),
         ],
       ),
     );
@@ -314,17 +314,17 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             title: 'Уведомления',
             padding: EdgeInsets.only(bottom: AppSpacing.sm),
           ),
-          SwitchListTile.adaptive(
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _newMessageNotifications,
             onChanged: (value) =>
                 setState(() => _newMessageNotifications = value),
             title: const Text('Новые сообщения'),
-          ),
-          SwitchListTile.adaptive(
+          )),
+          Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _callNotifications,
             onChanged: (value) => setState(() => _callNotifications = value),
             title: const Text('Звонки'),
-          ),
+          )),
           const SizedBox(height: AppSpacing.md),
           Text(
             _webrtcSummary,
