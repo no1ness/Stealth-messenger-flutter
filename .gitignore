@@ -81,3 +81,4 @@ pw-test/*-report.json
 
 # PocketBase backups
 server/pb_backup_*.zip
+.mimocode/

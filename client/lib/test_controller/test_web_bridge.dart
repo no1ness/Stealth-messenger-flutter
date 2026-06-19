@@ -7,10 +7,12 @@ import 'package:stealth/logging/logger.dart';
 import 'package:stealth/test_controller/test_controller.dart';
 import 'package:web/web.dart' as web;
 
+@JS('window.eval')
+external JSAny? _eval(JSString code);
+
 void attachWebTestBridge(LocalAppService appService) {
   try {
-    final bridge = _WebTestBridge(appService);
-    bridge.install();
+    _WebTestBridge(appService).install();
     Logger.info('[test-bridge] attached');
   } catch (e) {
     Logger.warn('[test-bridge] failed to attach', extras: {'error': '$e'});
@@ -19,73 +21,108 @@ void attachWebTestBridge(LocalAppService appService) {
 
 class _WebTestBridge {
   _WebTestBridge(this._app);
-
   final LocalAppService _app;
 
   void install() {
-    final obj = web.JSObject();
+    final app = _app;
 
-    obj.setProperty(
-      'register'.toJS,
-      (JSString jsNickname) async {
-        final nickname = jsNickname.toDart;
-        Logger.debug('[test-bridge] register "$nickname"');
-        await _app.registerUser(nickname);
-      }.toJS,
-    );
+    final script = web.document.createElement('script') as web.HTMLScriptElement;
+    script.text = 'window.__test = { _ready: true, _queue: [], _result: undefined };';
+    web.document.head!.appendChild(script);
 
-    obj.setProperty(
-      'getContactBundle'.toJS,
-      (JSFunction jsCallback) async {
-        final bundle = await _app.generateQRCode();
-        jsCallback.callAsFunction(null, bundle.toJS);
-      }.toJS,
-    );
+    _eval('''
+      window.__test.register = function(nick) {
+        window.__test._queue.push({cmd: 'register', args: [nick]});
+      };
+      window.__test.getContactBundle = function(cb) {
+        window.__test._queue.push({cmd: 'getContactBundle', cb: cb});
+      };
+      window.__test.searchUsers = function(q, cb) {
+        window.__test._queue.push({cmd: 'searchUsers', args: [q], cb: cb});
+      };
+      window.__test.addContact = function(uid) {
+        window.__test._queue.push({cmd: 'addContact', args: [uid]});
+      };
+      window.__test.getUserId = function(cb) {
+        window.__test._queue.push({cmd: 'getUserId', cb: cb});
+      };
+      window.__test.waitForEvent = function(type, timeout, cb) {
+        window.__test._queue.push({cmd: 'waitForEvent', args: [type, String(timeout)], cb: cb});
+      };
+    '''.toJS);
 
-    obj.setProperty(
-      'searchUsers'.toJS,
-      (JSString jsQuery, JSFunction jsCallback) async {
-        final query = jsQuery.toDart;
-        final results = await _app.searchUsers(query);
-        final json = jsonEncode(results);
-        jsCallback.callAsFunction(null, json.toJS);
-      }.toJS,
-    );
+    Timer.periodic(const Duration(milliseconds: 50), (_) {
+      _drainQueue(app);
+    });
+  }
 
-    obj.setProperty(
-      'addContact'.toJS,
-      (JSString jsUserId) async {
-        final userId = jsUserId.toDart;
-        Logger.debug('[test-bridge] addContact $userId');
-        await _app.addContact(userId);
-      }.toJS,
-    );
+  String? _evalToString(String jsCode) {
+    final result = _eval(jsCode.toJS);
+    if (result == null) return null;
+    if (result is JSString) return result.toDart;
+    return result.toString();
+  }
 
-    obj.setProperty(
-      'getUserId'.toJS,
-      (JSFunction jsCallback) async {
-        final userId = await _app.getUserId();
-        jsCallback.callAsFunction(null, (userId ?? '').toJS);
-      }.toJS,
-    );
+  void _drainQueue(LocalAppService app) {
+    try {
+      final raw = _evalToString('(function() {'
+          'var q = window.__test._queue;'
+          'if (!q || q.length === 0) return null;'
+          'var item = q.shift();'
+          'return JSON.stringify({cmd: item.cmd, args: item.args || [], hasCb: !!item.cb});'
+          '})()');
 
-    obj.setProperty(
-      'waitForEvent'.toJS,
-      (JSString jsType, JSNumber jsTimeout, JSFunction jsCallback) async {
-        final type = jsType.toDart;
-        final timeoutMs = jsTimeout.toDartInt;
-        try {
-          final event = await TestController.instance.waitForEvent(
-            type,
-            timeout: Duration(milliseconds: timeoutMs),
-          );
-          jsCallback.callAsFunction(null, event.serialize().toJS);
-        } catch (e) {
-          jsCallback.callAsFunction(null, JSNull());
-        }
-      }.toJS,
-    );
+      if (raw == null || raw == 'null' || raw == 'undefined') return;
 
-    web.window.setProperty('__test'.toJS, obj);
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final cmd = data['cmd'] as String;
+      final args = (data['args'] as List?)?.cast<String>() ?? [];
+      _dispatch(cmd, args, app);
+    } catch (_) {}
+  }
+
+  void _dispatch(String cmd, List<String> args, LocalAppService app) {
+    switch (cmd) {
+      case 'register':
+        Logger.debug('[test-bridge] dispatch register: ${args[0]}');
+        app.registerUser(args[0]).then((_) {
+          Logger.info('[test-bridge] register done for ${args[0]}');
+          // Force SharedPreferences to reload from localStorage
+          _evalToString('window.location.reload()');
+        }).catchError((e, st) {
+          Logger.warn('[test-bridge] register failed: $e\n$st');
+        });
+        break;
+      case 'addContact':
+        app.addContact(args[0]).catchError((e) =>
+            Logger.warn('[test-bridge] addContact: $e'));
+        break;
+      case 'getContactBundle':
+        app.generateQRCode().then((b) {
+          _evalToString('window.__test._result = ${jsonEncode(b)}');
+        }).catchError((e) => Logger.warn('[test-bridge] bundle: $e'));
+        break;
+      case 'searchUsers':
+        app.searchUsers(args[0]).then((r) {
+          _evalToString('window.__test._result = ${jsonEncode(r)}');
+        }).catchError((e) => Logger.warn('[test-bridge] search: $e'));
+        break;
+      case 'getUserId':
+        app.getUserId().then((id) {
+          _evalToString('window.__test._result = ${jsonEncode(id ?? '')}');
+        }).catchError((e) => Logger.warn('[test-bridge] getUserId: $e'));
+        break;
+      case 'waitForEvent':
+        final type = args[0];
+        final timeoutMs = args.length > 1 ? int.parse(args[1]) : 15000;
+        TestController.instance
+            .waitForEvent(type, timeout: Duration(milliseconds: timeoutMs))
+            .then((e) {
+          _evalToString('window.__test._result = ${jsonEncode(e.serialize())}');
+        }).catchError((_) {
+          _evalToString('window.__test._result = null');
+        });
+        break;
+    }
   }
 }

@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import { WEB_URL, LAUNCH_ARGS, VIEWPORT, CONTEXT_PERMISSIONS } from "../config.mjs";
 import { EventBus } from "./events.mjs";
 import { attachBridge } from "./bridge.mjs";
+import { enableFlutterA11y } from "./flutter-helpers.mjs";
 
 export class Client {
   constructor(name) {
@@ -28,38 +29,7 @@ export class Client {
     });
     this._page = await ctx.newPage();
     await attachBridge(this._page, this._events);
-    await this._page.goto(WEB_URL, { waitUntil: "commit", timeout: 60000 });
-    await this._ensureA11y();
-    await this._waitForFlutter();
-  }
-
-  async _waitForFlutter() {
-    await this._page.waitForFunction(
-      () => {
-        const host = document.querySelector("flt-semantics-host");
-        return host && host.children.length > 0;
-      },
-      { timeout: 30000 },
-    );
-  }
-
-  async _ensureA11y() {
-    for (let i = 0; i < 20; i++) {
-      try {
-        const clicked = await this._page.evaluate(() => {
-          const p = document.querySelector(
-            'flt-semantics-placeholder[aria-label="Enable accessibility"]',
-          );
-          if (p) { p.click(); return true; }
-          return false;
-        });
-        if (clicked) {
-          await this._page.waitForTimeout(2000);
-          return;
-        }
-      } catch {}
-      await this._page.waitForTimeout(1000);
-    }
+    await this._page.goto(WEB_URL, { waitUntil: "commit", timeout: 30000 });
   }
 
   async waitForSelector(selector, { timeout = 15000 } = {}) {

@@ -1,38 +1,39 @@
-export default async function registration({ alice, bob }) {
+import { enableFlutterA11y, typeIntoFlutterTextField, delay } from "../core/flutter-helpers.mjs";
+
+export default async function registration({ alice, bob, url }) {
   const nicknameA = "Alice_" + Date.now().toString(36);
   const nicknameB = "Bob_" + Date.now().toString(36);
 
-  await alice.waitForSelector('[role="button"]', { timeout: 30000 });
-  await alice.page.evaluate((nick) => {
-    const inputs = document.querySelectorAll('flt-semantics [role="text"]');
-    const input = inputs[inputs.length - 1];
-    if (input) input.focus();
-  }, nicknameA);
-  await alice.page.keyboard.type(nicknameA, { delay: 30 });
+  async function register(client, nickname) {
+    const a11yReady = await enableFlutterA11y(client.page, 15000);
+    if (!a11yReady) throw new Error("a11y not available for " + nickname);
 
-  await alice.page.evaluate(() => {
-    const btns = document.querySelectorAll('flt-semantics [role="button"]');
-    if (btns.length > 0) btns[btns.length - 1].click();
-  });
-  console.log(`[reg] Alice registered as "${nicknameA}"`);
+    const hasField = await client.page.getByRole("textbox").first().isVisible().catch(() => false);
+    if (!hasField) {
+      const isRegistered = await client.page.getByRole("button", { name: "Chats" }).isVisible().catch(() => false);
+      if (isRegistered) {
+        console.log(`[reg] ${nickname} already registered, skipping`);
+        return;
+      }
+      throw new Error("Nickname field not visible for " + nickname);
+    }
 
-  await bob.waitForSelector('[role="button"]', { timeout: 30000 });
-  await bob.page.evaluate((nick) => {
-    const inputs = document.querySelectorAll('flt-semantics [role="text"]');
-    const input = inputs[inputs.length - 1];
-    if (input) input.focus();
-  }, nicknameB);
-  await bob.page.keyboard.type(nicknameB, { delay: 30 });
+    await typeIntoFlutterTextField(client.page, nickname);
 
-  await bob.page.evaluate(() => {
-    const btns = document.querySelectorAll('flt-semantics [role="button"]');
-    if (btns.length > 0) btns[btns.length - 1].click();
-  });
-  console.log(`[reg] Bob registered as "${nicknameB}"`);
+    const startBtn = client.page.getByRole("button", { name: /НАЧАТЬ|GET STARTED/i });
+    for (let attempt = 0; attempt < 15; attempt++) {
+      if (await startBtn.isEnabled()) break;
+      await delay(200);
+    }
+    await startBtn.click({ noWaitAfter: true });
 
-  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 60000 });
-  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 60000 });
-  console.log("[reg] both users completed registration");
+    await client.page
+      .getByRole("button", { name: "Chats" })
+      .waitFor({ state: "visible", timeout: 60000 });
+    console.log(`[reg] ${nickname} registered`);
+  }
 
-  console.log("[reg] registration scenario passed");
+  const t0 = Date.now();
+  await Promise.all([register(alice, nicknameA), register(bob, nicknameB)]);
+  console.log(`[reg] both users registered in ${Date.now() - t0}ms`);
 }

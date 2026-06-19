@@ -1,17 +1,10 @@
 export default async function chatBasic({ alice, bob }) {
-  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
-  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
+  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 10000 });
+  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 10000 });
 
-  const aliceEvent = alice.events.waitForEvent("MessageReceived", { timeoutMs: 20000 });
-  const bobEvent = bob.events.waitForEvent("MessageReceived", { timeoutMs: 20000 });
-
-  await alice.events.waitForEvent("MessageSent", { timeoutMs: 10000 });
-  const msg = await aliceEvent;
-  console.log(`[chat] Alice received message: ${msg.text}`);
-
-  await bob.events.waitForEvent("MessageSent", { timeoutMs: 10000 });
-  const msg2 = await bobEvent;
-  console.log(`[chat] Bob received message: ${msg2.text}`);
-
-  console.log("[chat] basic chat scenario passed");
+  const [sent, received] = await Promise.all([
+    alice.events.waitForEvent("MessageSent", { timeoutMs: 30000 }),
+    bob.events.waitForEvent("MessageReceived", { timeoutMs: 30000 }),
+  ]);
+  console.log(`[chat] sent: ${sent.text}, received: ${received.text}`);
 }

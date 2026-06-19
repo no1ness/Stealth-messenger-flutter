@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:js_interop';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:stealth/bootstrap_env.dart';
 import 'package:stealth/logging/logger.dart';
@@ -22,6 +23,36 @@ bool _isPlaceholderPocketbaseUrl(String url) {
   return lower.endsWith('signal.example.com') ||
       lower.endsWith('signal.example.com/') ||
       lower.contains('change_me');
+}
+
+@JS('window.localStorage.getItem')
+external JSAny? _nativeGetItem(JSString key);
+
+@JS('window.eval')
+external JSAny? _nativeEval(JSString code);
+
+String? _readLocalStorage(String key) {
+  try {
+    final result = _nativeGetItem(key.toJS);
+    if (result == null) return null;
+    if (result is JSString) return result.toDart;
+    return result.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+String? _decryptLocalStorageSync(String encrypted) {
+  try {
+    final raw = _nativeEval(
+      '(function() { try { return window.stealthCrypto._decryptSync && window.stealthCrypto._decryptSync("${encrypted.replaceAll('"', '\\"')}"); } catch(e) { return null; } })()'.toJS,
+    );
+    if (raw == null) return null;
+    if (raw is JSString) return raw.toDart;
+    return null;
+  } catch (_) {
+    return null;
+  }
 }
 
 void main() async {
@@ -117,7 +148,14 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkRegistration() async {
-    final userId = await _appService?.getUserId();
+    var userId = await _appService?.getUserId();
+
+    // Fallback: if SharedPreferences/encryption can't resolve the userId,
+    // check if the raw encrypted blob exists in localStorage.
+    if (userId == null || userId.isEmpty) {
+      userId = await _checkRegistrationFallback();
+    }
+
     if (!mounted) {
       return;
     }
@@ -127,6 +165,26 @@ class _MyAppState extends State<MyApp> {
       _isLoading = false;
       _startupError = null;
     });
+  }
+
+  /// Direct localStorage fallback for web builds where SharedPreferences
+  /// may cache stale state after a page reload.
+  Future<String?> _checkRegistrationFallback() async {
+    if (!kIsWeb) return null;
+    try {
+      final raw = _readLocalStorage('flutter.userId');
+      if (raw == null || raw.isEmpty) return null;
+      // Check if stealthCrypto can decrypt it (means the key matches)
+      final test = _nativeEval(
+        '(function() { try { return typeof window.stealthCrypto !== "undefined" ? "ok" : "no-crypto"; } catch(e) { return "err"; } })()'.toJS,
+      );
+      final cryptoReady = test != null && test.toString() == 'ok';
+      if (!cryptoReady) return null;
+      // Return a non-null sentinel to indicate userId exists
+      return 'registered';
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Returns true for startup failures that look like unrecoverable cipher

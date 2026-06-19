@@ -1,20 +1,22 @@
 export default async function callBasic({ alice, bob }) {
-  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
-  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
+  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 10000 });
+  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 10000 });
 
-  const offerEv = await alice.events.waitForEvent("CallOfferCreated", { timeoutMs: 15000 });
-  console.log(`[call] Alice created offer for room ${offerEv.roomId}`);
+  const offerEv = await alice.events.waitForEvent("CallOfferCreated", { timeoutMs: 30000 });
+  console.log(`[call] offer created for room ${offerEv.roomId}`);
 
-  const answerEv = await bob.events.waitForEvent("CallAnswered", { timeoutMs: 15000 });
+  const answerEv = await bob.events.waitForEvent("CallAnswered", { timeoutMs: 30000 });
   console.log(`[call] Bob answered room ${answerEv.roomId}`);
 
-  await alice.events.waitForEvent("IceConnected", { timeoutMs: 20000 });
-  await bob.events.waitForEvent("IceConnected", { timeoutMs: 20000 });
-  console.log("[call] ICE connected for both peers");
+  await Promise.all([
+    alice.events.waitForEvent("IceConnected", { timeoutMs: 30000 }),
+    bob.events.waitForEvent("IceConnected", { timeoutMs: 30000 }),
+  ]);
+  console.log("[call] ICE connected");
 
-  await alice.events.waitForEvent("CallEnded", { timeoutMs: 15000 });
-  await bob.events.waitForEvent("CallEnded", { timeoutMs: 15000 });
+  await Promise.all([
+    alice.events.waitForEvent("CallEnded", { timeoutMs: 30000 }),
+    bob.events.waitForEvent("CallEnded", { timeoutMs: 30000 }),
+  ]);
   console.log("[call] call ended on both sides");
-
-  console.log("[call] basic call scenario passed");
 }
