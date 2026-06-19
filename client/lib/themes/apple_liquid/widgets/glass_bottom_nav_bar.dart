@@ -1,7 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_motion.dart';
 import '../constants/app_spacing.dart';
+import '../constants/app_typography.dart';
 
 class GlassBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -20,38 +22,40 @@ class GlassBottomNavBar extends StatelessWidget {
     return ClipRRect(
       child: RepaintBoundary(
         child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height:
-              AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
-          decoration: BoxDecoration(
-            color: AppColors.backgroundPrimary.withValues(alpha: 0.8),
-            border: const Border(
-              top: BorderSide(
-                color: AppColors.separator,
-                width: 0.5,
+          filter: ImageFilter.blur(
+            sigmaX: AppSpacing.glassBlur,
+            sigmaY: AppSpacing.glassBlur,
+          ),
+          child: Container(
+            height:
+                AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
+            decoration: BoxDecoration(
+              color: AppColors.backgroundPrimary.withValues(alpha: 0.82),
+              border: const Border(
+                top: BorderSide(
+                  color: AppColors.dividerSubtle,
+                  width: 0.5,
+                ),
               ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: false,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(
-                items.length,
-                (index) => _GlassBottomNavBarItemWidget(
-                  item: items[index],
-                  isSelected: index == currentIndex,
-                  onTap: () => onTap(index),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(
+                  items.length,
+                  (index) => _GlassBottomNavBarItemWidget(
+                    item: items[index],
+                    isSelected: index == currentIndex,
+                    onTap: () => onTap(index),
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -95,7 +99,7 @@ class _GlassBottomNavBarItemWidgetState
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
+      duration: AppMotion.fast,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
@@ -154,10 +158,10 @@ class _GlassBottomNavBarItemWidgetState
                 const SizedBox(height: 2),
                 Text(
                   widget.item.label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight:
-                        widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                  style: (widget.isSelected
+                          ? AppTypography.caption2Emphasis
+                          : AppTypography.caption2)
+                      .copyWith(
                     color: widget.isSelected
                         ? AppColors.systemBlue
                         : AppColors.textSecondary,

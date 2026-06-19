@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../logging/logger.dart';
 import '../../../../themes/apple_liquid/constants/app_colors.dart';
+import '../../../../themes/apple_liquid/constants/app_motion.dart';
 import '../../../../themes/apple_liquid/constants/app_spacing.dart';
 import '../../../../themes/apple_liquid/constants/app_typography.dart';
 
@@ -66,7 +67,7 @@ class _Chip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: AppMotion.fast,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.xs,

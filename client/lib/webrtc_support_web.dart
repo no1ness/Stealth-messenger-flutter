@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
+
+import 'package:stealth/logging/logger.dart';
 
 class WebRTCSupport {
   const WebRTCSupport({
@@ -106,7 +109,11 @@ Future<String?> requestWebRTCAudioPreflight({bool requireVideo = false}) async {
             video: requireVideo.toJS,
           ),
         )
-        .toDart;
+        .toDart
+        .timeout(const Duration(seconds: 4));
+    return null;
+  } on TimeoutException {
+    Logger.warn('[webrtc] getUserMedia timed out after 4s');
     return null;
   } catch (error) {
     return 'Microphone access failed: $error';

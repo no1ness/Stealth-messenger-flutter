@@ -25,8 +25,7 @@ import 'package:stealth/webrtc_support.dart';
 
 class ContactsScreen extends StatefulWidget {
   ContactsScreen({super.key, ContactsDataSource? dataSource})
-      : _dataSource = dataSource ??
-            LocalContactsDataSource(LocalAppService());
+      : _dataSource = dataSource ?? LocalContactsDataSource(LocalAppService());
 
   final ContactsDataSource _dataSource;
 
@@ -90,15 +89,22 @@ class _ContactsScreenState extends State<ContactsScreen>
 
     final merged = <String, Map<String, dynamic>>{};
     for (final contact in rows.cast<Map<String, dynamic>>()) {
-      final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString() ?? '';
+      final userId =
+          (contact['user_id'] ?? contact['contact_user_id'])?.toString() ?? '';
       if (userId.isNotEmpty) {
         final profile = cached.where((p) => p['userId'] == userId).firstOrNull;
         if (profile != null) {
           contact['isOnline'] = profile['isOnline'] ?? contact['isOnline'];
           contact['lastSeen'] = profile['lastSeen'] ?? contact['lastSeen'];
-          if (profile['deviceModel'] != null) contact['deviceModel'] = profile['deviceModel'];
-          if (profile['platform'] != null) contact['platform'] = profile['platform'];
-          if (profile['appVersion'] != null) contact['appVersion'] = profile['appVersion'];
+          if (profile['deviceModel'] != null) {
+            contact['deviceModel'] = profile['deviceModel'];
+          }
+          if (profile['platform'] != null) {
+            contact['platform'] = profile['platform'];
+          }
+          if (profile['appVersion'] != null) {
+            contact['appVersion'] = profile['appVersion'];
+          }
         }
         merged[userId] = contact;
       }
@@ -195,21 +201,18 @@ class _ContactsScreenState extends State<ContactsScreen>
                       : const Icon(Icons.delete_outline),
                   title: Text(autoPopulated ? 'Скрыть' : 'Удалить $name'),
                   onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final snackMsg = autoPopulated ? '$name скрыт' : '$name удален';
+                    final snackMsg =
+                        autoPopulated ? '$name скрыт' : '$name удален';
                     Navigator.of(context).pop();
-                    final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString();
+                    final userId =
+                        (contact['user_id'] ?? contact['contact_user_id'])
+                            ?.toString();
                     if (userId != null && userId.isNotEmpty) {
                       await _appService.deleteContact(userId);
                       await _loadContacts();
                     }
                     if (!mounted) return;
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(snackMsg),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    showStealthSnackBar(this.context, snackMsg);
                   },
                 ),
               ],
@@ -322,7 +325,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                 left: AppSpacing.md,
                 right: AppSpacing.md,
                 top: AppSpacing.md,
-                bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+                bottom:
+                    MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -370,7 +374,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                                     _initials(result['name'] as String?),
                                   ),
                                 ),
-                                title: Text(result['name'] as String? ?? 'Неизвестный'),
+                                title: Text(
+                                    result['name'] as String? ?? 'Неизвестный'),
                                 subtitle: Text(
                                   result['user_id'] as String? ?? '',
                                   maxLines: 1,
@@ -575,19 +580,20 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       : (constraints.maxWidth >= 700 ? 2 : 1),
                                   crossAxisSpacing: AppSpacing.md,
                                   mainAxisSpacing: AppSpacing.md,
-                                  childAspectRatio: constraints.maxWidth >= 700
-                                      ? 2.3
-                                      : 2.8,
+                                  childAspectRatio:
+                                      constraints.maxWidth >= 700 ? 2.3 : 2.8,
                                 ),
                                 itemCount: filtered.length,
                                 padding: EdgeInsets.only(
-                                  bottom: MediaQuery.of(context).padding.bottom +
-                                      AppSpacing.bottomBarOverlap,
+                                  bottom:
+                                      MediaQuery.of(context).padding.bottom +
+                                          AppSpacing.bottomBarOverlap,
                                 ),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
                                   final isOnline = contact['isOnline'] as bool?;
-                                  final autoPopulated = contact['auto_populated'] == true;
+                                  final autoPopulated =
+                                      contact['auto_populated'] == true;
                                   return Opacity(
                                     opacity: autoPopulated ? 0.85 : 1.0,
                                     child: ContactTile(
@@ -599,79 +605,79 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       onLongPress: () =>
                                           _showContactActions(contact),
                                       trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Открыть чат',
-                                          onPressed: _startingCall
-                                              ? null
-                                              : () => _openChat(contact),
-                                          icon: const Icon(
-                                            Icons.chat_bubble_outline,
-                                            color: AppColors.systemBlue,
-                                          ),
-                                        ),
-                                        Semantics(
-                                          label: AccessibilityIds.startCall,
-                                          button: true,
-                                          excludeSemantics: true,
-                                          child: IconButton(
-                                            tooltip: 'Начать звонок',
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Открыть чат',
                                             onPressed: _startingCall
                                                 ? null
-                                                : () => _startCall(
-                                                      contact,
-                                                      isVideoCall: false,
-                                                    ),
-                                            icon: _startingCall
-                                                ? const SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child:
-                                                        StealthLoadingIndicator(
-                                                      size: 18,
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.call_outlined,
-                                                    color: AppColors
-                                                        .statusSuccess,
-                                                  ),
-                                          ),
-                                        ),
-                                        Semantics(
-                                          label:
-                                              AccessibilityIds.startVideoCall,
-                                          button: true,
-                                          excludeSemantics: true,
-                                          child: IconButton(
-                                            tooltip: 'Начать видеозвонок',
-                                            onPressed: _startingCall
-                                                ? null
-                                                : () => _startCall(
-                                                      contact,
-                                                      isVideoCall: true,
-                                                    ),
+                                                : () => _openChat(contact),
                                             icon: const Icon(
-                                              Icons.videocam_outlined,
+                                              Icons.chat_bubble_outline,
                                               color: AppColors.systemBlue,
                                             ),
                                           ),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Дополнительные опции',
-                                          onPressed: () =>
-                                              _showContactActions(contact),
-                                          icon: const Icon(
-                                            Icons.more_horiz,
-                                            color: AppColors.textSecondary,
+                                          Semantics(
+                                            label: AccessibilityIds.startCall,
+                                            button: true,
+                                            excludeSemantics: true,
+                                            child: IconButton(
+                                              tooltip: 'Начать звонок',
+                                              onPressed: _startingCall
+                                                  ? null
+                                                  : () => _startCall(
+                                                        contact,
+                                                        isVideoCall: false,
+                                                      ),
+                                              icon: _startingCall
+                                                  ? const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          StealthLoadingIndicator(
+                                                        size: 18,
+                                                        strokeWidth: 2,
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.call_outlined,
+                                                      color: AppColors
+                                                          .statusSuccess,
+                                                    ),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                          Semantics(
+                                            label:
+                                                AccessibilityIds.startVideoCall,
+                                            button: true,
+                                            excludeSemantics: true,
+                                            child: IconButton(
+                                              tooltip: 'Начать видеозвонок',
+                                              onPressed: _startingCall
+                                                  ? null
+                                                  : () => _startCall(
+                                                        contact,
+                                                        isVideoCall: true,
+                                                      ),
+                                              icon: const Icon(
+                                                Icons.videocam_outlined,
+                                                color: AppColors.systemBlue,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Дополнительные опции',
+                                            onPressed: () =>
+                                                _showContactActions(contact),
+                                            icon: const Icon(
+                                              Icons.more_horiz,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
                                 },
                               ),
                   ),

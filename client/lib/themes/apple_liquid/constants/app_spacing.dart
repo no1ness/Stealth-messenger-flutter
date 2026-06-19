@@ -47,10 +47,10 @@ class AppSpacing {
   static const double radiusXxl = 24.0;
   static const double radiusRound = 999.0; // Fully rounded
 
-  // Glass effect specific
-  static const double glassBlur = 20.0;
-  static const double glassBlurStrong = 40.0;
-  static const double glassBlurLight = 10.0;
+  // Glass effect specific. Keep blur radii modest: large backdrop sigmas
+  // are one of the easiest ways to drop frames on chat scroll.
+  static const double glassBlur = 8.0;
+  static const double glassBlurLight = 6.0;
 
   // Icon sizes
   static const double iconXs = 16.0;

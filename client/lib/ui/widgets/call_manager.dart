@@ -125,18 +125,6 @@ class _CallManagerState extends State<CallManager> {
         ? 'Unknown'
         : offer.fromNickname;
 
-    Logger.info('[stealth-call] CallManager recording incoming call');
-    await _appService.recordIncomingCall(
-      chatId: offer.roomId,
-      fromUserId: offer.fromUserId,
-      fromNickname: fromNickname,
-    );
-    if (!mounted) {
-      Logger.warn(
-          '[stealth-call] CallManager not mounted after recordIncomingCall');
-      return;
-    }
-
     Logger.info('[stealth-call] CallManager showing incoming call dialog');
     _showIncomingCallDialog(
       chatId: offer.roomId,
@@ -144,6 +132,19 @@ class _CallManagerState extends State<CallManager> {
       fromNickname: fromNickname,
       isVideoCall: offer.isVideoCall,
       offerSdp: offer.sdp,
+    );
+
+    // Record after showing dialog (fire-and-forget — don't block UI on DB)
+    Logger.info('[stealth-call] CallManager recording incoming call');
+    unawaited(
+      _appService.recordIncomingCall(
+        chatId: offer.roomId,
+        fromUserId: offer.fromUserId,
+        fromNickname: fromNickname,
+      ).catchError((Object e) {
+        Logger.warn('[stealth-call] recordIncomingCall error',
+            extras: {'error': e});
+      }),
     );
   }
 

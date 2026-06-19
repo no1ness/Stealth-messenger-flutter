@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_motion.dart';
 import '../constants/app_spacing.dart';
 import '../constants/glass_styles.dart';
 
@@ -34,7 +35,7 @@ class GlassContainer extends StatelessWidget {
     this.borderRadius,
     this.onTap,
     this.gradient,
-    this.blur = 8.0,
+    this.blur = AppSpacing.glassBlur,
   });
 
   /// Per design-system.md (Dual identity): in light mode every glass
@@ -55,9 +56,7 @@ class GlassContainer extends StatelessWidget {
       case GlassIntensity.light:
         return isLight ? GlassStyles.lightGlassLight : GlassStyles.lightGlass;
       case GlassIntensity.medium:
-        return isLight
-            ? GlassStyles.mediumGlassLight
-            : GlassStyles.mediumGlass;
+        return isLight ? GlassStyles.mediumGlassLight : GlassStyles.mediumGlass;
       case GlassIntensity.dark:
         return isLight ? GlassStyles.darkGlassLight : GlassStyles.darkGlass;
     }
@@ -66,15 +65,15 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final effectiveBlur =
-        brightness == Brightness.light ? (blur * 0.5) : blur;
+    final effectiveBlur = brightness == Brightness.light ? (blur * 0.5) : blur;
     final container = ClipRRect(
       borderRadius: BorderRadius.circular(
         borderRadius ?? AppSpacing.radiusLg,
       ),
       child: RepaintBoundary(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
+          filter:
+              ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
           child: Container(
             width: width,
             height: height,
@@ -122,7 +121,7 @@ class GlassCard extends StatelessWidget {
       margin: margin ?? const EdgeInsets.all(AppSpacing.cardMargin),
       borderRadius: borderRadius ?? AppSpacing.radiusXl,
       onTap: onTap,
-      blur: AppSpacing.glassBlurStrong,
+      blur: AppSpacing.glassBlur,
       child: child,
     );
   }
@@ -161,7 +160,7 @@ class _GlassButtonState extends State<GlassButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
+      duration: AppMotion.fast,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
@@ -200,55 +199,59 @@ class _GlassButtonState extends State<GlassButton>
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           child: RepaintBoundary(
             child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              width: widget.width,
-              height: widget.height ?? AppSpacing.buttonHeightMedium,
-              padding: widget.padding ??
-                  const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xl,
-                    vertical: AppSpacing.sm,
-                  ),
-              decoration: widget.isPrimary
-                  ? BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: widget.gradient ?? AppColors.liquidGradient1,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                      border: Border.all(
-                        color: AppColors.glassLight.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (widget.gradient ?? AppColors.liquidGradient1)
-                              .first
-                               .withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          spreadRadius: 0,
-                          offset: const Offset(0, 8),
+              filter: ImageFilter.blur(
+                sigmaX: AppSpacing.glassBlur,
+                sigmaY: AppSpacing.glassBlur,
+              ),
+              child: Container(
+                width: widget.width,
+                height: widget.height ?? AppSpacing.buttonHeightMedium,
+                padding: widget.padding ??
+                    const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                      vertical: AppSpacing.sm,
+                    ),
+                decoration: widget.isPrimary
+                    ? BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: widget.gradient ?? AppColors.liquidGradient1,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
-                    )
-                  : GlassStyles.buttonGlass,
-              child: Center(
-                child: DefaultTextStyle(
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusMd),
+                        border: Border.all(
+                          color: AppColors.glassLight.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                (widget.gradient ?? AppColors.liquidGradient1)
+                                    .first
+                                    .withValues(alpha: 0.4),
+                            blurRadius: 20,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      )
+                    : GlassStyles.buttonGlass,
+                child: Center(
+                  child: DefaultTextStyle(
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    child: widget.child,
                   ),
-                  child: widget.child,
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
-

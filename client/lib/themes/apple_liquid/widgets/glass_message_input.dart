@@ -33,6 +33,9 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
   final AudioRecorder _recorder = AudioRecorder();
   bool _hasText = false;
 
+  static const double _controlSize = AppSpacing.buttonHeight;
+  static const double _inputRadius = AppSpacing.radiusXl;
+
   @override
   void initState() {
     super.initState();
@@ -92,16 +95,14 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
         path: path,
       );
 
-      if (mounted) {
-        StealthHaptics.medium(context);
-      }
+      if (!mounted) return;
+      StealthHaptics.medium(context);
       setState(() => _isRecording = true);
     } else {
       // Stop recording
       final recordedPath = await _recorder.stop();
-      if (mounted) {
-        StealthHaptics.light(context);
-      }
+      if (!mounted) return;
+      StealthHaptics.light(context);
       setState(() => _isRecording = false);
 
       if (recordedPath != null) {
@@ -121,57 +122,56 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.glassUltraDark,
-            border: Border(
-              top: BorderSide(
-                color: AppColors.glassLight.withValues(alpha: 0.1),
-                width: 0.5,
+      child: RepaintBoundary(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: AppSpacing.glassBlur,
+            sigmaY: AppSpacing.glassBlur,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.glassUltraDark,
+              border: Border(
+                top: BorderSide(
+                  color: AppColors.glassLight.withValues(alpha: 0.1),
+                  width: 0.5,
+                ),
               ),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Attachment Button
-                _buildIconButton(
-                  icon: Icons.add,
-                  onPressed: _handleAttachment,
-                  semanticsLabel: AccessibilityIds.attachFile,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-
-                // Input Field or Recording Indicator
-                Expanded(
-                  child: _isRecording
-                      ? _buildRecordingIndicator()
-                      : _buildTextField(),
-                ),
-
-                const SizedBox(width: AppSpacing.sm),
-
-                // Send or Mic Button
-                if (_hasText)
-                  _buildSendButton()
-                else
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   _buildIconButton(
-                    icon: _isRecording ? Icons.stop : Icons.mic,
-                    onPressed: _toggleRecording,
-                    color: _isRecording ? AppColors.systemRed : null,
-                    active: _isRecording,
-                    semanticsLabel:
-                        _isRecording ? 'Остановить запись' : 'Записать голос',
+                    icon: Icons.add,
+                    onPressed: _handleAttachment,
+                    semanticsLabel: AccessibilityIds.attachFile,
                   ),
-              ],
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _isRecording
+                        ? _buildRecordingIndicator()
+                        : _buildTextField(),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  if (_hasText)
+                    _buildSendButton()
+                  else
+                    _buildIconButton(
+                      icon: _isRecording ? Icons.stop : Icons.mic,
+                      onPressed: _toggleRecording,
+                      color: _isRecording ? AppColors.systemRed : null,
+                      active: _isRecording,
+                      semanticsLabel:
+                          _isRecording ? 'Остановить запись' : 'Записать голос',
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -183,7 +183,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(_inputRadius),
         border: Border.all(
           color: AppColors.glassLight.withValues(alpha: 0.05),
           width: 0.5,
@@ -197,11 +197,11 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
           controller: _controller,
           maxLines: 5,
           minLines: 1,
-          style: AppTypography.body.copyWith(color: Colors.white),
+          style: AppTypography.body.copyWith(color: AppColors.textOnGlass),
           decoration: InputDecoration(
             hintText: 'Сообщение',
             hintStyle: AppTypography.body.copyWith(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.textOnGlass.withValues(alpha: 0.5),
             ),
             border: InputBorder.none,
             isDense: true,
@@ -209,7 +209,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
             filled: false, // Don't use global theme fill color
           ),
           textCapitalization: TextCapitalization.sentences,
-          cursorColor: Colors.white,
+          cursorColor: AppColors.textOnGlass,
         ),
       ),
     );
@@ -217,10 +217,10 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
 
   Widget _buildRecordingIndicator() {
     return Container(
-      height: 40,
+      height: _controlSize,
       decoration: BoxDecoration(
         color: AppColors.systemRed.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(_inputRadius),
         border: Border.all(
           color: AppColors.systemRed.withValues(alpha: 0.3),
           width: 0.5,
@@ -229,9 +229,12 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.fiber_manual_record,
-              color: AppColors.systemRed, size: 12),
-          const SizedBox(width: 8),
+          const Icon(
+            Icons.fiber_manual_record,
+            color: AppColors.systemRed,
+            size: AppSpacing.sm,
+          ),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             'Запись...',
             style: AppTypography.body.copyWith(color: AppColors.systemRed),
@@ -254,8 +257,8 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
       child: GestureDetector(
         onTap: onPressed,
         child: Container(
-          width: 36,
-          height: 36,
+          width: _controlSize,
+          height: _controlSize,
           decoration: BoxDecoration(
             color: active
                 ? (color ?? AppColors.systemBlue).withValues(alpha: 0.2)
@@ -265,7 +268,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
           child: Icon(
             icon,
             color: color ?? AppColors.systemBlue,
-            size: 24,
+            size: AppSpacing.iconMd,
           ),
         ),
       ),
@@ -279,16 +282,16 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
       child: GestureDetector(
         onTap: _handleSendMessage,
         child: Container(
-          width: 36,
-          height: 36,
+          width: _controlSize,
+          height: _controlSize,
           decoration: const BoxDecoration(
             color: AppColors.systemBlue,
             shape: BoxShape.circle,
           ),
           child: const Icon(
             Icons.arrow_upward,
-            color: Colors.white,
-            size: 20,
+            color: AppColors.textOnGlass,
+            size: AppSpacing.iconSm,
           ),
         ),
       ),

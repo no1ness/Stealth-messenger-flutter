@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logging/logger.dart';
+import '../../themes/apple_liquid/feedback/stealth_snack_bar.dart';
 
 /// Possible outcomes returned by [shareDiagnosticsReport]. Exposed for
 /// widget tests so they can assert which branch was hit by a fake invoker.
@@ -122,9 +123,7 @@ Future<ShareOutcome> _fallbackToClipboard(
   try {
     await Clipboard.setData(ClipboardData(text: reportText));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied to clipboard')),
-      );
+      showStealthSnackBar(context, 'Диагностика скопирована');
     }
     return ShareOutcome.copiedToClipboard;
   } catch (error) {
@@ -158,7 +157,6 @@ Future<void> _cleanupOldReports(Directory dir) async {
       }
     }
   } catch (error) {
-    Logger.debug('[diag.share] tmp cleanup skipped',
-        extras: {'error': error});
+    Logger.debug('[diag.share] tmp cleanup skipped', extras: {'error': error});
   }
 }
