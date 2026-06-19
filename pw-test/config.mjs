@@ -17,6 +17,12 @@ const PHONE_UDID = process.env.STEALTH_PHONE_UDID;
 const CHROME_BIN = process.env.CHROME_BIN;
 const PW_CHANNEL = process.env.PW_CHANNEL;
 
+// Headless mode: default true, set STEALTH_HEADLESS=false for headed debug
+const HEADLESS = process.env.STEALTH_HEADLESS !== "false";
+
+// Screenshot on failure
+const SCREENSHOT_ON_FAILURE = process.env.STEALTH_SCREENSHOT_ON_FAILURE !== "false";
+
 // Browser launch arguments
 const LAUNCH_ARGS = [
   "--use-fake-ui-for-media-stream",
@@ -45,6 +51,8 @@ export {
   PHONE_UDID,
   CHROME_BIN,
   PW_CHANNEL,
+  HEADLESS,
+  SCREENSHOT_ON_FAILURE,
   LAUNCH_ARGS,
   VIEWPORT,
   CONTEXT_PERMISSIONS,

@@ -1,4 +1,4 @@
-import { runScenario } from "./core/runner.mjs";
+import { runScenario, runSuite } from "./core/runner.mjs";
 
 const SCENARIOS = {
   registration: () => import("./scenarios/registration.mjs"),
@@ -6,16 +6,27 @@ const SCENARIOS = {
   chat: () => import("./scenarios/chat-basic.mjs"),
 };
 
+const SUITE = "suite";
+
 const args = process.argv.slice(2);
-const scenarioName = args[0];
+const mode = args[0];
 const startServer = args.includes("--server");
 
-if (!scenarioName || !SCENARIOS[scenarioName]) {
-  console.error(`Usage: node run.mjs <scenario> [--server]`);
-  console.error(`Available: ${Object.keys(SCENARIOS).join(", ")}`);
+if (mode === SUITE) {
+  const results = await runSuite([
+    { name: "call", fn: (await import("./scenarios/call-basic.mjs")).default },
+    { name: "chat", fn: (await import("./scenarios/chat-basic.mjs")).default },
+  ], { startServer });
+  process.exit(results.passed ? 0 : 1);
+}
+
+if (!mode || !SCENARIOS[mode]) {
+  console.error(`Usage: node run.mjs <scenario|suite> [--server]`);
+  console.error(`Scenarios: ${Object.keys(SCENARIOS).join(", ")}`);
+  console.error(`Suite: suite`);
   process.exit(1);
 }
 
-const { default: scenarioFn } = await SCENARIOS[scenarioName]();
+const { default: scenarioFn } = await SCENARIOS[mode]();
 const result = await runScenario(scenarioFn, { startServer });
 process.exit(result.passed ? 0 : 1);
