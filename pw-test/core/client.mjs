@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
-import { WEB_URL, LAUNCH_ARGS } from "../config.mjs";
+import { WEB_URL, LAUNCH_ARGS, VIEWPORT, CONTEXT_PERMISSIONS } from "../config.mjs";
 import { EventBus } from "./events.mjs";
+import { attachBridge } from "./bridge.mjs";
 
 export class Client {
   constructor(name) {
@@ -20,27 +21,53 @@ export class Client {
 
   async launch() {
     this._browser = await chromium.launch({ args: LAUNCH_ARGS });
-    const ctx = await this._browser.newContext();
+    const ctx = await this._browser.newContext({
+      viewport: VIEWPORT,
+      permissions: CONTEXT_PERMISSIONS,
+      locale: "en-US",
+    });
     this._page = await ctx.newPage();
-    await this._page.goto(WEB_URL, { waitUntil: "domcontentloaded" });
+    await attachBridge(this._page, this._events);
+    await this._page.goto(WEB_URL, { waitUntil: "commit", timeout: 60000 });
     await this._ensureA11y();
+    await this._waitForFlutter();
+  }
+
+  async _waitForFlutter() {
+    await this._page.waitForFunction(
+      () => {
+        const host = document.querySelector("flt-semantics-host");
+        return host && host.children.length > 0;
+      },
+      { timeout: 30000 },
+    );
   }
 
   async _ensureA11y() {
-    const hasToggle = await this._page.evaluate(() =>
-      !!document.querySelector(
-        '[aria-label="Enable accessibility"], flt-semantics-placeholder',
-      ),
-    );
-    if (hasToggle) {
-      const toggle = await this._page.$('[aria-label="Enable accessibility"]');
-      if (toggle) await toggle.click();
-      await this._page.waitForTimeout(500);
+    for (let i = 0; i < 20; i++) {
+      try {
+        const clicked = await this._page.evaluate(() => {
+          const p = document.querySelector(
+            'flt-semantics-placeholder[aria-label="Enable accessibility"]',
+          );
+          if (p) { p.click(); return true; }
+          return false;
+        });
+        if (clicked) {
+          await this._page.waitForTimeout(2000);
+          return;
+        }
+      } catch {}
+      await this._page.waitForTimeout(1000);
     }
   }
 
   async waitForSelector(selector, { timeout = 15000 } = {}) {
     await this._page.waitForSelector(selector, { timeout });
+  }
+
+  async waitForRole(role, { timeout = 15000 } = {}) {
+    await this._page.waitForSelector(`[role="${role}"]`, { timeout });
   }
 
   async type(selector, text) {

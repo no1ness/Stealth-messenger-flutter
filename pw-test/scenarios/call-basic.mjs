@@ -1,6 +1,6 @@
 export default async function callBasic({ alice, bob }) {
-  await alice.waitForSelector("text=Chats", { timeout: 30000 });
-  await bob.waitForSelector("text=Chats", { timeout: 30000 });
+  await alice.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
+  await bob.waitForSelector('[aria-label="Chats"]', { timeout: 30000 });
 
   const offerEv = await alice.events.waitForEvent("CallOfferCreated", { timeoutMs: 15000 });
   console.log(`[call] Alice created offer for room ${offerEv.roomId}`);

@@ -12,14 +12,15 @@
  */
 
 import { remote } from 'webdriverio';
+import { APPIUM_HOST, APPIUM_PORT, EMULATOR_UDID, PHONE_UDID } from './config.mjs';
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Конфигурация для эмулятора
 const emulatorCaps = {
   platformName: 'Android',
-  'appium:deviceName': 'emulator-5554',
-  'appium:udid': 'emulator-5554',
+  'appium:deviceName': EMULATOR_UDID,
+  'appium:udid': EMULATOR_UDID,
   'appium:automationName': 'UiAutomator2',
   'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
@@ -31,8 +32,8 @@ const emulatorCaps = {
 // Конфигурация для телефона
 const phoneCaps = {
   platformName: 'Android',
-  'appium:deviceName': '2412DPC0AG',
-  'appium:udid': 'AQY57PRG4PQCR8UO',
+  'appium:deviceName': PHONE_UDID || process.env.STEALTH_PHONE_UDID || 'PHONE',
+  'appium:udid': PHONE_UDID || process.env.STEALTH_PHONE_UDID,
   'appium:automationName': 'UiAutomator2',
   'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
@@ -278,8 +279,8 @@ async function main() {
   console.log('Подключение к эмулятору...');
   const emulator = await remote({
     protocol: 'http',
-    hostname: '127.0.0.1',
-    port: 4725,
+    hostname: APPIUM_HOST,
+    port: APPIUM_PORT,
     path: '/',
     capabilities: emulatorCaps,
   });
@@ -287,8 +288,8 @@ async function main() {
   console.log('Подключение к телефону...');
   const phone = await remote({
     protocol: 'http',
-    hostname: '127.0.0.1',
-    port: 4725,
+    hostname: APPIUM_HOST,
+    port: APPIUM_PORT,
     path: '/',
     capabilities: phoneCaps,
   });

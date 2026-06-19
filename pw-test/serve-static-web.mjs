@@ -1,9 +1,10 @@
 import { createReadStream, existsSync, statSync } from "fs";
 import { createServer } from "http";
 import { extname, join, normalize, resolve } from "path";
+import { WEB_URL } from "./config.mjs";
 
 const HOST = process.env.STEALTH_WEB_HOST || "127.0.0.1";
-const PORT = Number(process.env.STEALTH_WEB_PORT || "58585");
+const PORT = Number(process.env.STEALTH_WEB_PORT || "57575");
 const ROOT = resolve(process.cwd(), "../client/build/web");
 
 const MIME_TYPES = {

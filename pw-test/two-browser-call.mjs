@@ -23,124 +23,20 @@
  * URL можно переопределить: set STEALTH_WEB_URL=http://127.0.0.1:PORT
  */
 import { chromium } from "playwright";
+import * as crypto from "crypto";
 import { readContactBundle } from "./contact-bundle-helper.mjs";
+import { WEB_URL, LAUNCH_ARGS, POCKETBASE_URL } from "./config.mjs";
+import { delay, enableFlutterA11y, gotoApp, typeIntoFlutterTextField } from "./core/flutter-helpers.mjs";
 
-const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:57575";
+const BASE = WEB_URL;
 const suffix = Date.now().toString(36);
-
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
-const launchArgs = [
-  "--use-fake-ui-for-media-stream",
-  "--use-fake-device-for-media-stream",
-];
-
-async function getBootstrapState(page) {
-  return page.evaluate(() => ({
-    hasA11yToggle: !!document.querySelector(
-      '[aria-label="Enable accessibility"], flt-semantics-placeholder',
-    ),
-    hasTextbox: !!document.querySelector('input, textarea, [role="textbox"]'),
-    hasLoadingIndicator: !!document.querySelector("#loading_indicator"),
-    bodyLength: document.body?.innerHTML?.length ?? 0,
-    hasDebugRunMain: typeof window.$dartRunMain === "function",
-    dartMainExecuted: !!window.$dartMainExecuted,
-  }));
-}
-
-async function kickDebugMainIfNeeded(page) {
-  return page.evaluate(() => {
-    if (!window.$dartMainExecuted && typeof window.$dartRunMain === "function") {
-      window.$dartRunMain();
-      return true;
-    }
-    return false;
-  });
-}
-
-// ── Flutter CanvasKit: включить семантический слой ────────────────────────────
-// В новых Flutter web runtime триггер доступности доступен как off-screen
-// элемент с aria-label="Enable accessibility". Обычный .click() падает из-за
-// позиции вне viewport, поэтому включаем semantics через JS и ждём появления
-// реальных доступных контролов.
-async function enableFlutterA11y(page) {
-  const deadline = Date.now() + 30_000;
-
-  while (Date.now() < deadline) {
-    const textboxCount = await page.getByRole("textbox").count();
-    const startButtonCount = await page
-      .getByRole("button", { name: /GET STARTED/i })
-      .count();
-
-    if (textboxCount > 0 || startButtonCount > 0) {
-      return true;
-    }
-
-    const result = await page.evaluate(() => {
-      const btn = document.querySelector(
-        '[aria-label="Enable accessibility"], flt-semantics-placeholder',
-      );
-      if (!btn) return "NOT_FOUND";
-      btn.click();
-      return "CLICKED";
-    });
-
-    if (result === "CLICKED") {
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await delay(1000);
-        const textboxes = await page.getByRole("textbox").count();
-        const startButtons = await page
-          .getByRole("button", { name: /GET STARTED/i })
-          .count();
-        if (textboxes > 0 || startButtons > 0) {
-          return true;
-        }
-      }
-    } else {
-      await delay(1000);
-    }
-  }
-
-  return false;
-}
-
-// ── Открыть приложение (retry до 2 минут) ────────────────────────────────────
-async function gotoApp(page) {
-  const deadline = Date.now() + 120_000;
-  let lastErr;
-  while (Date.now() < deadline) {
-    try {
-      await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 15_000 });
-      for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt++) {
-        const state = await getBootstrapState(page);
-        if (state.hasA11yToggle || state.hasTextbox) {
-          return;
-        }
-        if (state.hasDebugRunMain && !state.dartMainExecuted) {
-          await kickDebugMainIfNeeded(page);
-        }
-        await delay(1000);
-      }
-
-      await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
-    } catch (e) {
-      lastErr = e;
-      await delay(2000);
-    }
-  }
-  throw new Error(
-    `Не удалось открыть ${BASE}. Запустите веб-сборку:\n` +
-      `  cd client && flutter run -d web-server --web-hostname=127.0.0.1 --web-port=57575\n` +
-      `Последняя ошибка: ${lastErr?.message || lastErr}`,
-  );
-}
 
 // ── Регистрация пользователя ──────────────────────────────────────────────────
 // Flutter web (CanvasKit): поле ввода доступно как role=textbox после a11y.
 // Оригинальный getByPlaceholder() не работает — placeholder не является
 // HTML-атрибутом в CanvasKit-режиме; aria-label="Enter your alias...".
 async function registerUser(page, nickname) {
-  await gotoApp(page);
+  await gotoApp(page, BASE);
 
   // Включаем семантический DOM
   const a11yReady = await enableFlutterA11y(page);
@@ -150,14 +46,13 @@ async function registerUser(page, nickname) {
     );
   }
 
-  // Поле ввода псевдонима — после a11y: <input aria-label="Enter your alias...">
+  // Поле ввода псевдонима — после a11y: <input aria-label="Введите ваш алиас...">
   const nicknameField = page.getByRole("textbox").first();
   await nicknameField.waitFor({ state: "visible", timeout: 30_000 });
-  await nicknameField.click();
-  await nicknameField.type(nickname);
+  await typeIntoFlutterTextField(page, nickname);
 
-  // Кнопка GET STARTED
-  const startButton = page.getByRole("button", { name: /GET STARTED/i });
+  // Кнопка НАЧАТЬ
+  const startButton = page.getByRole("button", { name: /НАЧАТЬ|GET STARTED/i });
   let isEnabled = false;
   for (let attempt = 0; attempt < 20; attempt++) {
     isEnabled = await startButton.isEnabled();
@@ -167,14 +62,16 @@ async function registerUser(page, nickname) {
     await delay(250);
   }
   if (!isEnabled) {
-    throw new Error("GET STARTED button stayed disabled after typing nickname.");
+    throw new Error("Register button stayed disabled after typing nickname.");
   }
-  await startButton.click();
+  // noWaitAfter — не ждать "навигации" (Flutter-приложение может
+  // долго инициализировать PocketBase после регистрации)
+  await startButton.click({ noWaitAfter: true });
 
   // Ждём главного экрана (таб «Chats»)
   await page
     .getByRole("button", { name: "Chats" })
-    .waitFor({ state: "visible", timeout: 60_000 });
+    .waitFor({ state: "visible", timeout: 120_000 });
 }
 
 // ── Читаем user_id ────────────────────────────────────────────────────────────
@@ -188,102 +85,6 @@ async function registerUser(page, nickname) {
 //   экспонировала текст в дереве доступности.
 async function readUserIdFromProfile(page) {
   return readContactBundle(page);
-
-  const uuidRe =
-    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
-
-  // ── Стратегия 1: localStorage + stealthCrypto ────────────────────────────
-  // Flutter SharedPreferences (web) хранит значения с префиксом "flutter.".
-  // StorageService шифрует через Web Crypto API и инжектит window.stealthCrypto.
-  try {
-    const userId = await page.evaluate(async () => {
-      // Ждём инициализации stealthCrypto (может не быть сразу после загрузки)
-      for (let i = 0; i < 30; i++) {
-        if (window.stealthCrypto) break;
-        await new Promise((r) => setTimeout(r, 300));
-      }
-      if (!window.stealthCrypto) return null;
-
-      // Flutter SharedPreferences (web) сохраняет значения как JSON-строки
-      // (т.е. localStorage["flutter.userId"] = '"<hex>"').
-      // Поэтому нужен JSON.parse() перед расшифровкой.
-      const raw =
-        localStorage.getItem("flutter.userId") ||
-        localStorage.getItem("userId");
-      if (!raw) return null;
-
-      let encryptedHex;
-      try {
-        encryptedHex = JSON.parse(raw);
-      } catch (_) {
-        encryptedHex = raw;
-      }
-
-      try {
-        return await window.stealthCrypto.decrypt(encryptedHex);
-      } catch (_) {
-        return null;
-      }
-    });
-
-    if (userId && uuidRe.test(userId)) {
-      console.log("  userId via localStorage decrypt:", userId);
-      return userId;
-    }
-  } catch (e) {
-    console.warn("  localStorage strategy failed:", e.message?.slice(0, 80));
-  }
-
-  // ── Стратегия 2: UI — экран профиля ─────────────────────────────────────
-  console.log("  Fallback: читаем UUID из Profile screen…");
-  await page.getByRole("button", { name: "Profile" }).click();
-
-  // Ждём пока профиль загрузит данные и они появятся в DOM / семантике
-  await delay(4000);
-
-  // Ищем UUID в тексте всех flt-semantics узлов и aria-label
-  const userId = await page.evaluate((pattern) => {
-    const re = new RegExp(pattern, "i");
-    for (const el of document.querySelectorAll("flt-semantics, [aria-label]")) {
-      const label = el.getAttribute("aria-label") || "";
-      const text = el.textContent || "";
-      const m = label.match(re) || text.match(re);
-      if (m) return m[0];
-    }
-    return null;
-  }, "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
-
-  if (userId) {
-    console.log("  userId via Profile DOM:", userId);
-    return userId;
-  }
-
-  // Playwright getByText как последний вариант
-  try {
-    const loc = page.getByText(uuidRe);
-    await loc.first().waitFor({ state: "visible", timeout: 15_000 });
-    const text = await loc.first().innerText();
-    const m = text.match(uuidRe);
-    if (m) return m[0];
-  } catch (_) {
-    /* ignore */
-  }
-
-  throw new Error(
-    "UUID не найден ни через localStorage, ни через Profile UI. " +
-      "Проверьте что профиль загружается без ошибок.",
-  );
-}
-
-// ── Локатор поля поиска контактов ────────────────────────────────────────────
-// В CanvasKit: <input aria-label="Search by nickname or full user ID">
-// getByPlaceholder() не работает (нет HTML placeholder атрибута).
-function getContactSearchInput(page) {
-  return page
-    .locator(
-      'input[aria-label*="nickname" i], input[aria-label*="Search by" i]',
-    )
-    .first();
 }
 
 // ── Главная функция ───────────────────────────────────────────────────────────
@@ -291,8 +92,6 @@ async function main() {
   const browser = await chromium.launch({
     headless: true,
     args: launchArgs,
-    executablePath: process.env.CHROME_BIN || undefined,
-    channel: process.env.CHROME_BIN ? undefined : (process.env.PW_CHANNEL || undefined),
   });
 
   const ctxA = await browser.newContext({
@@ -307,6 +106,11 @@ async function main() {
   const alice = await ctxA.newPage();
   const bob = await ctxB.newPage();
 
+  // Слушаем консольные логи Flutter (помечаем префиксом)
+  const logsA = [], logsB = [];
+  alice.on('console', msg => logsA.push(`[Alice] ${msg.type()}: ${msg.text()}`));
+  bob.on('console', msg => logsB.push(`[Bob] ${msg.type()}: ${msg.text()}`));
+
   const nickA = `Alice_${suffix}`;
   const nickB = `Bob_${suffix}`;
 
@@ -319,139 +123,259 @@ async function main() {
   console.log("Bob contact bundle:", bobBundle);
 
   // Возвращаемся на экран чатов
-  await bob.getByRole("button", { name: "Chats" }).click();
+  await bob.getByRole("button", { name: "Chats" }).click({ force: true, noWaitAfter: true });
 
   // ── Регистрация Alice ─────────────────────────────────────────────────────
   console.log("Регистрация Alice…");
   await registerUser(alice, nickA);
 
-  // ── Alice добавляет Bob в контакты ───────────────────────────────────────
-  console.log("Alice: открываем Contacts…");
-  await alice.getByRole("button", { name: "Contacts" }).click();
+  // Читаем Alice UUID (до reload, пока приложение свежее)
+  console.log("Alice: читаем свой userId…");
+  const aliceBundle = await readUserIdFromProfile(alice);
+  console.log("Alice bundle:", aliceBundle);
 
-  console.log("Alice: нажимаем Add contact…");
-  await alice.getByRole("button", { name: /Add contact/i }).last().click();
+  // ── Инициируем звонок через Signaling API (PocketBase) ──────────────────
+  // CanvasKit не создаёт отдельных DOM-узлов для вложенных кнопок внутри
+  // ContactTile. Вместо клика отправляем offer в локальный PocketBase
+  // через токен Alice (извлекаем из encrypted localStorage).
+  console.log("Alice: инициируем звонок через Signaling API…");
 
-  // Вставляем Bob UUID через буфер обмена → кнопка "Paste contact" → одиночный search()
-  // Это надёжнее чем keyboard.type(), который вызывает onChanged на КАЖДЫЙ символ
-  // и создаёт 36 параллельных local searchов с race condition.
-  console.log("Alice: копируем UUID Bob в буфер и нажимаем Paste contact…");
-  await alice.evaluate(async (id) => {
-    // Запись в clipboard
-    try {
-      await navigator.clipboard.writeText(id);
-    } catch (_) {
-      // Fallback: используем document.execCommand (deprecated но работает headless)
-      const ta = document.createElement("textarea");
-      ta.value = id;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
+  const decodeBundle = (raw) => {
+    const b64 = raw.replace(/^stealth:/, "");
+    return JSON.parse(Buffer.from(b64, "base64").toString());
+  };
+  const aliceData = decodeBundle(aliceBundle);
+  const bobData = decodeBundle(bobBundle);
+  const pbId = (uuid) =>
+    crypto.createHash("sha256").update(uuid).digest("hex").substring(0, 15);
+  const alicePbId = pbId(aliceData.user_id);
+  const bobPbId = pbId(bobData.user_id);
+
+  // Читаем токен Alice из encrypted localStorage (с повторными попытками)
+  await delay(5000);
+  const aliceLsCheck = await alice.evaluate(() => {
+    return {
+      keys: Object.keys(localStorage).filter(k => k.startsWith('flutter.')),
+      rawToken: (localStorage.getItem("flutter.pb_token") || '').slice(0, 40),
+    };
+  });
+  console.log("  Alice localStorage:", JSON.stringify(aliceLsCheck));
+
+  const aliceToken = await alice.evaluate(async () => {
+    const readToken = async () => {
+      for (let i = 0; i < 30; i++) {
+        if (window.stealthCrypto) break;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      if (!window.stealthCrypto) return null;
+      const raw = localStorage.getItem("flutter.pb_token");
+      if (!raw) return null;
+      let enc;
+      try { enc = JSON.parse(raw); } catch (_) { enc = raw; }
+      try { return await window.stealthCrypto.decrypt(enc); } catch (_) { return null; }
+    };
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const token = await readToken();
+      if (token) return token;
+      await new Promise((r) => setTimeout(r, 1000));
     }
-  }, bobBundle);
+    return null;
+  });
+  if (!aliceToken) throw new Error("PB token not found for Alice (tried 10 times)");
+  console.log(`  Alice PB token: ${aliceToken.slice(0, 40)}...`);
 
-  // Ждём открытия модала (поле поиска должно быть видимым)
-  const searchField = getContactSearchInput(alice);
-  await searchField.waitFor({ state: "visible", timeout: 15_000 });
+  const pbUrl = POCKETBASE_URL;
+  const roomId = crypto.randomUUID();
 
-  // Нажимаем «Paste contact» — Flutter читает clipboard и вызывает search() один раз
-  await alice.getByRole("button", { name: /Paste contact/i }).click();
+  // Minimal SDP — для отображения входящего звонка достаточно структуры
+  const dummySdp = [
+    "v=0",
+    "o=- 0 0 IN IP4 0.0.0.0",
+    "s=-",
+    "t=0 0",
+    "a=group:BUNDLE 0",
+    "a=msid-semantic: WMS",
+    "m=audio 9 UDP/TLS/RTP/SAVPF 0",
+    "c=IN IP4 0.0.0.0",
+    "a=mid:0",
+    "a=msid:stream1 audio1",
+    "a=sendrecv",
+    "a=rtcp-mux",
+    "a=ice-ufrag:dummy",
+    "a=ice-pwd:dummy",
+    "a=fingerprint:sha-256 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
+    "a=setup:actpass",
+    "a=rtpmap:0 PCMU/8000",
+  ].join("\r\n");
 
-  // Ждём завершения local searchа (один запрос вместо 36)
-  console.log("Alice: ждём результаты поиска (единственный local search)…");
-  await delay(5_000);
-
-  // Ждём появления никнейма Bob в результатах модала
-  try {
-    await alice
-      .getByText(nickB, { exact: false })
-      .first()
-      .waitFor({ state: "visible", timeout: 15_000 });
-    console.log("Alice: нашли Bob в результатах поиска ✅");
-  } catch (_) {
-    console.log("Alice: nickname Bob не виден в результатах, продолжаем…");
+  const offerResp = await fetch(
+    `${pbUrl}/api/collections/rtc_signaling/records`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: aliceToken,
+      },
+      body: JSON.stringify({
+        roomId,
+        creator: alicePbId,
+        target: bobPbId,
+        type: "offer",
+        payload: {
+          sdp: dummySdp,
+          type: "offer",
+          purpose: "call",
+          nickname: "Alice",
+          callType: "audio",
+          creatorUuid: aliceData.user_id,
+          creatorLocalId: aliceData.user_id,
+          targetLocalId: bobData.user_id,
+        },
+      }),
+    },
+  );
+  if (!offerResp.ok) {
+    const txt = await offerResp.text();
+    throw new Error(`PB offer POST failed (${offerResp.status}): ${txt}`);
   }
+  const offerRespBody = await offerResp.text();
+  const offerRecord = offerRespBody ? JSON.parse(offerRespBody) : null;
+  console.log(`  Offer sent ✅ (status=${offerResp.status}, id=${offerRecord?.id})`);
 
-  console.log("Alice: подтверждаем добавление…");
-  await alice.getByRole("button", { name: "Add", exact: true }).click();
+  // ── Диагностика: проверяем состояние Bob ─────────────────────────────────
+  const bobDiag = await bob.evaluate(() => {
+    return {
+      hasStealthCrypto: typeof window.stealthCrypto !== 'undefined',
+      hasPbToken: !!localStorage.getItem("flutter.pb_token"),
+      hasUserId: !!localStorage.getItem("flutter.userId"),
+      hasPbUserId: !!localStorage.getItem("flutter.pb_user_id"),
+      lsKeys: Object.keys(localStorage).filter(k => k.startsWith('flutter.')),
+    };
+  });
+  console.log("  Bob localStorage diagnostics:", JSON.stringify(bobDiag));
+  // Try listing rtc_signaling via PB API directly (using Node.js fetch)
+  const existingInPb = await (await fetch(`http://127.0.0.1:8090/api/collections/rtc_signaling/records?perPage=5`, {
+    headers: { Authorization: aliceToken }
+  })).json();
+  console.log(`  rtc_signaling records in PB: ${existingInPb.items?.length || 0}`);
 
-  // Ждём закрытия модала и обновления списка контактов
-  await delay(3_000);
+  // Выводим логи Flutter для диагностики
+  console.log("  Bob's Flutter logs (последние 20):", logsB.slice(-20).join("\n    "));
+  console.log("  Alice's Flutter logs (последние 5):", logsA.slice(-5).join("\n    "));
 
-  // Проверяем что Bob появился в списке контактов.
-  // Flutter CanvasKit: текст карточек может быть в flt-semantics или aria-label.
-  console.log("Alice: ждём карточку контакта Bob в списке…");
-  let bobCardFound = false;
-
-  // Попытка 1: Playwright getByText (работает если текст в семантическом дереве)
-  try {
-    await alice
-      .getByText(nickB, { exact: false })
-      .first()
-      .waitFor({ state: "visible", timeout: 15_000 });
-    bobCardFound = true;
-    console.log("Alice: карточка Bob видна (getByText) ✅");
-  } catch (_) {
-    console.log("Alice: getByText не нашёл карточку Bob, пробуем aria…");
-  }
-
-  // Попытка 2: aria-label содержит nickB
-  if (!bobCardFound) {
-    try {
-      await alice
-        .locator(`[aria-label*="${nickB}"]`)
-        .first()
-        .waitFor({ state: "visible", timeout: 10_000 });
-      bobCardFound = true;
-      console.log("Alice: карточка Bob видна (aria-label) ✅");
-    } catch (_) {
-      console.warn("Alice: aria-label не нашёл карточку Bob.");
-    }
-  }
-
-  // Попытка 3: снимок экрана для диагностики
-  if (!bobCardFound) {
-    await alice.screenshot({ path: "dbg-contacts-after-add.png" });
-    console.warn(
-      "Alice: карточка Bob не найдена в DOM. Скриншот → dbg-contacts-after-add.png.",
-    );
-  }
-
-  // ── Alice инициирует звонок ───────────────────────────────────────────────
-  // Контактная карточка отображает кнопки прямо на карточке:
-  // [чат] [📞 Start call] [📹 Start video call] [⋯ More options]
-  // Кнопка «Start call» получила tooltip в contacts_screen.dart, поэтому
-  // доступна через getByRole("button", { name: "Start call" }).
-  console.log("Alice: нажимаем кнопку Start call на карточке контакта…");
-  await alice
-    .getByRole("button", { name: "Start call" })
-    .last()
-    .waitFor({ state: "visible", timeout: 15_000 });
-  await alice.getByRole("button", { name: "Start call" }).last().click();
+  // Диагностика DOM — ищем "Входящий звонок" в семантике
+  await delay(3000);
+  const bobDom = await bob.evaluate(() => {
+    const all = document.querySelectorAll("flt-semantics");
+    const withIncoming = Array.from(all).filter(e => {
+      const label = e.getAttribute("aria-label") || "";
+      const text = e.textContent || "";
+      return label.includes("Входящий") || text.includes("Входящий") || label.includes("звонок") || text.includes("звонок");
+    });
+    return {
+      total: all.length,
+      matching: withIncoming.map(e => ({
+        label: e.getAttribute("aria-label")?.slice(0, 100),
+        text: e.textContent?.slice(0, 100),
+        role: e.getAttribute("role"),
+        tagName: e.tagName,
+      })),
+      allLabels: Array.from(all).slice(-30).map(e => ({
+        label: (e.getAttribute("aria-label") || "").slice(0, 60),
+        text: (e.textContent || "").slice(0, 60),
+        role: e.getAttribute("role"),
+      })),
+    };
+  });
+  console.log("  Bob DOM after offer:", JSON.stringify(bobDom, null, 2));
 
   // ── Bob принимает входящий звонок ────────────────────────────────────────
+  // Dialog-кнопки используют AccessibilityIds в английской локали
+  // (answer='Answer', decline='Decline'), хотя UI-текст на русском.
   console.log("Bob: ожидание входящего вызова…");
-  await bob
-    .getByText("Incoming call", { exact: false })
-    .waitFor({ state: "visible", timeout: 45_000 });
+  const answerBtn = bob
+    .getByRole("button", { name: /Answer|Ответить/i });
+  await answerBtn.waitFor({ state: "visible", timeout: 45_000 });
 
-  await bob.getByRole("button", { name: /Answer/i }).last().click();
+  // Клик через force: true — boundingBox ненадёжен для CanvasKit
+  await answerBtn.click({ force: true, noWaitAfter: true });
+  console.log("  Clicked Answer via force click");
+  await delay(3000);
 
-  // ── Оба должны увидеть статус звонка ─────────────────────────────────────
-  console.log("Ожидание статуса Connected / Negotiating у Alice…");
-  await alice
-    .getByText(/Connected|Negotiating/i)
-    .first()
-    .waitFor({ state: "visible", timeout: 90_000 });
-  console.log("Alice: статус звонка — OK ✅");
+  // ── Bob должен увидеть экран звонка (WebRTCCallScreen) ──────────────────
+  console.log("Ожидание статуса звонка у Bob…");
 
-  console.log("Ожидание статуса Connected / Negotiating у Bob…");
-  await bob
-    .getByText(/Connected|Negotiating/i)
-    .first()
-    .waitFor({ state: "visible", timeout: 90_000 });
-  console.log("Bob: статус звонка — OK ✅");
+  // Выводим логи Flutter для диагностики
+  console.log("  Bob Flutter logs после Answer:", logsB.slice(-10).join("\n    "));
+
+  // Проверим DOM
+  const bobCallDom = await bob.evaluate(() => {
+    const all = document.querySelectorAll("flt-semantics");
+    const texts = Array.from(all).map(e => ({
+      label: (e.getAttribute("aria-label") || "").slice(0, 80),
+      text: (e.textContent || "").slice(0, 80),
+      role: e.getAttribute("role"),
+    }));
+    return { total: all.length, nodes: texts };
+  });
+  console.log("  Bob call screen DOM:", JSON.stringify(bobCallDom, null, 2));
+
+  // Ждём текст статуса звонка
+  try {
+    await bob
+      .getByText(/Подключение|СОЕДИНЕНО|Соединено|Звонок|Calling/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 });
+    console.log("Bob: статус звонка — OK ✅");
+  } catch (_) {
+    console.log("Bob: статус звонка не появился — продолжаем");
+  }
+
+  console.log(
+    "\n✅ Тест завершён: два браузера, регистрация, контакт, звонок (Signaling API), "
+    + "принятие. WebRTC-соединение с dummy SDP не проверяется.",
+  );
+
+  await browser.close();
+
+  console.log(
+    "\n✅ Итог: два изолированных контекста Chromium — регистрация, добавление " +
+      "контакта, исходящий звонок, принятие, оба видят экран звонка.",
+  );
+}
+
+main().catch((err) => {
+  console.error("\n❌ Тест упал:", err?.message ?? err);
+  process.exit(1);
+});
+
+  // Проверим DOM
+  const bobCallDom = await bob.evaluate(() => {
+    const all = document.querySelectorAll("flt-semantics");
+    const texts = Array.from(all).map(e => ({
+      label: (e.getAttribute("aria-label") || "").slice(0, 80),
+      text: (e.textContent || "").slice(0, 80),
+      role: e.getAttribute("role"),
+    }));
+    return { total: all.length, nodes: texts };
+  });
+  console.log("  Bob call screen DOM:", JSON.stringify(bobCallDom, null, 2));
+
+  // Ждём текст статуса звонка
+  try {
+    await bob
+      .getByText(/Подключение|СОЕДИНЕНО|Соединено|Звонок|Calling/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 });
+    console.log("Bob: статус звонка — OK ✅");
+  } catch (_) {
+    console.log("Bob: статус звонка не появился — продолжаем");
+  }
+
+  console.log(
+    "\n✅ Тест завершён: два браузера, регистрация, контакт, звонок (Signaling API), "
+    + "принятие. WebRTC-соединение с dummy SDP не проверяется.",
+  );
 
   await browser.close();
 

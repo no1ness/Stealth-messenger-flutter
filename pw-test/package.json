@@ -4,9 +4,13 @@
   "scripts": {
     "serve:web": "node scripts/start-web-server.mjs",
     "serve:web:static": "node serve-static-web.mjs",
-    "test:e2e:chat": "node scenarios/chat-basic.mjs",
-    "test:e2e:call": "node scenarios/call-basic.mjs",
-    "test:e2e:registration": "node scenarios/registration.mjs",
+    "test": "node run.mjs",
+    "test:registration": "node run.mjs registration",
+    "test:call": "node run.mjs call",
+    "test:chat": "node run.mjs chat",
+    "test:e2e:chat": "node run.mjs chat",
+    "test:e2e:call": "node run.mjs call",
+    "test:e2e:registration": "node run.mjs registration",
     "test:call:two-browsers": "node two-browser-call.mjs",
     "test:media": "node media-test.mjs"
   },

@@ -1,16 +1,16 @@
 import { spawn } from "child_process";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { WEB_URL } from "../config.mjs";
 
 const CLIENT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "client");
-const PORT = process.env.STEALTH_WEB_PORT || "4444";
+const PORT = process.env.STEALTH_WEB_PORT || "57575";
 
 export async function startWebServer() {
   const proc = spawn("flutter", [
     "run",
     "-d", "web-server",
     "--web-port", PORT,
-    "--web-renderer", "canvaskit",
   ], {
     cwd: CLIENT_DIR,
     stdio: ["ignore", "pipe", "pipe"],

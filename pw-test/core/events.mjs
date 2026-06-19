@@ -1,40 +1,45 @@
-import { TEST_API_URL } from "../config.mjs";
-
 export class EventBus {
-  constructor(baseUrl = TEST_API_URL) {
-    this._base = baseUrl;
+  constructor() {
+    this._queue = [];
+    this._waiters = [];
     this._seen = new Set();
   }
 
-  async waitForEvent(type, { timeoutMs = 15000, pollMs = 200 } = {}) {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const event = await this._pollOnce(type);
-      if (event) return event;
-      await _sleep(pollMs);
+  push(event) {
+    const key =
+      event.type +
+      ":" +
+      (event.chatId || event.roomId || event.userId || event.text || "");
+    if (this._seen.has(key)) return;
+    this._seen.add(key);
+
+    this._queue.push(event);
+
+    const matching = this._waiters.filter((w) => w.type === event.type);
+    for (const w of matching) {
+      w.resolve(event);
     }
-    throw new Error(`waitForEvent("${type}") timed out after ${timeoutMs}ms`);
+    this._waiters = this._waiters.filter((w) => w.type !== event.type);
   }
 
-  async _pollOnce(type) {
-    try {
-      const res = await fetch(`${this._base}/events`, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return null;
-      const list = await res.json();
-      for (const ev of list) {
-        const key = ev.type + ":" + (ev.chatId || ev.roomId || ev.userId || "");
-        if (ev.type === type && !this._seen.has(key)) {
-          this._seen.add(key);
-          return ev;
-        }
-      }
-    } catch {
-      // server not ready yet
-    }
-    return null;
-  }
-}
+  async waitForEvent(type, { timeoutMs = 15000 } = {}) {
+    const existing = this._queue.find((e) => e.type === type);
+    if (existing) return existing;
 
-function _sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this._waiters = this._waiters.filter((w) => w.resolve !== resolve);
+        reject(
+          new Error(`waitForEvent("${type}") timed out after ${timeoutMs}ms`),
+        );
+      }, timeoutMs);
+      this._waiters.push({
+        type,
+        resolve: (ev) => {
+          clearTimeout(timer);
+          resolve(ev);
+        },
+      });
+    });
+  }
 }

@@ -10,8 +10,9 @@
  */
 import { chromium } from "playwright";
 import { writeFileSync } from "fs";
+import { WEB_URL } from "./config.mjs";
 
-const BASE = process.env.STEALTH_WEB_URL || "http://127.0.0.1:57575";
+const BASE = WEB_URL;
 const TIMEOUT = 120_000;
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));

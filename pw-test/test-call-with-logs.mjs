@@ -5,6 +5,7 @@
 
 import { spawn } from 'child_process';
 import { writeFileSync } from 'fs';
+import { EMULATOR_UDID, PHONE_UDID } from './config.mjs';
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -12,8 +13,16 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 const phoneLogs = [];
 const emulatorLogs = [];
 
+const phoneUdid = PHONE_UDID || process.env.STEALTH_PHONE_UDID;
+const emulatorUdid = EMULATOR_UDID;
+
+if (!phoneUdid) {
+  console.error('ERROR: STEALTH_PHONE_UDID not set');
+  process.exit(1);
+}
+
 // Запускаем сбор логов с телефона
-const phoneLogcat = spawn('adb', ['-s', 'AQY57PRG4PQCR8UO', 'logcat', '-v', 'time', 'flutter:V', 'stealth:V', '*:S']);
+const phoneLogcat = spawn('adb', ['-s', phoneUdid, 'logcat', '-v', 'time', 'flutter:V', 'stealth:V', '*:S']);
 phoneLogcat.stdout.on('data', (data) => {
   const line = data.toString();
   phoneLogs.push(line);
@@ -23,7 +32,7 @@ phoneLogcat.stdout.on('data', (data) => {
 });
 
 // Запускаем сбор логов с эмулятора
-const emulatorLogcat = spawn('adb', ['-s', 'emulator-5554', 'logcat', '-v', 'time', 'flutter:V', 'stealth:V', '*:S']);
+const emulatorLogcat = spawn('adb', ['-s', emulatorUdid, 'logcat', '-v', 'time', 'flutter:V', 'stealth:V', '*:S']);
 emulatorLogcat.stdout.on('data', (data) => {
   const line = data.toString();
   emulatorLogs.push(line);

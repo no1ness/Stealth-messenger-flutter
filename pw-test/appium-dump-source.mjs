@@ -4,13 +4,14 @@
 
 import { remote } from 'webdriverio';
 import { writeFileSync } from 'fs';
+import { APPIUM_HOST, APPIUM_PORT, PHONE_UDID } from './config.mjs';
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 const phoneCaps = {
   platformName: 'Android',
-  'appium:deviceName': '2412DPC0AG',
-  'appium:udid': 'AQY57PRG4PQCR8UO',
+  'appium:deviceName': PHONE_UDID || process.env.STEALTH_PHONE_UDID || 'PHONE',
+  'appium:udid': PHONE_UDID || process.env.STEALTH_PHONE_UDID,
   'appium:automationName': 'UiAutomator2',
   'appium:appPackage': 'com.stealth.messenger',
   'appium:appActivity': '.MainActivity',
@@ -23,8 +24,8 @@ async function main() {
 
   const driver = await remote({
     protocol: 'http',
-    hostname: '127.0.0.1',
-    port: 4723,
+    hostname: APPIUM_HOST,
+    port: APPIUM_PORT,
     path: '/',
     capabilities: phoneCaps,
   });
