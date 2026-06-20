@@ -5,7 +5,6 @@ import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
 import 'package:stealth/ui/screens/calls_screen.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
-import 'package:stealth/ui/screens/contacts_screen.dart';
 import 'package:stealth/ui/screens/profile_screen.dart';
 import 'package:stealth/ui/screens/settings_screen.dart';
 import 'package:stealth/ui/widgets/call_manager.dart';
@@ -29,7 +28,6 @@ class _MainTabsState extends State<MainTabs> {
 
     _screens = [
       ChatsScreen(initialChatId: widget.initialChatId),
-      ContactsScreen(),
       const CallsScreen(),
       const ProfileScreen(),
       const SettingsScreen(),
@@ -67,12 +65,6 @@ class _MainTabsState extends State<MainTabs> {
               selectedIcon: Icons.chat_bubble,
               label: 'Чаты',
               semanticLabel: AccessibilityIds.chatsTab,
-            ),
-            GlassBottomNavBarItem(
-              icon: Icons.people_outline,
-              selectedIcon: Icons.people,
-              label: 'Контакты',
-              semanticLabel: AccessibilityIds.contactsTab,
             ),
             GlassBottomNavBarItem(
               icon: Icons.call_outlined,
