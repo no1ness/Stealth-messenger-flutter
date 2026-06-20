@@ -24,28 +24,29 @@ export async function kickDebugMainIfNeeded(page) {
 }
 
 export async function enableFlutterA11y(page, deadlineMs = 10000) {
-  const textboxCount = await page.getByRole("textbox").count();
-  if (textboxCount > 0) return true;
+  if (await page.getByRole("textbox").count() > 0) return true;
 
   const deadline = Date.now() + deadlineMs;
 
   while (Date.now() < deadline) {
-    const result = await page.evaluate(() => {
+    const clicked = await page.evaluate(() => {
       const p = document.querySelector(
         'flt-semantics-placeholder[aria-label="Enable accessibility"], [aria-label="Enable accessibility"]',
       );
-      if (!p) return "NOT_FOUND";
+      if (!p) return false;
       p.click();
-      return "CLICKED";
+      return true;
     });
 
-    if (result === "CLICKED") {
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await delay(200);
+    if (clicked) {
+      // Wait for textbox to appear after enabling a11y
+      for (let i = 0; i < 20 && Date.now() < deadline; i++) {
         if (await page.getByRole("textbox").count() > 0) return true;
+        await delay(100);
       }
+    } else {
+      await delay(200);
     }
-    await delay(200);
   }
 
   return (await page.getByRole("textbox").count()) > 0;
@@ -81,9 +82,9 @@ export async function gotoApp(page, baseUrl, deadlineMs = 60000) {
 export async function typeIntoFlutterTextField(page, text) {
   const field = page.getByRole("textbox").first();
   await field.focus();
-  await delay(100);
+  await delay(50);
   await page.keyboard.press("ArrowRight");
-  await delay(100);
+  await delay(50);
 
   await page.evaluate(async (txt) => {
     const inp = document.querySelector("input");
@@ -101,24 +102,22 @@ export async function typeIntoFlutterTextField(page, text) {
     }
     inp.dispatchEvent(new Event("change", { bubbles: true }));
   }, text);
-  await delay(200);
+  await delay(120);
 }
 
 export async function resetToMain(page, baseUrl) {
   await gotoApp(page, baseUrl);
-  await delay(1000);
   await enableFlutterA11y(page);
 
   try {
     await page
       .getByRole("button", { name: "Chats" })
-      .waitFor({ state: "visible", timeout: 20000 });
+      .waitFor({ state: "visible", timeout: 15000 });
   } catch (error) {
     console.warn(`Chats button not found after reset: ${error.message}`);
-    await delay(2000);
     await enableFlutterA11y(page);
     await page
       .getByRole("button", { name: "Chats" })
-      .waitFor({ state: "visible", timeout: 15000 });
+      .waitFor({ state: "visible", timeout: 10000 });
   }
 }

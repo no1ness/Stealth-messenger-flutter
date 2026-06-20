@@ -15,7 +15,7 @@ Rationale: This plan delivers the core M11 milestone — makes the Flutter web b
 ## Research Context
 Source: Codebase exploration, `docs/deployment.md`, `server/docker/scripts/`, `.github/workflows/ci.yml`
 
-Goal: Serve Flutter web release on `https://app.stealthpro.ru` with automatic HTTPS (Caddy), built with correct signaling dart-defines, deployed via SCP/rsync from the development machine or CI.
+Goal: Serve Flutter web release on `https://app.stealthpro.ru:8445` with TLS via certbot DNS-01 (port 443 занят sing-box), built with correct signaling dart-defines, deployed via SCP/rsync from the development machine or CI.
 
 Constraints:
 - VPS: 185.72.147.197, Ubuntu 26.04, 0.5 GB RAM / 7 GB NVMe (no Docker currently — native deployment)
@@ -62,7 +62,7 @@ Open questions: None — scope is clear.
   - Rsyncs `client/build/web/` to VPS: `rsync -avz --delete build/web/ root@185.72.147.197:/var/www/stealth-web/`
   - Ensures Caddy config is up to date on VPS (copies Caddy site block or runs a separate `caddy-update` step)
   - Reloads Caddy: `ssh root@185.72.147.197 "systemctl reload caddy"`
-  - Verifies: `curl -sSf https://app.stealthpro.ru/ > /dev/null`
+  - Verifies: `curl -sSf https://app.stealthpro.ru:8445/ > /dev/null`
   - Logging: echo each step, log rsync time, log HTTP status
   - Files: `server/docker/scripts/deploy-web.sh`
 
@@ -99,5 +99,5 @@ Open questions: None — scope is clear.
 ## Verification
 1. Run `./server/docker/scripts/build-client-web.sh` — produces `client/build/web/`
 2. Run `./server/docker/scripts/verify-web.sh` against VPS — returns 200
-3. Open `https://app.stealthpro.ru` in browser — app loads without errors
+3. Open `https://app.stealthpro.ru:8445` in browser — app loads without errors
 4. `docs/deployment.md` documents the full web deploy flow

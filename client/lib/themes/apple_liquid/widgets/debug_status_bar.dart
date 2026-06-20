@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
@@ -49,9 +48,7 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: Container(
+      child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -128,7 +125,6 @@ class _DebugStatusBarState extends State<DebugStatusBar> {
             ),
           ),
         ),
-      ),
     );
   }
 }

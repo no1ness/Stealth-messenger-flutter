@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
@@ -21,12 +20,7 @@ class GlassBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: RepaintBoundary(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppSpacing.glassBlur,
-            sigmaY: AppSpacing.glassBlur,
-          ),
-          child: Container(
+        child: Container(
             height:
                 AppSpacing.tabBarHeight + MediaQuery.of(context).padding.bottom,
             decoration: BoxDecoration(
@@ -50,7 +44,6 @@ class GlassBottomNavBar extends StatelessWidget {
                     onTap: () => onTap(index),
                   ),
                 ),
-              ),
             ),
           ),
         ),

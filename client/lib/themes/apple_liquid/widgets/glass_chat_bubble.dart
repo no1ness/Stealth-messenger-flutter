@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
@@ -57,9 +56,7 @@ class GlassChatBubble extends StatelessWidget {
           isSent ? AppSpacing.radiusXs : AppSpacing.radiusLg,
         ),
       ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: Container(
+      child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -109,7 +106,6 @@ class GlassChatBubble extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
 
     // Signature scan-line on outgoing bubbles only. The overlay
@@ -239,9 +235,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
+      child: Container(
           decoration: BoxDecoration(
             color: AppColors.darkGray2.withValues(alpha: 0.8),
             border: const Border(
@@ -271,9 +265,7 @@ class _GlassChatInputState extends State<GlassChatInput> {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                        child: Container(
+                      child: Container(
                           decoration: BoxDecoration(
                             color: AppColors.glassMedium,
                             borderRadius:
@@ -304,7 +296,6 @@ class _GlassChatInputState extends State<GlassChatInput> {
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: AppSpacing.xs),
                   GestureDetector(
                     onTap: _hasText ? widget.onSend : widget.onVoice,
@@ -338,7 +329,6 @@ class _GlassChatInputState extends State<GlassChatInput> {
             ),
           ),
         ),
-      ),
     );
   }
 }

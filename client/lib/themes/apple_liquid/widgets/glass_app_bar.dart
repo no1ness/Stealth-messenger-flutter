@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
@@ -35,9 +34,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: RepaintBoundary(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
+        child: Container(
             decoration: BoxDecoration(
               color: AppColors.glassUltraDark,
               border: Border(
@@ -94,7 +91,6 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                           if (actions == null && showBackButton)
                             const SizedBox(width: 48),
                         ],
-                      ),
               ),
             ),
           ),
@@ -151,9 +147,7 @@ class GlassSliverAppBar extends StatelessWidget {
       elevation: 0,
       flexibleSpace: ClipRRect(
         child: RepaintBoundary(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-            child: Container(
+          child: Container(
               decoration: BoxDecoration(
                 color: AppColors.darkGray2.withValues(alpha: 0.8),
                 border: const Border(
@@ -178,7 +172,6 @@ class GlassSliverAppBar extends StatelessWidget {
                 ),
                 background: flexibleSpace,
               ),
-            ),
           ),
         ),
       ),

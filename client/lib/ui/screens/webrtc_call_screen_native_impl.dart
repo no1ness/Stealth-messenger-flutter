@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
@@ -356,16 +354,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       onTap: onPressed,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
+        child: Container(
             width: size,
             height: size,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: size * 0.4),
           ),
         ),
-      ),
     );
   }
 

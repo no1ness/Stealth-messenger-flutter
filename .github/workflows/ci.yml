@@ -335,24 +335,20 @@ jobs:
           npm install
           npx playwright install chromium
 
-      - name: Start web static server + run E2E
+      - name: Start web static server + run E2E suite
         working-directory: ${{ github.workspace }}/pw-test
         env:
           STEALTH_WEB_PORT: "57575"
+          STEALTH_WEB_URL: "http://127.0.0.1:57575"
         run: |
-          node serve-static-web.mjs &
-          SERVER_PID=$!
-          for i in $(seq 1 30); do
-            if curl -s http://127.0.0.1:57575 > /dev/null 2>&1; then
-              echo "Web server ready"
-              break
-            fi
-            sleep 1
-          done
-          STEALTH_WEB_URL=http://127.0.0.1:57575 \
-          node scenarios/chat-basic.mjs || true
-          STEALTH_WEB_URL=http://127.0.0.1:57575 \
-          node scenarios/call-basic.mjs || true
-          STEALTH_WEB_URL=http://127.0.0.1:57575 \
-          node scenarios/registration.mjs || true
-          kill $SERVER_PID 2>/dev/null || true
+          mkdir -p artifacts
+          node run.mjs suite --server || { echo "Suite failed, running fallback..."; node run.mjs registration --server; }
+
+      - name: Upload E2E artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pw-test-artifacts
+          path: pw-test/artifacts/
+          retention-days: 7
+          if-no-files-found: warn

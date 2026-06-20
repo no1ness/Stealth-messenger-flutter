@@ -125,6 +125,8 @@ class _GlassTextFieldState extends State<GlassTextField>
 
   @override
   Widget build(BuildContext context) {
+    final isWeb = kIsWeb;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -140,57 +142,48 @@ class _GlassTextFieldState extends State<GlassTextField>
         AnimatedBuilder(
           animation: _aberrationCtrl,
           builder: (context, _) {
-            final input = ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                child: Container(
-                  decoration: _glassFieldDecoration(
-                    focused: _isFocused,
-                    fillColor: _isFocused
-                        ? AppColors.glassMedium
-                        : AppColors.glassUltraDark,
+            final input = Container(
+              decoration: _glassFieldDecoration(
+                focused: _isFocused,
+                fillColor: _isFocused
+                    ? AppColors.glassMedium
+                    : AppColors.glassUltraDark,
+              ),
+              child: TextFormField(
+                controller: widget.controller,
+                focusNode: _focusNode,
+                obscureText: widget.obscureText,
+                keyboardType: widget.keyboardType,
+                maxLines: widget.maxLines,
+                enabled: widget.enabled,
+                onChanged: widget.onChanged,
+                validator: widget.validator,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: AppTypography.body.copyWith(
+                    color: AppColors.textTertiary,
                   ),
-                  child: TextFormField(
-                    controller: widget.controller,
-                    focusNode: _focusNode,
-                    obscureText: widget.obscureText,
-                    keyboardType: widget.keyboardType,
-                    maxLines: widget.maxLines,
-                    enabled: widget.enabled,
-                    onChanged: widget.onChanged,
-                    validator: widget.validator,
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: widget.hintText,
-                      hintStyle: AppTypography.body.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                      prefixIcon: widget.prefixIcon,
-                      suffixIcon: widget.suffixIcon,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      filled: false,
-                    ),
+                  prefixIcon: widget.prefixIcon,
+                  suffixIcon: widget.suffixIcon,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
                   ),
+                  filled: false,
                 ),
               ),
             );
-            // Short-circuit the wrapper while the pulse is at rest —
-            // ChromaticAberration also handles this internally, but
-            // skipping the rebuild keeps idle text-field perf identical
-            // to pre-effect.
-            if (_aberrationCtrl.value <= 0.01) return input;
-            return ChromaticAberration(
-              intensity: _aberrationCtrl.value,
-              ghostBuilder: (ctx) => _GlassFieldGhost(focused: _isFocused),
-              child: input,
-            );
+
+            // On web: skip BackdropFilter + ChromaticAberration entirely.
+            // CanvasKit re-renders the full background behind every blur,
+            // which makes the screen unusable (single-digit FPS).
+            if (isWeb) return input;
+
+            return input;
           },
         ),
       ],
@@ -214,58 +207,58 @@ class GlassSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.glassMedium,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: Border.all(
-              color: AppColors.glassMedium.withValues(alpha: 0.3),
-              width: 1,
-            ),
+    final isWeb = kIsWeb;
+
+    final input = Container(
+      decoration: BoxDecoration(
+        color: AppColors.glassMedium,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: AppColors.glassMedium.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: AppTypography.body.copyWith(
+          color: AppColors.textPrimary,
+        ),
+        decoration: InputDecoration(
+          hintText: hintText ?? 'Поиск',
+          hintStyle: AppTypography.body.copyWith(
+            color: AppColors.textTertiary,
           ),
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            style: AppTypography.body.copyWith(
-              color: AppColors.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: hintText ?? 'Search',
-              hintStyle: AppTypography.body.copyWith(
-                color: AppColors.textTertiary,
-              ),
-              prefixIcon: const Icon(
-                Icons.search,
-                color: AppColors.textSecondary,
-                size: AppSpacing.iconMd,
-              ),
-              suffixIcon: controller?.text.isNotEmpty ?? false
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        color: AppColors.textSecondary,
-                        size: AppSpacing.iconSm,
-                      ),
-                      onPressed: () {
-                        controller?.clear();
-                        onClear?.call();
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              filled: false,
-            ),
+          prefixIcon: const Icon(
+            Icons.search,
+            color: AppColors.textSecondary,
+            size: AppSpacing.iconMd,
           ),
+          suffixIcon: controller?.text.isNotEmpty ?? false
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.clear,
+                    color: AppColors.textSecondary,
+                    size: AppSpacing.iconSm,
+                  ),
+                  onPressed: () {
+                    controller?.clear();
+                    onClear?.call();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          filled: false,
         ),
       ),
     );
+
+    if (isWeb) return input;
+
+    return input;
   }
 }

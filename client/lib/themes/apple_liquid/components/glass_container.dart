@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_motion.dart';
@@ -65,23 +64,18 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final effectiveBlur = brightness == Brightness.light ? (blur * 0.5) : blur;
     final container = ClipRRect(
       borderRadius: BorderRadius.circular(
         borderRadius ?? AppSpacing.radiusLg,
       ),
       child: RepaintBoundary(
-        child: BackdropFilter(
-          filter:
-              ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
-          child: Container(
+        child: Container(
             width: width,
             height: height,
             padding: padding ?? const EdgeInsets.all(AppSpacing.md),
             margin: margin,
             decoration: _getDecoration(brightness),
             child: child,
-          ),
         ),
       ),
     );
@@ -198,12 +192,7 @@ class _GlassButtonState extends State<GlassButton>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           child: RepaintBoundary(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: AppSpacing.glassBlur,
-                sigmaY: AppSpacing.glassBlur,
-              ),
-              child: Container(
+            child: Container(
                 width: widget.width,
                 height: widget.height ?? AppSpacing.buttonHeightMedium,
                 padding: widget.padding ??
@@ -251,7 +240,6 @@ class _GlassButtonState extends State<GlassButton>
             ),
           ),
         ),
-      ),
     );
   }
 }

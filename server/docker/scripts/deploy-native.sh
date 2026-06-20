@@ -7,12 +7,14 @@ REPO_ROOT="$(cd "$DOCKER_DIR/../.." && pwd)"
 if [[ -f "$DOCKER_DIR/.env" ]]; then source "$DOCKER_DIR/.env"; fi
 : "${TURN_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}" : "${TURN_USERNAME:?}" : "${TURN_PASSWORD:?}"
 : "${WEB_FALLBACK_PORT:=8445}" : "${DASHBOARD_FALLBACK_PORT:=8446}"
+: "${WEB_DOMAIN:=app.${TURN_DOMAIN#turn.}}"
 
-export TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD WEB_FALLBACK_PORT DASHBOARD_FALLBACK_PORT
+export TURN_DOMAIN VPS_PUBLIC_IP TURN_USERNAME TURN_PASSWORD
+export WEB_FALLBACK_PORT DASHBOARD_FALLBACK_PORT WEB_DOMAIN DNS_API_TOKEN
 
 # --- install system packages ---
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl wget unzip caddy coturn certbot
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl wget unzip caddy coturn certbot python3-certbot-dns-cloudflare
 
 systemctl disable --now coturn 2>/dev/null || true  # we manage it manually
 
@@ -51,12 +53,24 @@ mkdir -p /var/www/stealth-web
 
 # --- Caddy config (on fallback ports — 443 is owned by sing-box) ---
 mkdir -p /etc/caddy
+: "${WEB_DOMAIN:=app.stealthpro.ru}"
+
+if [[ -n "${DNS_API_TOKEN:-}" ]]; then
+  echo "[deploy-native] Obtaining TLS cert for ${WEB_DOMAIN}..."
+  "$SCRIPT_DIR/ensure-web-cert.sh"
+  WEB_TLS="tls /etc/letsencrypt/live/${WEB_DOMAIN}/fullchain.pem /etc/letsencrypt/live/${WEB_DOMAIN}/privkey.pem"
+else
+  echo "[deploy-native] ⚠️  DNS_API_TOKEN not set — deploying web without TLS"
+  WEB_TLS="# tls — set DNS_API_TOKEN in .env for HTTPS"
+fi
+
 cat > /etc/caddy/Caddyfile <<CADDY
 :8443 {
     reverse_proxy localhost:8090
 }
 
 :${WEB_FALLBACK_PORT} {
+    ${WEB_TLS}
     root * /var/www/stealth-web
     file_server
     encode gzip

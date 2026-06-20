@@ -47,7 +47,18 @@ const server = createServer((req, res) => {
   }
 
   const mimeType = MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream";
-  res.writeHead(200, { "Content-Type": mimeType });
+
+  // Immutable caching for content-hashed build assets
+  const ext = extname(filePath).toLowerCase();
+  const isImmutable = filePath.includes("main.dart.js") || ext === ".wasm";
+  const headers = { "Content-Type": mimeType };
+  if (isImmutable) {
+    headers["Cache-Control"] = "public, max-age=31536000, immutable";
+  } else {
+    headers["Cache-Control"] = "no-cache";
+  }
+
+  res.writeHead(200, headers);
   createReadStream(filePath).pipe(res);
 });
 

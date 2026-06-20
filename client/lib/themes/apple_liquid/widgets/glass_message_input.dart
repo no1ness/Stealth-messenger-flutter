@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -123,12 +122,7 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: RepaintBoundary(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppSpacing.glassBlur,
-            sigmaY: AppSpacing.glassBlur,
-          ),
-          child: Container(
+        child: Container(
             decoration: BoxDecoration(
               color: AppColors.glassUltraDark,
               border: Border(
@@ -175,7 +169,6 @@ class _GlassMessageInputState extends State<GlassMessageInput> {
             ),
           ),
         ),
-      ),
     );
   }
 

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
@@ -383,16 +381,13 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       onTap: onPressed,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-          child: Container(
+        child: Container(
             width: size,
             height: size,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: size * 0.4),
           ),
         ),
-      ),
     );
   }
 

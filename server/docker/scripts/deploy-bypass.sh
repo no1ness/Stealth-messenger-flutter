@@ -42,12 +42,26 @@ cat /etc/sing-box/config.json
 echo '=== Reconfiguring Caddy ==='
 # Current Caddyfile has no ports - Caddy listens on 443 automatically
 # Create new Caddyfile with explicit ports
-cat > /etc/caddy/Caddyfile << 'CADDY'
+WEB_DOMAIN="${WEB_DOMAIN:-app.stealthpro.ru}"
+DNS_API_TOKEN="${DNS_API_TOKEN:-}"
+
+if [[ -n "$DNS_API_TOKEN" ]]; then
+  echo "[deploy-bypass] Obtaining TLS cert for ${WEB_DOMAIN}..."
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  WEB_DOMAIN="$WEB_DOMAIN" DNS_API_TOKEN="$DNS_API_TOKEN" bash "$SCRIPT_DIR/ensure-web-cert.sh"
+  WEB_TLS="tls /etc/letsencrypt/live/${WEB_DOMAIN}/fullchain.pem /etc/letsencrypt/live/${WEB_DOMAIN}/privkey.pem"
+else
+  echo "[deploy-bypass] ⚠️  DNS_API_TOKEN not set — deploying without TLS"
+  WEB_TLS="# tls — set DNS_API_TOKEN in .env for HTTPS"
+fi
+
+cat > /etc/caddy/Caddyfile <<CADDY
 :8443 {
     reverse_proxy localhost:8090
 }
 
 :8445 {
+    ${WEB_TLS}
     root * /var/www/stealth-web
     file_server
     encode gzip
