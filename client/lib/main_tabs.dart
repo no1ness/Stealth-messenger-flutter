@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
+import 'package:stealth/helpers/responsive_breakpoints.dart';
 import 'package:stealth/themes/apple_liquid/widgets/debug_status_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
@@ -37,55 +38,170 @@ class _MainTabsState extends State<MainTabs> {
   @override
   Widget build(BuildContext context) {
     return CallManager(
-      child: Scaffold(
-        extendBody: true,
-        body: StealthAnimatedBackground(
-          child: Column(
-            children: [
-              const DebugStatusBar(),
-              Expanded(
-                child: IndexedStack(
-                  index: _currentIndex,
-                  children: _screens,
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = ResponsiveBreakpoints.isDesktop(constraints.maxWidth);
+
+          if (isDesktop) {
+            return _buildDesktopLayout();
+          }
+          return _buildMobileLayout();
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: StealthAnimatedBackground(
+        child: Column(
+          children: [
+            const DebugStatusBar(),
+            Expanded(
+              child: Row(
+                children: [
+                  _buildDesktopNavRail(),
+                  Expanded(
+                    child: _screens[_currentIndex],
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        bottomNavigationBar: GlassBottomNavBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: const [
-            GlassBottomNavBarItem(
-              icon: Icons.chat_bubble_outline,
-              selectedIcon: Icons.chat_bubble,
-              label: 'Чаты',
-              semanticLabel: AccessibilityIds.chatsTab,
-            ),
-            GlassBottomNavBarItem(
-              icon: Icons.call_outlined,
-              selectedIcon: Icons.call,
-              label: 'Звонки',
-              semanticLabel: AccessibilityIds.callsTab,
-            ),
-            GlassBottomNavBarItem(
-              icon: Icons.person_outline,
-              selectedIcon: Icons.person,
-              label: 'Профиль',
-              semanticLabel: AccessibilityIds.profileTab,
-            ),
-            GlassBottomNavBarItem(
-              icon: Icons.settings_outlined,
-              selectedIcon: Icons.settings,
-              label: 'Настройки',
-              semanticLabel: AccessibilityIds.settingsTab,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopNavRail() {
+    return Container(
+      width: 68,
+      decoration: const BoxDecoration(
+        border: Border(
+          right: BorderSide(
+            color: Color(0x1AFFFFFF),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          _buildNavIconButton(
+            icon: Icons.chat_bubble_outline,
+            selectedIcon: Icons.chat_bubble,
+            index: 0,
+            label: 'Чаты',
+          ),
+          _buildNavIconButton(
+            icon: Icons.call_outlined,
+            selectedIcon: Icons.call,
+            index: 1,
+            label: 'Звонки',
+          ),
+          const Spacer(),
+          _buildNavIconButton(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
+            index: 2,
+            label: 'Профиль',
+          ),
+          _buildNavIconButton(
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings,
+            index: 3,
+            label: 'Настройки',
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavIconButton({
+    required IconData icon,
+    required IconData selectedIcon,
+    required int index,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => setState(() => _currentIndex = index),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: const Color(0x1A2196F3),
+                    borderRadius: BorderRadius.circular(12),
+                  )
+                : null,
+            child: Icon(
+              isSelected ? selectedIcon : icon,
+              color: isSelected ? const Color(0xFF2196F3) : const Color(0x80FFFFFF),
+              size: 22,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      extendBody: true,
+      body: StealthAnimatedBackground(
+        child: Column(
+          children: [
+            const DebugStatusBar(),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: GlassBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          GlassBottomNavBarItem(
+            icon: Icons.chat_bubble_outline,
+            selectedIcon: Icons.chat_bubble,
+            label: 'Чаты',
+            semanticLabel: AccessibilityIds.chatsTab,
+          ),
+          GlassBottomNavBarItem(
+            icon: Icons.call_outlined,
+            selectedIcon: Icons.call,
+            label: 'Звонки',
+            semanticLabel: AccessibilityIds.callsTab,
+          ),
+          GlassBottomNavBarItem(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
+            label: 'Профиль',
+            semanticLabel: AccessibilityIds.profileTab,
+          ),
+          GlassBottomNavBarItem(
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings,
+            label: 'Настройки',
+            semanticLabel: AccessibilityIds.settingsTab,
+          ),
+        ],
       ),
     );
   }

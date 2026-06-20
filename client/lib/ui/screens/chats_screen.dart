@@ -18,7 +18,9 @@ import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/screens/chats/chat_search_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
-import 'package:stealth/ui/screens/chats/insight_panel.dart';
+
+import 'package:stealth/ui/screens/chats/telegram_sidebar.dart';
+import 'package:stealth/ui/screens/chats/telegram_header.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/helpers/responsive_breakpoints.dart';
 import 'package:stealth/p2p_service.dart';
@@ -641,19 +643,50 @@ class _ChatsScreenState extends State<ChatsScreen>
             return Row(
               children: [
                 SizedBox(
-                  width: 360,
-                  child: _buildChatListPanel(_filteredChats, showStats: true),
+                  width: 320,
+                  child: TelegramSidebar(
+                    chats: _filteredChats,
+                    selectedChatId: _selectedChatId,
+                    onChatSelected: (chatId) => _selectChat(chatId),
+                    onContactSelected: (contact) async {
+                      final userId = (contact['user_id'] ?? contact['contact_user_id'])?.toString();
+                      if (userId != null) {
+                        final chatId = await _appService.findOrCreatePrivateChatWith(userId);
+                        if (chatId != null && mounted) {
+                          await _loadChats();
+                          await _selectChat(chatId);
+                        }
+                      }
+                    },
+                    loading: _loading,
+                    onCreateGroup: () => showCreateGroupSheet(
+                      context: context,
+                      appService: _appService,
+                      nameController: _groupNameController,
+                      onGroupCreated: (chatId) async {
+                        await _loadChats();
+                        if (mounted) {
+                          await _selectChat(chatId);
+                        }
+                      },
+                    ),
+                  ),
                 ),
-                const VerticalDivider(width: 1),
                 Expanded(
                   child: _selectedChatId == null
                       ? const StealthEmptyState.chats()
-                      : _buildConversationPanel(_filteredMessages),
-                ),
-                const VerticalDivider(width: 1),
-                SizedBox(
-                  width: 280,
-                  child: _buildInsightPanel(_filteredChats.length),
+                      : Column(
+                          children: [
+                            TelegramHeader(
+                              chatName: currentChat['name'] as String? ?? 'Чат',
+                              chatId: _selectedChatId!,
+                              onBack: null,
+                            ),
+                            Expanded(
+                              child: _buildConversationPanel(_filteredMessages),
+                            ),
+                          ],
+                        ),
                 ),
               ],
             );
@@ -671,67 +704,21 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   Widget _buildChatListPanel(
     List<Map<String, dynamic>> chats, {
-    required bool showStats,
+    bool showStats = false,
   }) {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ChatSearchBar(
-                controller: _searchController,
-                onSearchChanged: () {
-                  if (mounted) {
-                    setState(() {
-                      _updateFilters();
-                    });
-                  }
-                },
-              ),
-              if (showStats) ...[
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Чаты',
-                        value: '${_chats.length}',
-                        accent: AppColors.systemBlue,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatCard(
-                        label: 'Непрочитано',
-                        value: '${_totalUnreadCount()}',
-                        accent: AppColors.systemOrange,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => showCreateGroupSheet(
-                      context: context,
-                      appService: _appService,
-                      nameController: _groupNameController,
-                      onGroupCreated: (chatId) async {
-                        await _loadChats();
-                        if (mounted) {
-                          await _selectChat(chatId);
-                        }
-                      },
-                    ),
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('Новая группа'),
-                  ),
-                ),
-              ],
-            ],
+          child: ChatSearchBar(
+            controller: _searchController,
+            onSearchChanged: () {
+              if (mounted) {
+                setState(() {
+                  _updateFilters();
+                });
+              }
+            },
           ),
         ),
         Expanded(
@@ -893,21 +880,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Widget _buildInsightPanel(int visibleChats) {
-    return InsightPanel(
-      messageCount: _messages.length,
-      visibleChatCount: visibleChats,
-      myUserId: _myUserId,
-    );
-  }
-
-  int _totalUnreadCount() {
-    return _chats.fold<int>(
-      0,
-      (sum, chat) => sum + (chat['unreadCount'] as int? ?? 0),
-    );
-  }
-
   Future<void> _handleAttachment() async {
     final chatId = _selectedChatId;
     if (chatId == null) {
@@ -1030,39 +1002,5 @@ class _ChatsScreenState extends State<ChatsScreen>
       return 'audio';
     }
     return 'file';
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.24)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
-        ),
-      ),
-    );
   }
 }
