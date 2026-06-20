@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import { POCKETBASE_URL } from "../config.mjs";
 import { readContactBundle } from "../contact-bundle-helper.mjs";
-import { delay } from "../core/flutter-helpers.mjs";
 import { pbId, dummySdp, readPbToken, decodeBundle, registerUser } from "../core/scenario-helpers.mjs";
 
 export default async function callBasic({ alice, bob }) {
@@ -11,7 +10,6 @@ export default async function callBasic({ alice, bob }) {
 
   await registerUser(alice, nickA);
   await registerUser(bob, nickB);
-  await delay(2000);
 
   const aliceBundle = await readContactBundle(alice.page);
   const bobBundle = await readContactBundle(bob.page);
