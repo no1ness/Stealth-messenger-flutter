@@ -12,14 +12,12 @@ class TelegramHeader extends StatelessWidget {
     super.key,
     required this.chatName,
     required this.chatId,
-    this.isOnline = false,
     this.onBack,
     this.onMenuPressed,
   });
 
   final String chatName;
   final String chatId;
-  final bool isOnline;
   final VoidCallback? onBack;
   final VoidCallback? onMenuPressed;
 

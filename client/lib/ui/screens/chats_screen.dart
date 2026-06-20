@@ -14,7 +14,7 @@ import 'package:stealth/themes/apple_liquid/widgets/chats/chat_tile.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
-import 'package:stealth/ui/screens/chats/create_group_sheet.dart';
+
 import 'package:stealth/ui/screens/chats/group_management_sheet.dart';
 import 'package:stealth/ui/screens/chats/chat_search_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
@@ -659,17 +659,6 @@ class _ChatsScreenState extends State<ChatsScreen>
                       }
                     },
                     loading: _loading,
-                    onCreateGroup: () => showCreateGroupSheet(
-                      context: context,
-                      appService: _appService,
-                      nameController: _groupNameController,
-                      onGroupCreated: (chatId) async {
-                        await _loadChats();
-                        if (mounted) {
-                          await _selectChat(chatId);
-                        }
-                      },
-                    ),
                   ),
                 ),
                 Expanded(
@@ -693,7 +682,7 @@ class _ChatsScreenState extends State<ChatsScreen>
           }
 
           if (_selectedChatId == null) {
-            return _buildChatListPanel(_filteredChats, showStats: false);
+            return _buildChatListPanel(_filteredChats);
           }
 
           return _buildConversationPanel(_filteredMessages);
@@ -702,10 +691,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Widget _buildChatListPanel(
-    List<Map<String, dynamic>> chats, {
-    bool showStats = false,
-  }) {
+  Widget _buildChatListPanel(List<Map<String, dynamic>> chats) {
     return Column(
       children: [
         Padding(

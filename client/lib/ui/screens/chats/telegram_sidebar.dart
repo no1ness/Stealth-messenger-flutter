@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
@@ -22,7 +23,6 @@ class TelegramSidebar extends StatefulWidget {
     required this.onChatSelected,
     required this.onContactSelected,
     required this.loading,
-    this.onCreateGroup,
   });
 
   final List<Map<String, dynamic>> chats;
@@ -30,7 +30,6 @@ class TelegramSidebar extends StatefulWidget {
   final void Function(String chatId) onChatSelected;
   final void Function(Map<String, dynamic> contact) onContactSelected;
   final bool loading;
-  final VoidCallback? onCreateGroup;
 
   @override
   State<TelegramSidebar> createState() => _TelegramSidebarState();
@@ -137,6 +136,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
         _applyFilter();
       }
     } catch (e) {
+      Logger.warn('[TelegramSidebar] failed to load contacts', extras: {'error': '$e'});
       if (mounted) {
         setState(() => _loadingContacts = false);
       }

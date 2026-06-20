@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/helpers/responsive_breakpoints.dart';
+import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
 import 'package:stealth/themes/apple_liquid/widgets/debug_status_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
 import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
@@ -77,10 +78,10 @@ class _MainTabsState extends State<MainTabs> {
   Widget _buildDesktopNavRail() {
     return Container(
       width: 68,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           right: BorderSide(
-            color: Color(0x1AFFFFFF),
+            color: AppColors.dividerSubtle,
             width: 0.5,
           ),
         ),
@@ -92,26 +93,22 @@ class _MainTabsState extends State<MainTabs> {
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
             index: 0,
-            label: 'Чаты',
           ),
           _buildNavIconButton(
             icon: Icons.call_outlined,
             selectedIcon: Icons.call,
             index: 1,
-            label: 'Звонки',
           ),
           const Spacer(),
           _buildNavIconButton(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             index: 2,
-            label: 'Профиль',
           ),
           _buildNavIconButton(
             icon: Icons.settings_outlined,
             selectedIcon: Icons.settings,
             index: 3,
-            label: 'Настройки',
           ),
           const SizedBox(height: 12),
         ],
@@ -123,7 +120,6 @@ class _MainTabsState extends State<MainTabs> {
     required IconData icon,
     required IconData selectedIcon,
     required int index,
-    required String label,
   }) {
     final isSelected = _currentIndex == index;
     return Padding(
@@ -138,13 +134,13 @@ class _MainTabsState extends State<MainTabs> {
             padding: const EdgeInsets.all(10),
             decoration: isSelected
                 ? BoxDecoration(
-                    color: const Color(0x1A2196F3),
+                    color: AppColors.systemBlue.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(12),
                   )
                 : null,
             child: Icon(
               isSelected ? selectedIcon : icon,
-              color: isSelected ? const Color(0xFF2196F3) : const Color(0x80FFFFFF),
+              color: isSelected ? AppColors.systemBlue : AppColors.textSecondary,
               size: 22,
             ),
           ),
