@@ -95,14 +95,23 @@ class GlassChatBubble extends StatelessWidget {
               ],
               if (attachmentWidget != null) ...[
                 attachmentWidget!,
-                const SizedBox(height: AppSpacing.xs),
+                if (message.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    message,
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textOnGlass,
+                    ),
+                  ),
+                ],
               ],
-              Text(
-                message,
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textOnGlass,
+              if (attachmentWidget == null)
+                Text(
+                  message,
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textOnGlass,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

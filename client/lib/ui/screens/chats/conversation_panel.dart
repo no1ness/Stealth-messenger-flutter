@@ -169,17 +169,36 @@ class ConversationPanel extends StatelessWidget {
                         isSent && !isGroupChat && deliveryStatus != null;
                     final messageId = message['id']?.toString();
 
+                    final attachmentWidget = buildConversationAttachment(
+                      message: message,
+                      appService: appService,
+                      chatId: chatId,
+                    );
+                    final msgType = message['type'] as String?;
+                    final hasAttachment = attachmentWidget != null;
+                    final rawText = message['message'] as String? ?? '';
+                    final editedMarker =
+                        message['edited_at'] != null ? ' (ред.)' : '';
+
+                    String displayText;
+                    if (hasAttachment) {
+                      if (msgType == 'image') {
+                        displayText = editedMarker.isNotEmpty ? editedMarker : '';
+                      } else if (msgType == 'audio') {
+                        displayText = editedMarker.isNotEmpty ? editedMarker : '';
+                      } else {
+                        displayText = editedMarker.isNotEmpty ? editedMarker : '';
+                      }
+                    } else {
+                      displayText = '$rawText$editedMarker';
+                    }
+
                     final bubble = glass.GlassChatBubble(
-                      message:
-                          '${message['message'] as String? ?? ''}${message['edited_at'] != null ? ' (ред.)' : ''}',
+                      message: displayText,
                       timestamp: message['timestamp'] as String?,
                       isDelivered: message['isDelivered'] as bool?,
                       isRead: message['isRead'] as bool?,
-                      attachmentWidget: buildConversationAttachment(
-                        message: message,
-                        appService: appService,
-                        chatId: chatId,
-                      ),
+                      attachmentWidget: attachmentWidget,
                       replyPreview: repliedMessage == null
                           ? null
                           : _ReplyPreview(
