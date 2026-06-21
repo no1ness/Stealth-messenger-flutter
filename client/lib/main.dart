@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:js_interop';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stealth/bootstrap_env.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
@@ -57,7 +58,7 @@ String? _decryptLocalStorageSync(String encrypted) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
