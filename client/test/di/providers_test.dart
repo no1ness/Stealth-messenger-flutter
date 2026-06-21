@@ -38,6 +38,30 @@ void main() {
       final storage = container.read(storageServiceProvider);
       expect(storage, isA<MockStorageService>());
     });
+
+    test('selfUserIdProvider can be overridden', () async {
+      final container = ProviderContainer(
+        overrides: [
+          selfUserIdProvider.overrideWith((ref) async => 'test-user-id'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final userId = await container.read(selfUserIdProvider.future);
+      expect(userId, 'test-user-id');
+    });
+
+    test('selfNicknameProvider can be overridden', () async {
+      final container = ProviderContainer(
+        overrides: [
+          selfNicknameProvider.overrideWith((ref) async => 'TestNick'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final nickname = await container.read(selfNicknameProvider.future);
+      expect(nickname, 'TestNick');
+    });
   });
 }
 

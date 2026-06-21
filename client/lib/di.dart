@@ -35,3 +35,29 @@ final incomingP2PMessagesProvider = StreamProvider<Map<String, dynamic>>((ref) {
   Logger.debug('[di] subscribing to p2p.onMessage');
   return p2p.onMessage;
 });
+
+/// Self user ID from secure storage.
+final selfUserIdProvider = FutureProvider<String?>((ref) async {
+  final storage = ref.watch(storageServiceProvider);
+  Logger.debug('[di] resolving selfUserIdProvider');
+  try {
+    final userId = await storage.read('userId');
+    return userId;
+  } catch (e) {
+    Logger.warn('[di] selfUserIdProvider failed: $e');
+    return null;
+  }
+});
+
+/// Self user nickname from secure storage.
+final selfNicknameProvider = FutureProvider<String?>((ref) async {
+  final storage = ref.watch(storageServiceProvider);
+  Logger.debug('[di] resolving selfNicknameProvider');
+  try {
+    final nickname = await storage.read('nickname');
+    return nickname;
+  } catch (e) {
+    Logger.warn('[di] selfNicknameProvider failed: $e');
+    return null;
+  }
+});

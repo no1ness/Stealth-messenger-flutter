@@ -14,8 +14,8 @@ import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
 import 'package:stealth/test_controller/test_controller.dart';
 import 'package:stealth/test_controller/test_web_bridge.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
 import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
+import 'package:stealth/themes/telegram_tt/telegram_tt.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -241,7 +241,7 @@ class _MyAppState extends State<MyApp> {
           darkTheme: LiquidTheme.darkTheme,
           home: _isLoading
               ? const Scaffold(
-                  body: Center(child: StealthLoadingIndicator()),
+                  body: Center(child: TgLoadingIndicator()),
                 )
               : _startupError != null
                   ? StartupErrorScreen(
