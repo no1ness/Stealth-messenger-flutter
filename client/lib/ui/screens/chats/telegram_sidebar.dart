@@ -3,11 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/widgets/chats/chat_tile.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/services/user_directory/presence_service.dart';
 import 'package:stealth/services/user_directory/user_directory_service.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
-import '../../../themes/apple_liquid/constants/app_colors.dart';
+import '../../../themes/tg/tg_colors.dart';
 
 /// Right-rail dashboard with session insights (realtime sync / platform
 /// / current user marker) and a tiny animated bar chart.

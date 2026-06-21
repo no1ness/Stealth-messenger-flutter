@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../../../themes/apple_liquid/constants/app_colors.dart';
-import '../../../../themes/apple_liquid/constants/app_spacing.dart';
-import '../../../../themes/apple_liquid/constants/app_typography.dart';
+import '../../../../themes/tg/tg_colors.dart';
 
 class PerformanceMonitor extends StatefulWidget {
   const PerformanceMonitor({super.key});

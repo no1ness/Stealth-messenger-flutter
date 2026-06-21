@@ -3,14 +3,7 @@ import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
-import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
-import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/webrtc_support.dart';
 import 'package:web/web.dart' as web;
 

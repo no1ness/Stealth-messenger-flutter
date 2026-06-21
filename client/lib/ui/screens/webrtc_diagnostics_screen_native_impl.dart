@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
-import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
-import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 
 class WebRTCDiagnosticsScreen extends StatefulWidget {
   const WebRTCDiagnosticsScreen({super.key});

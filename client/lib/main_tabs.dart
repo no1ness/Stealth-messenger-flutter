@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/helpers/responsive_breakpoints.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/widgets/debug_status_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_bottom_nav_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/tg/tg_theme_data.dart';
 import 'package:stealth/ui/screens/calls_screen.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/profile_screen.dart';

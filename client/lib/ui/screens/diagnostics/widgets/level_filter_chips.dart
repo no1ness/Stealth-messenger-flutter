@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logging/logger.dart';
-import '../../../../themes/apple_liquid/constants/app_colors.dart';
-import '../../../../themes/apple_liquid/constants/app_motion.dart';
-import '../../../../themes/apple_liquid/constants/app_spacing.dart';
-import '../../../../themes/apple_liquid/constants/app_typography.dart';
+import '../../../../themes/tg/tg_colors.dart';
 
 /// Row of three single-select chips ("All", "Warnings", "Errors") that
 /// drives the diagnostics screen's log filter.

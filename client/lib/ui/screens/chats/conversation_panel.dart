@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart'
-    as glass;
-import 'package:stealth/themes/apple_liquid/widgets/outgoing_delivery_status_icon.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/ui/screens/chats/tg_chat_bubble.dart' as tg;
 import 'package:stealth/ui/screens/chats/conversation_attachment.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../services/diagnostics/service_status.dart';
-import '../../../../themes/apple_liquid/components/glass_container.dart';
-import '../../../../themes/apple_liquid/constants/app_colors.dart';
-import '../../../../themes/apple_liquid/constants/app_spacing.dart';
-import '../../../../themes/apple_liquid/constants/app_typography.dart';
+import '../../../../themes/tg/tg_colors.dart';
 
 class ServiceStatusTile extends StatelessWidget {
   const ServiceStatusTile({super.key, required this.status});

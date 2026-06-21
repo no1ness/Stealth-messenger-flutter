@@ -5,12 +5,7 @@ import 'package:stealth/p2p_service.dart';
 import 'package:stealth/services/dashboard/dashboard_service.dart';
 import 'package:stealth/services/device/device_info_service.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
-import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});

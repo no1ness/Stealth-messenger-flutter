@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSendMessage;

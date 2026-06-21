@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/local_database_service.dart';
@@ -91,4 +92,19 @@ final incomingCallServiceProvider = Provider<IncomingCallSignalingService>((ref)
     pocketBase: pbClient.pb,
     storage: storage,
   );
+});
+
+/// Theme mode state notifier.
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  ThemeModeNotifier() : super(ThemeMode.dark);
+
+  void setMode(ThemeMode mode) {
+    state = mode;
+  }
+}
+
+/// Theme mode provider.
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  Logger.debug('[di] resolving themeModeProvider');
+  return ThemeModeNotifier();
 });

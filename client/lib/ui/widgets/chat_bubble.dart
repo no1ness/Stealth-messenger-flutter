@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_dialog.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'voice_message_player.dart';
 
 class ChatBubble extends StatelessWidget {

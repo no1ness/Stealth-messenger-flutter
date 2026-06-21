@@ -16,7 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logging/logger.dart';
-import '../../themes/apple_liquid/feedback/stealth_snack_bar.dart';
+import '../../themes/tg/tg_colors.dart';
 
 /// Possible outcomes returned by [shareDiagnosticsReport]. Exposed for
 /// widget tests so they can assert which branch was hit by a fake invoker.

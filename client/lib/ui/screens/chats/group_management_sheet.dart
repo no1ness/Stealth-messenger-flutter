@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
+
 
 /// Opens the "Manage group" bottom sheet for a group chat.
 ///

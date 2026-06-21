@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_snack_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/call/call_hud_overlay.dart';
-import 'package:stealth/themes/apple_liquid/widgets/status_chip.dart';
-import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/ui/screens/calls/native_call_controller.dart';
 
 class WebRTCCallScreen extends StatefulWidget {

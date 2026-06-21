@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/services/app_update/app_update_models.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 
 class UpdatePromptScreen extends StatelessWidget {
   const UpdatePromptScreen({

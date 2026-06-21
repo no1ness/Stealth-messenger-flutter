@@ -4,10 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
 class CallsScreen extends StatefulWidget {

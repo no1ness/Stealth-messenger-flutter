@@ -5,14 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/components/glass_container.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_haptics.dart';
-import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_app_bar.dart';
-import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
@@ -114,10 +107,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Future<void> _changeTheme(ThemeMode mode) async {
-    // Push the new value through the shared ThemeController — that
-    // (a) persists to SharedPreferences and (b) notifies the
-    // ValueListenableBuilder around `MaterialApp`, so the theme
-    // applies immediately without a restart.
+    // Push the new value through the Riverpod themeModeProvider.
+    ProviderScope.of(context).read(themeModeProvider.notifier).setMode(mode);
+    // Also persist to SharedPreferences.
     await ThemeController.setMode(mode);
     if (mounted) {
       StealthHaptics.selection(context);

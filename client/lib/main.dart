@@ -4,6 +4,7 @@ import 'dart:js_interop';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stealth/bootstrap_env.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
@@ -14,8 +15,7 @@ import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
 import 'package:stealth/test_controller/test_controller.dart';
 import 'package:stealth/test_controller/test_web_bridge.dart';
-import 'package:stealth/themes/apple_liquid/liquid_theme.dart';
-import 'package:stealth/themes/telegram_tt/telegram_tt.dart';
+import 'package:stealth/themes/tg/tg_theme_data.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -230,18 +230,18 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     // Listen to the global theme controller so the Settings toggle
     // takes effect immediately, without restarting the app.
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.mode,
-      builder: (context, controllerMode, _) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final themeMode = ref.watch(themeModeProvider);
         return MaterialApp(
           title: 'Stealth',
           debugShowCheckedModeBanner: false,
-          themeMode: controllerMode,
-          theme: LiquidTheme.theme,
-          darkTheme: LiquidTheme.darkTheme,
+          themeMode: themeMode,
+          theme: TgThemeData.light,
+          darkTheme: TgThemeData.dark,
           home: _isLoading
               ? const Scaffold(
-                  body: Center(child: TgLoadingIndicator()),
+                  body: const Center(child: CircularProgressIndicator()),
                 )
               : _startupError != null
                   ? StartupErrorScreen(

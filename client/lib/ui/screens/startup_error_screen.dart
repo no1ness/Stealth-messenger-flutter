@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
-import 'package:stealth/themes/apple_liquid/widgets/stealth_background.dart';
+import 'package:stealth/themes/tg/tg_colors.dart';
 
 class StartupErrorScreen extends StatelessWidget {
   const StartupErrorScreen({
