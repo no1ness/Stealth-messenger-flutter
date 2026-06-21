@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocketbase/pocketbase.dart';
 import 'package:stealth/di.dart';
 import 'package:stealth/local_database_service.dart';
+import 'package:stealth/services/signaling/pocketbase_client.dart';
 import 'package:stealth/storage_service.dart';
 
 void main() {
@@ -62,10 +64,40 @@ void main() {
       final nickname = await container.read(selfNicknameProvider.future);
       expect(nickname, 'TestNick');
     });
+
+    test('pocketBaseClientProvider returns PocketBaseClient instance', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final pbClient = container.read(pocketBaseClientProvider);
+      expect(pbClient, isA<PocketBaseClient>());
+      expect(pbClient.pb, isNotNull);
+    });
+
+    test('pocketBaseClientProvider can be overridden', () {
+      final mockPb = MockPocketBaseClient();
+      final container = ProviderContainer(
+        overrides: [
+          pocketBaseClientProvider.overrideWithValue(mockPb),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final pbClient = container.read(pocketBaseClientProvider);
+      expect(pbClient, isA<MockPocketBaseClient>());
+    });
   });
 }
 
 class MockStorageService implements StorageService {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class MockPocketBaseClient implements PocketBaseClient {
+  @override
+  PocketBase get pb => throw UnimplementedError();
+
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }

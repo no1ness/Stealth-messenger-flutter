@@ -3,6 +3,9 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/local_database_service.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/p2p_service.dart';
+import 'package:stealth/services/signaling/incoming_call_service.dart';
+import 'package:stealth/services/signaling/pocketbase_client.dart';
+import 'package:stealth/services/signaling/webrtc_signaling_service.dart';
 import 'package:stealth/storage_service.dart';
 
 /// Project-wide secure key/value store (X25519 keys, PB tokens, etc.).
@@ -60,4 +63,32 @@ final selfNicknameProvider = FutureProvider<String?>((ref) async {
     Logger.warn('[di] selfNicknameProvider failed: $e');
     return null;
   }
+});
+
+/// PocketBase client for signaling.
+final pocketBaseClientProvider = Provider<PocketBaseClient>((ref) {
+  Logger.debug('[di] resolving pocketBaseClientProvider');
+  return PocketBaseClient.instance;
+});
+
+/// WebRTC signaling service.
+final webRtcSignalingServiceProvider = Provider<WebRtcSignalingService>((ref) {
+  Logger.debug('[di] resolving webRtcSignalingServiceProvider');
+  final pbClient = ref.watch(pocketBaseClientProvider);
+  final storage = ref.watch(storageServiceProvider);
+  return WebRtcSignalingService(
+    pocketBase: pbClient.pb,
+    storage: storage,
+  );
+});
+
+/// Incoming call signaling service.
+final incomingCallServiceProvider = Provider<IncomingCallSignalingService>((ref) {
+  Logger.debug('[di] resolving incomingCallServiceProvider');
+  final pbClient = ref.watch(pocketBaseClientProvider);
+  final storage = ref.watch(storageServiceProvider);
+  return IncomingCallSignalingService(
+    pocketBase: pbClient.pb,
+    storage: storage,
+  );
 });
