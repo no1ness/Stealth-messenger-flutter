@@ -4,12 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stealth/themes/apple_liquid/effects/chromatic_aberration.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 
-/// Coverage for [GlassTextField].
-///
-/// Contract:
-/// - Focus gain in dark mode mounts [ChromaticAberration] briefly.
-/// - Light mode gates out the chromatic-aberration pulse.
-/// - Web perf-budget path uses `kIsWeb` guard and `_GlassFieldGhost`.
 void main() {
   group('GlassTextField', () {
     Widget wrap(ThemeMode mode, Widget child) {
@@ -27,26 +21,34 @@ void main() {
     }
 
     testWidgets(
-      'focus gain in dark mode mounts ChromaticAberration briefly',
+      'renders TextFormField',
       (tester) async {
         await tester.pumpWidget(wrap(
           ThemeMode.dark,
           const GlassTextField(hintText: 'Test'),
         ));
+        expect(find.byType(TextFormField), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'focus gain in dark mode mounts ChromaticAberration briefly',
+      (tester) async {
+        await tester.pumpWidget(wrap(
+          ThemeMode.dark,
+          const GlassTextField(hintText: 'Focus test'),
+        ));
         final field = find.byType(TextFormField);
         expect(field, findsOneWidget);
 
-        // Before focus — no ChromaticAberration in tree.
         expect(
           find.descendant(
             of: find.byType(GlassTextField),
             matching: find.byType(ChromaticAberration),
           ),
           findsNothing,
-          reason: 'idle field must not show ChromaticAberration',
         );
 
-        // Gain focus — ChromaticAberration mounts.
         await tester.showKeyboard(field);
         await tester.pump();
         expect(
@@ -55,10 +57,8 @@ void main() {
             matching: find.byType(ChromaticAberration),
           ),
           findsOneWidget,
-          reason: 'focus gain must mount ChromaticAberration',
         );
 
-        // Settle animation — ChromaticAberration disappears again.
         await tester.pumpAndSettle();
         expect(
           find.descendant(
@@ -66,7 +66,6 @@ void main() {
             matching: find.byType(ChromaticAberration),
           ),
           findsNothing,
-          reason: 'after settle ChromaticAberration must be gone',
         );
       },
     );
@@ -81,20 +80,16 @@ void main() {
         final field = find.byType(TextFormField);
         expect(field, findsOneWidget);
 
-        // Gain focus in light mode.
         await tester.showKeyboard(field);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 50));
 
-        // No ColorFiltered should appear inside GlassTextField (the
-        // signature of ChromaticAberration ghost layers).
         expect(
           find.descendant(
             of: find.byType(GlassTextField),
             matching: find.byType(ColorFiltered),
           ),
           findsNothing,
-          reason: 'light mode must not render colour ghost layers',
         );
       },
     );

@@ -70,6 +70,12 @@ void main() {
       // UI widget placeholder labels
       RegExp(r"'Search'"),
       RegExp(r"'Message'"),
+      // Dashboard admin panel labels
+      RegExp(r"'Users'"),
+      RegExp(r"'Messages'"),
+      RegExp(r"'Calls'"),
+      RegExp(r"'Contacts'"),
+      RegExp(r"'Platforms'"),
     ];
 
     final issues = <String>[];

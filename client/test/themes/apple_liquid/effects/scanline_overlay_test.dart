@@ -3,12 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:stealth/themes/apple_liquid/effects/scanline_overlay.dart';
 
-/// Coverage for [ScanlineOverlay] theme-aware auto-gating.
-///
-/// The contract is: in dark mode the overlay paints lines; in light
-/// mode it passes the child through unchanged (no `CustomPaint`,
-/// no `RepaintBoundary`). Pass `force: true` to bypass the gate
-/// (tests + rare explicit-overlay scenarios).
 void main() {
   Widget wrap(ThemeMode mode, Widget child) {
     final brightness =
@@ -35,7 +29,6 @@ void main() {
           ),
         ),
       );
-      // The widget wraps in RepaintBoundary and paints via CustomPaint.
       expect(
         find.descendant(
           of: find.byType(ScanlineOverlay),
@@ -64,17 +57,13 @@ void main() {
           ),
         ),
       );
-      // The child should render bare — ScanlineOverlay returns
-      // child directly without wrapping in CustomPaint.
       expect(
         find.descendant(
           of: find.byType(ScanlineOverlay),
           matching: find.byType(CustomPaint),
         ),
         findsNothing,
-        reason: 'light mode must NOT paint the overlay',
       );
-      // SizedBox child still rendered.
       expect(
         find.descendant(
           of: find.byType(ScanlineOverlay),
@@ -103,7 +92,6 @@ void main() {
           matching: find.byType(CustomPaint),
         ),
         findsWidgets,
-        reason: 'force: true bypasses the light-mode gate',
       );
     },
   );

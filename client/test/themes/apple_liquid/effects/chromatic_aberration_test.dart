@@ -3,16 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:stealth/themes/apple_liquid/effects/chromatic_aberration.dart';
 
-/// Coverage for [ChromaticAberration].
-///
-/// Contract:
-/// - `intensity == 0` short-circuits to the child unchanged (no
-///   ghost layers, no RepaintBoundary wrapper).
-/// - Light mode auto-gates to the child unchanged (same dual-identity
-///   contract as `ScanlineOverlay` / `GrainOverlay`).
-/// - `force: true` bypasses the light-mode gate (tests + rare cases).
-/// - Active state: child is rendered 3× (baseline + red ghost +
-///   cyan ghost) — verified via descendant count.
 void main() {
   Widget wrap(ThemeMode mode, Widget child) {
     final brightness =
@@ -40,8 +30,6 @@ void main() {
         ),
       ));
       expect(find.byKey(childKey), findsOneWidget);
-      // No coloured ghost layers should mount: ColorFiltered is the
-      // signature of the active state.
       expect(
         find.descendant(
           of: find.byType(ChromaticAberration),
@@ -62,7 +50,6 @@ void main() {
           child: SizedBox(width: 100, height: 20),
         ),
       ));
-      // Two ColorFiltered ghosts: one red, one cyan.
       expect(
         find.descendant(
           of: find.byType(ChromaticAberration),
@@ -70,7 +57,6 @@ void main() {
         ),
         findsNWidgets(2),
       );
-      // RepaintBoundary discipline for signature effects.
       expect(
         find.descendant(
           of: find.byType(ChromaticAberration),
@@ -97,7 +83,6 @@ void main() {
           matching: find.byType(ColorFiltered),
         ),
         findsNothing,
-        reason: 'light mode must not paint colour ghosts',
       );
     },
   );
@@ -119,7 +104,6 @@ void main() {
           matching: find.byType(ColorFiltered),
         ),
         findsNWidgets(2),
-        reason: 'force: true bypasses the light-mode gate',
       );
     },
   );
@@ -137,9 +121,7 @@ void main() {
           ghostBuilder: (_) => const SizedBox(key: ghostKey),
         ),
       ));
-      // Real child is rendered once as the interactive baseline.
       expect(find.byKey(childKey), findsOneWidget);
-      // Ghost builder is called for both ghost layers (red + cyan).
       expect(find.byKey(ghostKey), findsNWidgets(2));
     },
   );
@@ -155,7 +137,6 @@ void main() {
           child: SizedBox(key: childKey, width: 100, height: 20),
         ),
       ));
-      // Without ghostBuilder the child is rendered 3× (baseline + two ghosts).
       expect(find.byKey(childKey), findsNWidgets(3));
     },
   );

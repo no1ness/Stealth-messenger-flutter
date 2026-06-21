@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/logging/logger.dart';
@@ -125,8 +124,6 @@ class _GlassTextFieldState extends State<GlassTextField>
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = kIsWeb;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -178,10 +175,15 @@ class _GlassTextFieldState extends State<GlassTextField>
               ),
             );
 
-            // On web: skip BackdropFilter + ChromaticAberration entirely.
-            // CanvasKit re-renders the full background behind every blur,
-            // which makes the screen unusable (single-digit FPS).
-            if (isWeb) return input;
+            if (kIsWeb) return input;
+
+            if (_aberrationCtrl.value > 0) {
+              return ChromaticAberration(
+                intensity: _aberrationCtrl.value,
+                ghostBuilder: (_) => _GlassFieldGhost(focused: _isFocused),
+                child: input,
+              );
+            }
 
             return input;
           },

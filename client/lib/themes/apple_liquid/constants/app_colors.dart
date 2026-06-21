@@ -140,4 +140,13 @@ class AppColors {
   static const Color statusWarn = systemOrange;
   static const Color statusDanger = systemRed;
   static const Color statusInfo = systemBlue;
+
+  // Dashboard tokens (Telegram-style dark palette)
+  static const Color dashboardBg = Color(0xFF17212B);
+  static const Color dashboardCard = Color(0xFF242F3D);
+  static const Color dashboardText = Color(0xFFF5F5F5);
+  static const Color dashboardTextSecondary = Color(0xFF8B9CA9);
+  static const Color dashboardBorder = Color(0xFF3C4A57);
+  static const Color dashboardGreen = Color(0xFF00C853);
+  static const Color dashboardBlue = Color(0xFF2AABEE);
 }

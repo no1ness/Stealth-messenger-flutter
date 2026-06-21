@@ -3,11 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:stealth/services/monitoring/monitoring_data_service.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_spacing.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_typography.dart';
 import 'package:stealth/themes/apple_liquid/feedback/stealth_loading_indicator.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_container.dart';
-import 'package:stealth/themes/apple_liquid/widgets/section_header.dart';
 
 class DashboardHomeScreen extends StatefulWidget {
   const DashboardHomeScreen({super.key});
@@ -21,6 +17,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
   final MonitoringDataService _dataService = MonitoringDataService();
   Timer? _refreshTimer;
   bool _isLoading = true;
+  DateTime? _lastUpdated;
 
   Map<String, dynamic> _aggregated = {};
   Map<String, int> _platformBreakdown = {};
@@ -63,159 +60,146 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     try {
       _aggregated = await _dataService.getAggregated();
       _platformBreakdown = await _dataService.getPlatformBreakdown();
-      _recentRecords = (await _dataService.getAllStats())
-          .take(20)
-          .toList();
+      _recentRecords = (await _dataService.getAllStats()).take(20).toList();
     } catch (_) {}
     if (!mounted) return;
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+      _lastUpdated = DateTime.now();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Дашборд'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
+      backgroundColor: AppColors.dashboardBg,
       body: _isLoading
           ? const Center(child: StealthLoadingIndicator())
           : RefreshIndicator(
               onRefresh: _refresh,
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  _buildOverviewSection(),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildPlatformSection(),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildRecentRecordsSection(),
-                ],
+              color: AppColors.dashboardGreen,
+              backgroundColor: AppColors.dashboardBg,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 800;
+                  return CustomScrollView(
+                    slivers: [
+                      _buildAppBar(),
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isWide ? 32 : 16,
+                          vertical: 16,
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _buildStatusBar(),
+                            const SizedBox(height: 20),
+                            _buildStatsGrid(constraints.maxWidth, isWide),
+                            const SizedBox(height: 20),
+                            _buildPlatformSection(),
+                            const SizedBox(height: 20),
+                            _buildRecentSection(),
+                            const SizedBox(height: 32),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
     );
   }
 
-  Widget _buildOverviewSection() {
-    return GlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(title: 'Обзор'),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('Пользователи', '${_aggregated['totalUsers'] ?? '-'}')),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildStatCard('Чаты', '${_aggregated['totalChats'] ?? '-'}')),
-            ],
+  SliverToBoxAdapter _buildAppBar() {
+    return SliverToBoxAdapter(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
+        decoration: const BoxDecoration(
+          color: AppColors.dashboardBg,
+          border: Border(
+            bottom: BorderSide(color: AppColors.dashboardBorder, width: 0.5),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('Сообщения', '${_aggregated['totalMessages'] ?? '-'}')),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildStatCard('Звонки', '${_aggregated['totalCalls'] ?? '-'}')),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildStatCard('Контакты', '${_aggregated['totalContacts'] ?? '-'}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlatformSection() {
-    final entries = _platformBreakdown.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    return GlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(title: 'Платформы'),
-          const SizedBox(height: AppSpacing.sm),
-          if (entries.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.sm),
-              child: Text('Нет данных'),
-            )
-          else
-            ...entries.map((e) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(e.key, style: AppTypography.footnote),
-                  Text('${e.value}', style: AppTypography.caption1),
-                ],
-              ),
-            )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentRecordsSection() {
-    return GlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(title: 'Последние события'),
-          const SizedBox(height: AppSpacing.sm),
-          if (_recentRecords.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.sm),
-              child: Text('Пока нет записей'),
-            )
-          else
-            Table(
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(1),
-                2: FlexColumnWidth(1),
-              },
-              children: [
-                TableRow(
-                  children: [
-                    Text('Пользователь', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
-                    Text('Платформа', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
-                    Text('Сообщ', style: AppTypography.caption1.copyWith(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                ..._recentRecords.map((r) => TableRow(
-                  children: [
-                    Text(_truncate(r['userId']?.toString() ?? '-', 8), style: AppTypography.footnote),
-                    Text(r['platformType']?.toString() ?? '-', style: AppTypography.footnote),
-                    Text('${r['messageCount'] ?? '-'}', style: AppTypography.footnote),
-                  ],
-                )),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, String value) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.glassLight.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
+        ),
+        child: Row(
           children: [
-            Text(value, style: AppTypography.title2),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: AppTypography.caption1.copyWith(
-                color: AppColors.textSecondary,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.dashboardGreen, AppColors.dashboardBlue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'STEALTH Dashboard',
+                    style: TextStyle(
+                      color: AppColors.dashboardText,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'System Monitor',
+                    style: TextStyle(
+                      color: AppColors.dashboardTextSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.dashboardGreen.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: AppColors.dashboardGreen,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x6000C853),
+                          blurRadius: 6,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: AppColors.dashboardGreen,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -224,7 +208,408 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     );
   }
 
+  Widget _buildStatusBar() {
+    if (_lastUpdated == null) return const SizedBox.shrink();
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.access_time, size: 12, color: AppColors.dashboardTextSecondary),
+        const SizedBox(width: 4),
+        Text(
+          'Updated ${_formatTime(_lastUpdated!)}',
+          style: const TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsGrid(double containerWidth, bool isWide) {
+    final stats = [
+      _StatItem(
+        'Users',
+        '${_aggregated['totalUsers'] ?? 0}',
+        Icons.people_outline,
+        AppColors.dashboardBlue,
+      ),
+      _StatItem(
+        'Chats',
+        '${_aggregated['totalChats'] ?? 0}',
+        Icons.chat_bubble_outline,
+        AppColors.dashboardGreen,
+      ),
+      _StatItem(
+        'Messages',
+        '${_aggregated['totalMessages'] ?? 0}',
+        Icons.mail_outline,
+        const Color(0xFFFF9800),
+      ),
+      _StatItem(
+        'Calls',
+        '${_aggregated['totalCalls'] ?? 0}',
+        Icons.call_outlined,
+        const Color(0xFFE91E63),
+      ),
+      _StatItem(
+        'Contacts',
+        '${_aggregated['totalContacts'] ?? 0}',
+        Icons.contacts_outlined,
+        const Color(0xFF9C27B0),
+      ),
+    ];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: stats.map((s) {
+        final width = isWide
+            ? (containerWidth - 64) / 5 - 12
+            : (containerWidth - 44) / 2 - 12;
+        return SizedBox(
+          width: width,
+          child: _buildStatCard(s),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildStatCard(_StatItem stat) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: AppColors.dashboardCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: stat.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(stat.icon, color: stat.color, size: 20),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              stat.value,
+              style: const TextStyle(
+                color: AppColors.dashboardText,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              stat.label,
+              style: const TextStyle(
+                color: AppColors.dashboardTextSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlatformSection() {
+    final entries = _platformBreakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = entries.fold<int>(0, (sum, e) => sum + e.value);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.dashboardCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(
+              'Platforms',
+              style: TextStyle(
+                color: AppColors.dashboardText,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (entries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'No data yet',
+                style: TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 14),
+              ),
+            )
+          else
+            ...entries.map((e) {
+              final pct = total > 0 ? e.value / total : 0.0;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            _platformIcon(e.key),
+                            const SizedBox(width: 8),
+                            Text(
+                              e.key,
+                              style: const TextStyle(
+                                color: AppColors.dashboardText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${e.value}',
+                          style: const TextStyle(
+                            color: AppColors.dashboardTextSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: pct,
+                        backgroundColor: AppColors.dashboardBorder,
+                        valueColor: AlwaysStoppedAnimation(
+                          _platformColor(e.key),
+                        ),
+                        minHeight: 4,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.dashboardCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(
+              'Recent Activity',
+              style: TextStyle(
+                color: AppColors.dashboardText,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (_recentRecords.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'No records yet',
+                style: TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 14),
+              ),
+            )
+          else
+            ..._recentRecords.take(10).map((r) => _buildRecordRow(r)),
+          if (_recentRecords.length > 10)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Center(
+                child: Text(
+                  'and ${_recentRecords.length - 10} more...',
+                  style: const TextStyle(
+                    color: AppColors.dashboardTextSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecordRow(Map<String, dynamic> record) {
+    final userId = record['userId']?.toString() ?? '-';
+    final platform = record['platformType']?.toString() ?? '?';
+    final messages = record['messageCount'] ?? 0;
+    final calls = record['callCount'] ?? 0;
+    final device = record['deviceModel']?.toString() ?? '';
+    final version = record['appVersion']?.toString() ?? '';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.dashboardBorder, width: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _platformColor(platform).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: _platformIcon(platform, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _truncate(userId, 12),
+                  style: const TextStyle(
+                    color: AppColors.dashboardText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [platform, device, version].where((s) => s.isNotEmpty).join(' \u00b7 '),
+                  style: const TextStyle(
+                    color: AppColors.dashboardTextSecondary,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (messages > 0)
+                _buildMiniStat(Icons.mail_outline, '$messages', const Color(0xFFFF9800)),
+              if (calls > 0)
+                _buildMiniStat(Icons.call_outlined, '$calls', const Color(0xFFE91E63)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 3),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _platformIcon(String platform, {double size = 16}) {
+    final color = _platformColor(platform);
+    IconData icon;
+    switch (platform.toLowerCase()) {
+      case 'android':
+        icon = Icons.android;
+        break;
+      case 'ios':
+        icon = Icons.apple;
+        break;
+      case 'web':
+        icon = Icons.language;
+        break;
+      case 'windows':
+        icon = Icons.desktop_windows;
+        break;
+      case 'macos':
+        icon = Icons.laptop_mac;
+        break;
+      case 'linux':
+        icon = Icons.computer;
+        break;
+      default:
+        icon = Icons.device_unknown;
+    }
+    return Icon(icon, size: size, color: color);
+  }
+
+  Color _platformColor(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'android':
+        return const Color(0xFF3DDC84);
+      case 'ios':
+        return const Color(0xFF007AFF);
+      case 'web':
+        return AppColors.dashboardGreen;
+      case 'windows':
+        return const Color(0xFF00A4EF);
+      case 'macos':
+        return AppColors.dashboardTextSecondary;
+      case 'linux':
+        return const Color(0xFFDD4814);
+      default:
+        return AppColors.dashboardTextSecondary;
+    }
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
   String _truncate(String value, [int max = 12]) {
     return value.length > max ? '${value.substring(0, max)}\u2026' : value;
   }
+}
+
+class _StatItem {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatItem(this.label, this.value, this.icon, this.color);
 }
