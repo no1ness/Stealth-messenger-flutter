@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
@@ -16,7 +18,7 @@ class CallsScreen extends StatefulWidget {
 }
 
 class _CallsScreenState extends State<CallsScreen> {
-  final LocalAppService _appService = LocalAppService();
+  late final LocalAppService _appService = ProviderScope.of(context).read(localAppServiceProvider);
   List<Map<String, dynamic>> _calls = const [];
   bool _loading = true;
 

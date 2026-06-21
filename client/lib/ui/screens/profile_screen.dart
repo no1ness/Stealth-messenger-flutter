@@ -3,8 +3,10 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
@@ -25,7 +27,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final LocalAppService _appService = LocalAppService();
+  late final LocalAppService _appService = ProviderScope.of(context).read(localAppServiceProvider);
   final TextEditingController _nicknameController = TextEditingController();
   String? _userId;
   String? _contactBundle;
