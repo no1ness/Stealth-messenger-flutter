@@ -109,6 +109,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(

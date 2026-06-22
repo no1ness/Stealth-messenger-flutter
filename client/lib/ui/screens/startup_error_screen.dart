@@ -14,6 +14,7 @@ class StartupErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Scaffold(
       body: Container(
         child: SafeArea(

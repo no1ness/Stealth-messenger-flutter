@@ -70,6 +70,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor>
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.all(TgSpacing.md),
       child: Column(
@@ -122,6 +123,7 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(

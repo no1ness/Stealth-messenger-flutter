@@ -55,6 +55,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final isWeb = kIsWeb;
 
     final content = SafeArea(

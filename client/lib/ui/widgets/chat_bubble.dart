@@ -59,15 +59,13 @@ class ChatBubble extends StatelessWidget {
   }
 
   Future<void> _showDeleteDialog(BuildContext context) async {
-    final result = await showStealthDialog<bool>(
-      context: context,
+    final result = await TgDialog.show<bool>(
+      context,
       title: 'Удалить сообщение?',
-      body: const Text('Это действие нельзя отменить.'),
-      importance: DialogImportance.high,
-      actions: const [
-        StealthDialogAction<bool>(label: 'Отмена', result: false),
-        StealthDialogAction<bool>.destructive(label: 'Удалить', result: true),
-      ],
+      message: 'Это действие нельзя отменить.',
+      isDestructive: true,
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
     );
 
     if (result != true || messageId == null) return;
@@ -91,6 +89,7 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isSent
         ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade600)

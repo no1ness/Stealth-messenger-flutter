@@ -22,6 +22,7 @@ class TelegramHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final isP2P = P2PService.instance.isP2PReady(chatId);
 
     return Container(

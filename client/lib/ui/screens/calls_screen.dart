@@ -45,6 +45,7 @@ class _CallsScreenState extends State<CallsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const TgAppBar(

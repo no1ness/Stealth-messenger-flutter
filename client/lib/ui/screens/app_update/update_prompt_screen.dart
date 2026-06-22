@@ -17,6 +17,7 @@ class UpdatePromptScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final manifest = status.manifest;
     final latest = manifest?.latestVersion.display ?? 'unknown';
     final current = status.currentVersion?.display ?? 'unknown';

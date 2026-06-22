@@ -76,6 +76,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final isLastStep = _currentStep >= _steps.length - 1;
     final stepCounter =
         '${(_currentStep + 1).toString().padLeft(2, '0')} / '
@@ -110,7 +111,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                 child: Padding(
                   padding: const EdgeInsets.all(TgSpacing.lg),
                   child: FlatContainer(
-                    intensity: GlassIntensity.light,
+                    intensity: FlatIntensity.light,
                     padding: const EdgeInsets.all(TgSpacing.xl),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -129,7 +130,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                           'STEALTH',
                           style: TgTypography.title1.copyWith(
                             fontFamily: TgTypography.fontFamilyMono,
-                            fontFamilyFallback: AppFontStacks.monoFallbacks,
+                            fontFamilyFallback: ['monospace'],
                             letterSpacing: 4,
                             color: c.text,
                           ),

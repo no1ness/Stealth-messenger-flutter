@@ -297,6 +297,8 @@ Telegram-палитрой и iMessage-подобными пузырьками.
 
 #### Task 15: Barrel-файл темы (TgThemeExports)
 
+- [x] **DONE** — создан `tg_theme_exports.dart`
+
 Создать `themes/tg/tg_theme_exports.dart`, который экспортирует:
 
 - `TgThemeColors` (все цвета)
@@ -543,12 +545,12 @@ Telegram-палитрой и iMessage-подобными пузырьками.
 | # | Коммит | Задачи |
 |---|--------|--------|
 | 1 | ✅ `feat(theme): Phase 1 - TgThemeColors, TgThemeData, TgSpacing, fix flutter_webrtc` (5dd7e2d) | 1, 2, 4 |
-| 2 | `refactor(theme): add Roboto typography, replace Geist` | 3 |
+| 2 | `refactor(theme): add Roboto typography, replace Geist` (pending font assets) | 3 |
 | 3 | ✅ `feat(theme): add flat Telegram-style base widgets` (49a3867) | 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 |
-| 4 | `refactor(theme): create TgThemeExports barrel` | 15 |
-| 5 | `refactor(ui): migrate screens 16-21 to Telegram theme` | 16, 17, 18, 19, 20, 21 |
-| 6 | `refactor(ui): migrate screens 22-25 to Telegram theme` | 22, 23, 24, 25 |
-| 7 | `refactor(ui): migrate screens 26-32 to Telegram theme` | 26, 27, 28, 29, 30, 31, 32 |
+| 4 | ✅ `refactor(theme): create TgThemeExports barrel` (4623cb0) | 15 |
+| 5 | ✅ `refactor(ui): migrate screens 16-21 to Telegram theme` (4623cb0) | 16, 17, 18, 19, 20, 21 |
+| 6 | ✅ `refactor(ui): migrate screens 22-25 to Telegram theme` (4623cb0) | 22, 23, 24, 25 |
+| 7 | ✅ `refactor(ui): migrate screens 26-32 to Telegram theme` (4623cb0) | 26, 27, 28, 29, 30, 31, 32 |
 | 8 | `chore(theme): remove apple_liquid theme and effects` | 33, 34 |
 | 9 | `test(theme): add golden tests for Telegram widgets` | 35 |
 | 10 | `docs(theme): update design-system.md for Telegram-tt` | 36 |

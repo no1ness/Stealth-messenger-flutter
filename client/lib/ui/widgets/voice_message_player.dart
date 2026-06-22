@@ -141,6 +141,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final progress = _totalDuration.inMilliseconds > 0
         ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
         : 0.0;

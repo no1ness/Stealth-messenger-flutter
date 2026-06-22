@@ -568,6 +568,7 @@ class _ChatsScreenState extends State<ChatsScreen>
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     super.build(context);
 
     final currentChat = _chats.firstWhere(

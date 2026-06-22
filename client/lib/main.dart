@@ -10,6 +10,7 @@ import 'package:stealth/main_tabs.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/storage_service.dart';
 import 'package:stealth/local_app_service.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:flutter/foundation.dart';
 import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
@@ -228,6 +229,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     // Listen to the global theme controller so the Settings toggle
     // takes effect immediately, without restarting the app.
     return Consumer(

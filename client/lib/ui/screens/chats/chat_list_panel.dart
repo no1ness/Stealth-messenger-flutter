@@ -55,6 +55,7 @@ class ChatListPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Column(
       children: [
         Padding(
@@ -181,6 +182,7 @@ class _TgChatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final unreadCount = chat['unreadCount'] as int? ?? 0;
     final memberCount = chat['memberCount'] as int? ?? 0;
     final isPrivate = chat['isPrivate'] as bool? ?? true;
@@ -293,6 +295,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),

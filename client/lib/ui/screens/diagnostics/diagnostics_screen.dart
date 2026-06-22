@@ -131,6 +131,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: TgAppBar(
@@ -245,6 +246,7 @@ class _TgSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(

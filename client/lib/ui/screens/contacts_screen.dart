@@ -224,10 +224,10 @@ class _ContactsScreenState extends State<ContactsScreen>
         context: context,
         title: 'Генерация отпечатка',
         barrierDismissible: false,
-        body: const Row(
+        body: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TgLoading(size: 20, strokeWidth: 2),
+            TgLoading.spinner(size: 20),
             SizedBox(width: TgSpacing.md),
             Text('Генерация отпечатка...'),
           ],
@@ -505,6 +505,7 @@ class _ContactsScreenState extends State<ContactsScreen>
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     super.build(context);
     final query = _searchController.text.trim().toLowerCase();
     final filtered = query.isEmpty
@@ -558,7 +559,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                   child: RefreshIndicator(
                     onRefresh: _loadContacts,
                     child: _loading
-                        ? const Center(child: TgLoading())
+                        ? Center(child: TgLoading.spinner())
                         : filtered.isEmpty
                             ? Semantics(
                                 label: 'Нет контактов',
@@ -622,19 +623,17 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                         isVideoCall: false,
                                                       ),
                                               icon: _startingCall
-                                                  ? const SizedBox(
+                                                  ? SizedBox(
                                                       width: 18,
                                                       height: 18,
                                                       child:
-                                                          TgLoading(
+                                                          TgLoading.spinner(
                                                         size: 18,
-                                                        strokeWidth: 2,
                                                       ),
                                                     )
-                                                  : const Icon(
+                                                  : Icon(
                                                       Icons.call_outlined,
-                                                      color: AppColors
-                                                          .statusSuccess,
+                                                      color: c.statusSuccess,
                                                     ),
                                             ),
                                           ),

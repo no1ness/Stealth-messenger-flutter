@@ -20,6 +20,7 @@ class _UserDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final name = contact['name'] as String? ?? 'Неизвестно';
     final userId = (contact['user_id'] ?? contact['contact_user_id'] ?? '').toString();
     final deviceModel = contact['deviceModel'] as String?;

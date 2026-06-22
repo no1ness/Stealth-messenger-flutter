@@ -28,6 +28,7 @@ class ConversationFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

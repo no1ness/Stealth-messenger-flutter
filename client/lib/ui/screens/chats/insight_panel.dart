@@ -25,6 +25,7 @@ class InsightPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final theme = Theme.of(context);
     final values = [
       messageCount == 0 ? 0.18 : 0.68,
@@ -102,6 +103,7 @@ class _InsightTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),

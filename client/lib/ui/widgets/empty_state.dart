@@ -50,6 +50,7 @@ class _KeyFingerprintBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final isLight = Theme.of(context).brightness == Brightness.light;
     if (isLight) return const SizedBox.shrink();
 
@@ -118,6 +119,7 @@ class StealthEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     Logger.debug('[ds:empty-state] title=$title');
     return GrainOverlay(
       child: Stack(
@@ -192,6 +194,7 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     switch (type) {
       case 'chats':
         return const StealthEmptyState.chats();

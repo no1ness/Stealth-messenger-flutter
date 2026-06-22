@@ -152,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final cards = [
       RepaintBoundary(child: _buildSecurityCard()),
       RepaintBoundary(child: _buildConnectionCard()),
@@ -167,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         child: TgAppBar(title: 'Настройки'),
       ),
       body: _isLoading
-          ? const Center(child: TgLoading())
+          ? Center(child: TgLoading.spinner())
           : Padding(
               padding: const EdgeInsets.all(TgSpacing.md),
               child: LayoutBuilder(
@@ -478,6 +479,7 @@ class _MiniStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: c.backgroundSecondary.withValues(alpha: 0.08),
@@ -511,12 +513,13 @@ class _SignalServerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final url = dotenv.maybeGet('POCKETBASE_URL') ?? '';
     final hasUrl = url.isNotEmpty;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.dns, size: 18, color: c.textSecondary),
+        Icon(Icons.dns, color: c.textSecondary),
         const SizedBox(width: TgSpacing.sm),
         Expanded(
           child: Column(

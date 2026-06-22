@@ -46,8 +46,9 @@ class ConversationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     if (loadingMessages) {
-      return const Center(child: TgLoading());
+      return Center(child: TgLoading.spinner());
     }
 
     return Column(
@@ -67,7 +68,7 @@ class ConversationPanel extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.push_pin, size: 16),
+                  const Icon(Icons.push_pin),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -123,11 +124,11 @@ class ConversationPanel extends StatelessWidget {
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       if (loadingOlderMessages) {
-                        return const Padding(
+                        return Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Center(
                             child:
-                                TgLoading(size: 20, strokeWidth: 2),
+                                TgLoading.spinner(size: 20),
                           ),
                         );
                       }
@@ -249,6 +250,7 @@ class _ReplyPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(

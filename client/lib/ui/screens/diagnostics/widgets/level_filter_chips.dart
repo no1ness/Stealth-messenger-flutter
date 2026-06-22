@@ -28,6 +28,7 @@ class LevelFilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: TgSpacing.md,
@@ -63,6 +64,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(

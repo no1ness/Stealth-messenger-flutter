@@ -43,6 +43,7 @@ class _MessageInputState extends State<MessageInput> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

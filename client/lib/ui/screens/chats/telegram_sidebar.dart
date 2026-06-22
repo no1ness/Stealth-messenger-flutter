@@ -159,6 +159,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Container(
       decoration: const BoxDecoration(
         border: Border(

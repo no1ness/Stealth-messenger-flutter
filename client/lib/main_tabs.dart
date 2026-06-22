@@ -36,6 +36,7 @@ class _MainTabsState extends State<MainTabs> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return CallManager(
       child: LayoutBuilder(
         builder: (context, constraints) {

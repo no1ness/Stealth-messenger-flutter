@@ -23,10 +23,10 @@ Widget? buildConversationAttachment({
         future: appService.downloadAttachment(content, chatId, encrypted: true),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SizedBox(
+            return SizedBox(
               width: 200,
               height: 200,
-              child: Center(child: TgLoading()),
+              child: Center(child: TgLoading.spinner()),
             );
           }
           if (snapshot.hasData && snapshot.data != null) {
@@ -40,7 +40,7 @@ Widget? buildConversationAttachment({
               ),
             );
           }
-          return const Icon(Icons.broken_image, size: 48);
+          return const Icon(Icons.broken_image);
         },
       );
     }
@@ -51,7 +51,7 @@ Widget? buildConversationAttachment({
         width: 200,
         height: 200,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 48),
+        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
       ),
     );
   }
@@ -91,12 +91,13 @@ class _AudioAttachment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
           icon: const Icon(Icons.play_circle_fill,
-              color: c.primary, size: 32),
+              color: c.primary),
           onPressed: () async {
             final bytes = await appService.downloadAttachment(
               url,

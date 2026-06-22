@@ -125,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TgSnackBar.show(
       context,
       'Контакт скопирован',
-      kind: isError: false,
+      isError: false,
     );
   }
 
@@ -158,20 +158,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     TgSnackBar.show(
       context,
       'Никнейм обновлен',
-      kind: isError: false,
+      isError: false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     Logger.debug(
       '[Profile] build',
       extras: {'isLoading': _isLoading, 'userId': _userId},
     );
 
     if (_isLoading) {
-      return const Center(child: TgLoading());
+      return Center(child: TgLoading.spinner());
     }
 
     if (_userId == null || _userId!.isEmpty) {

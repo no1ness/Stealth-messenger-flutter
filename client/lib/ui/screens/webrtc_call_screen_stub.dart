@@ -24,31 +24,32 @@ class WebRTCCallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(
+        child: TgAppBar(
           title: 'Calls unavailable',
           showBackButton: true,
         ),
       ),
-      body: StealthAnimatedBackground(
+      body: Container(
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: GlassContainer(
+              padding: const EdgeInsets.all(TgSpacing.lg),
+              child: FlatContainer(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'WebAssembly-safe web mode does not include WebRTC calls yet.',
                       textAlign: TextAlign.center,
-                      style: AppTypography.body,
+                      style: TgTypography.body,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text('Peer: $peerName', style: AppTypography.caption1),
+                    SizedBox(height: TgSpacing.md),
+                    Text('Peer: $peerName', style: TgTypography.caption1),
                   ],
                 ),
               ),

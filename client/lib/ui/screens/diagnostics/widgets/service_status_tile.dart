@@ -11,13 +11,14 @@ class ServiceStatusTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: TgSpacing.md,
         vertical: TgSpacing.xs,
       ),
       child: FlatContainer(
-        intensity: GlassIntensity.light,
+        intensity: FlatIntensity.light,
         padding: const EdgeInsets.symmetric(
           horizontal: TgSpacing.md,
           vertical: TgSpacing.sm,
@@ -86,6 +87,7 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     return Container(
       width: 12,
       height: 12,

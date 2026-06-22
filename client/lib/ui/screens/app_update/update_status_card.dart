@@ -25,6 +25,7 @@ class UpdateStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final latest = status?.manifest?.latestVersion.display;
     final progress = installState?.progress;
     final canInstall = status?.isUpdateAvailable ?? false;

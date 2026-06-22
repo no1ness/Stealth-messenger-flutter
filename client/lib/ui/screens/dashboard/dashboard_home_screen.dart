@@ -70,10 +70,11 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       backgroundColor: Color(0xFF17212B),
       body: _isLoading
-          ? const Center(child: TgLoading())
+          ? Center(child: TgLoading.spinner())
           : RefreshIndicator(
               onRefresh: _refresh,
               color: Color(0xFF00C853),
@@ -157,7 +158,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                   Text(
                     'System Monitor',
                     style: TextStyle(
-                      color: Color(0xFFF5F5F5)Secondary,
+                      color: c.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -212,11 +213,11 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.access_time, size: 12, color: Color(0xFFF5F5F5)Secondary),
+        const Icon(Icons.access_time, color: c.textSecondary),
         const SizedBox(width: 4),
         Text(
           'Updated ${_formatTime(_lastUpdated!)}',
-          style: const TextStyle(color: Color(0xFFF5F5F5)Secondary, fontSize: 11),
+          style: const TextStyle(color: c.textSecondary, fontSize: 11),
         ),
       ],
     );
@@ -291,7 +292,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 color: stat.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(stat.icon, color: stat.color, size: 20),
+              child: Icon(stat.icon, color: stat.color),
             ),
             const SizedBox(height: 14),
             Text(
@@ -308,7 +309,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             Text(
               stat.label,
               style: const TextStyle(
-                color: Color(0xFFF5F5F5)Secondary,
+                color: c.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
               ),
@@ -349,7 +350,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               padding: EdgeInsets.all(16),
               child: Text(
                 'No data yet',
-                style: TextStyle(color: Color(0xFFF5F5F5)Secondary, fontSize: 14),
+                style: TextStyle(color: c.textSecondary, fontSize: 14),
               ),
             )
           else
@@ -380,7 +381,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                         Text(
                           '${e.value}',
                           style: const TextStyle(
-                            color: Color(0xFFF5F5F5)Secondary,
+                            color: c.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -435,7 +436,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               padding: EdgeInsets.all(16),
               child: Text(
                 'No records yet',
-                style: TextStyle(color: Color(0xFFF5F5F5)Secondary, fontSize: 14),
+                style: TextStyle(color: c.textSecondary, fontSize: 14),
               ),
             )
           else
@@ -447,7 +448,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 child: Text(
                   'and ${_recentRecords.length - 10} more...',
                   style: const TextStyle(
-                    color: Color(0xFFF5F5F5)Secondary,
+                    color: c.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -483,7 +484,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
-              child: _platformIcon(platform, size: 18),
+              child: _platformIcon(platform),
             ),
           ),
           const SizedBox(width: 12),
@@ -504,7 +505,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 Text(
                   [platform, device, version].where((s) => s.isNotEmpty).join(' \u00b7 '),
                   style: const TextStyle(
-                    color: Color(0xFFF5F5F5)Secondary,
+                    color: c.textSecondary,
                     fontSize: 12,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -531,7 +532,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: color),
+        Icon(icon, color: color),
         const SizedBox(width: 3),
         Text(
           text,
@@ -570,7 +571,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       default:
         icon = Icons.device_unknown;
     }
-    return Icon(icon, size: size, color: color);
+    return Icon(icon, color: color);
   }
 
   Color _platformColor(String platform) {
@@ -584,11 +585,11 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       case 'windows':
         return const Color(0xFF00A4EF);
       case 'macos':
-        return Color(0xFFF5F5F5)Secondary;
+        return const Color(0xFF8E8E93);
       case 'linux':
         return const Color(0xFFDD4814);
       default:
-        return Color(0xFFF5F5F5)Secondary;
+        return const Color(0xFF8E8E93);
     }
   }
 

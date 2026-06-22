@@ -6,23 +6,24 @@ class WebRTCDiagnosticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(
+        child: TgAppBar(
           title: 'WebRTC Diagnostics',
           showBackButton: true,
         ),
       ),
-      body: StealthAnimatedBackground(
+      body: Container(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: GlassContainer(
+            padding: const EdgeInsets.all(TgSpacing.md),
+            child: FlatContainer(
               child: Text(
                 'Diagnostics are disabled in WebAssembly-safe web mode.',
-                style: AppTypography.body,
+                style: TgTypography.body,
                 textAlign: TextAlign.center,
               ),
             ),

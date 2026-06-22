@@ -12,6 +12,7 @@ class LogEntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
+
     final levelColor = _colorFor(entry.level);
     final hh = entry.timestampUtc.hour.toString().padLeft(2, '0');
     final mm = entry.timestampUtc.minute.toString().padLeft(2, '0');
