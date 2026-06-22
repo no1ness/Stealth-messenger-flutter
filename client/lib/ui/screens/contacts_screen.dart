@@ -220,17 +220,19 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (userId == null) return;
 
     if (mounted) {
-      TgDialog.show<void>(
+      showDialog<void>(
         context: context,
-        title: 'Генерация отпечатка',
         barrierDismissible: false,
-        body: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TgLoading.spinner(size: 20),
-            SizedBox(width: TgSpacing.md),
-            Text('Генерация отпечатка...'),
-          ],
+        builder: (_) => AlertDialog(
+          backgroundColor: TgThemeColors.of(context).background,
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TgLoading.spinner(size: 20),
+              SizedBox(width: TgSpacing.md),
+              Text('Генерация отпечатка...'),
+            ],
+          ),
         ),
       );
     }
@@ -240,34 +242,41 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (mounted) {
       Navigator.of(context).pop(); // Закрываем диалог загрузки
 
-      TgDialog.show<void>(
+      final c = TgThemeColors.of(context);
+      showDialog<void>(
         context: context,
-        title: 'Код безопасности — $name',
-        body: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Сравните этот номер с контактом. Если он точно совпадает, ваше сквозное шифрование безопасно.',
-              style: TgTypography.caption1
-                  .copyWith(color: c.textSecondary),
-            ),
-            const SizedBox(height: TgSpacing.xl),
-            Text(
-              safetyNumber ?? 'Ошибка генерации номера',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                fontFamily: 'GeistMono',
-                color: c.primary,
+        builder: (_) => AlertDialog(
+          backgroundColor: c.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Код безопасности — $name'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Сравните этот номер с контактом. Если он точно совпадает, ваше сквозное шифрование безопасно.',
+                style: TgTypography.caption1.copyWith(color: c.textSecondary),
               ),
-              textAlign: TextAlign.center,
+              SizedBox(height: TgSpacing.xl),
+              Text(
+                safetyNumber ?? 'Ошибка генерации номера',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                  fontFamily: 'GeistMono',
+                  color: c.primary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK', style: TextStyle(color: c.primary)),
             ),
           ],
         ),
-        actions: const [
-          StealthDialogAction<void>.primary(label: 'OK', result: null),
-        ],
       );
     }
   }
@@ -535,7 +544,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 TgTextField(
                   controller: _searchController,
                   hintText: 'Поиск контактов',
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search,
                     color: c.textSecondary,
                   ),
@@ -590,13 +599,11 @@ class _ContactsScreenState extends State<ContactsScreen>
                                   return Opacity(
                                     opacity: autoPopulated ? 0.85 : 1.0,
                                     child: TgContactTile(
-                                      contact: contact,
-                                      isOnline: isOnline,
+                                      name: contact['name'] as String? ?? 'Контакт',
+                                      status: isOnline == true ? 'В сети' : null,
                                       onTap: _startingCall
                                           ? () {}
                                           : () => _openChat(contact),
-                                      onLongPress: () =>
-                                          _showContactActions(contact),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -605,7 +612,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                             onPressed: _startingCall
                                                 ? null
                                                 : () => _openChat(contact),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.chat_bubble_outline,
                                               color: c.primary,
                                             ),
@@ -633,7 +640,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                     )
                                                   : Icon(
                                                       Icons.call_outlined,
-                                                      color: c.statusSuccess,
+                                                      color: c.success,
                                                     ),
                                             ),
                                           ),
@@ -650,7 +657,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                         contact,
                                                         isVideoCall: true,
                                                       ),
-                                              icon: const Icon(
+                                              icon: Icon(
                                                 Icons.videocam_outlined,
                                                 color: c.primary,
                                               ),
@@ -660,7 +667,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                             tooltip: 'Дополнительные опции',
                                             onPressed: () =>
                                                 _showContactActions(contact),
-                                            icon: const Icon(
+                                            icon: Icon(
                                               Icons.more_horiz,
                                               color: c.textSecondary,
                                             ),

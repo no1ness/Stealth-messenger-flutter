@@ -33,6 +33,7 @@ class TelegramSidebar extends StatefulWidget {
 
 class _TelegramSidebarState extends State<TelegramSidebar>
     with SingleTickerProviderStateMixin {
+  TgThemeColors get c => TgThemeColors.of(context);
   final TextEditingController _searchController = TextEditingController();
   final LocalAppService _appService = LocalAppService();
   late TabController _tabController;
@@ -158,10 +159,9 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           right: BorderSide(
             color: c.dividers,

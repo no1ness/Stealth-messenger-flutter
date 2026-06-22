@@ -13,6 +13,7 @@ class DashboardHomeScreen extends StatefulWidget {
 
 class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     with WidgetsBindingObserver {
+  TgThemeColors get c => TgThemeColors.of(context);
   final MonitoringDataService _dataService = MonitoringDataService();
   Timer? _refreshTimer;
   bool _isLoading = true;
@@ -141,7 +142,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -213,11 +214,11 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.access_time, color: c.textSecondary),
+        Icon(Icons.access_time, color: c.textSecondary),
         const SizedBox(width: 4),
         Text(
           'Updated ${_formatTime(_lastUpdated!)}',
-          style: const TextStyle(color: c.textSecondary, fontSize: 11),
+          style: TextStyle(color: c.textSecondary, fontSize: 11),
         ),
       ],
     );
@@ -308,7 +309,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             const SizedBox(height: 4),
             Text(
               stat.label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: c.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
@@ -346,7 +347,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             ),
           ),
           if (entries.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'No data yet',
@@ -380,7 +381,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                         ),
                         Text(
                           '${e.value}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: c.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -432,7 +433,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             ),
           ),
           if (_recentRecords.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'No records yet',
@@ -447,7 +448,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               child: Center(
                 child: Text(
                   'and ${_recentRecords.length - 10} more...',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: c.textSecondary,
                     fontSize: 12,
                   ),
@@ -504,7 +505,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 const SizedBox(height: 2),
                 Text(
                   [platform, device, version].where((s) => s.isNotEmpty).join(' \u00b7 '),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: c.textSecondary,
                     fontSize: 12,
                   ),
