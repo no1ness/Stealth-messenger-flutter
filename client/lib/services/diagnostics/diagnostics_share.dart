@@ -13,10 +13,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:path_provider/path_provider.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logging/logger.dart';
-import '../../themes/tg/tg_colors.dart';
 
 /// Possible outcomes returned by [shareDiagnosticsReport]. Exposed for
 /// widget tests so they can assert which branch was hit by a fake invoker.

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/ui/screens/calls/native_call_controller.dart';
 
 class WebRTCCallScreen extends StatefulWidget {

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});

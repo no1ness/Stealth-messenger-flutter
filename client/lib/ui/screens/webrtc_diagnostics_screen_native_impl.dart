@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class WebRTCDiagnosticsScreen extends StatefulWidget {
   const WebRTCDiagnosticsScreen({super.key});

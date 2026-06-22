@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../services/diagnostics/service_status.dart';
-import '../../../../themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class ServiceStatusTile extends StatelessWidget {
   const ServiceStatusTile({super.key, required this.status});

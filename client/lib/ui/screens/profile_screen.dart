@@ -10,7 +10,7 @@ import 'package:stealth/di.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -21,7 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late final LocalAppService _appService = ProviderScope.of(context).read(localAppServiceProvider);
+  late final LocalAppService _appService = ProviderScope.containerOf(context).read(localAppServiceProvider);
   final TextEditingController _nicknameController = TextEditingController();
   String? _userId;
   String? _contactBundle;

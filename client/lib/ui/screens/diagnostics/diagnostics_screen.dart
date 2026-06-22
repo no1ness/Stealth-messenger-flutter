@@ -7,7 +7,7 @@ import '../../../services/diagnostics/diagnostics_report.dart';
 import '../../../services/diagnostics/diagnostics_service.dart';
 import '../../../services/diagnostics/diagnostics_share.dart';
 import '../../../services/diagnostics/service_status.dart';
-import '../../../themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'widgets/level_filter_chips.dart';
 import 'widgets/log_entry_tile.dart';
 import 'widgets/service_status_tile.dart';

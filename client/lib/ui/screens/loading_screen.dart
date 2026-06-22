@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 /// App bootstrap screen.
 ///

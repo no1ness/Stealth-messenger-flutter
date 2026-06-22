@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 class TgColors {
-  TgColors._();
-
   static final Map<int, TgColors> _instances = {};
 
   static TgColors of(BuildContext context) {

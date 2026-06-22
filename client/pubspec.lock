@@ -395,7 +395,7 @@ packages:
   flutter_webrtc:
     dependency: "direct main"
     description:
-      path: "/home/ruslan/flutter-webrtc"
+      path: "T:/"
       relative: false
     source: path
     version: "1.5.1"

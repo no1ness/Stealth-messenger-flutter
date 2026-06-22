@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/p2p_service.dart';
 
 /// Telegram-style chat header with avatar, name, and status.

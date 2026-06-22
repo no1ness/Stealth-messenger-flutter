@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../logging/log_buffer.dart';
 import '../../../../logging/logger.dart';
-import '../../../../themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class LogEntryTile extends StatelessWidget {
   const LogEntryTile({super.key, required this.entry});

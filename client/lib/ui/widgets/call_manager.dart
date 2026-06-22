@@ -5,7 +5,7 @@ import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';

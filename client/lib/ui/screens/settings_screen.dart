@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
+import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
@@ -108,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   Future<void> _changeTheme(ThemeMode mode) async {
     // Push the new value through the Riverpod themeModeProvider.
-    ProviderScope.of(context).read(themeModeProvider.notifier).setMode(mode);
+    ProviderScope.containerOf(context).read(themeModeProvider.notifier).setMode(mode);
     // Also persist to SharedPreferences.
     await ThemeController.setMode(mode);
     if (mounted) {

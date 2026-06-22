@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
 class CallsScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class CallsScreen extends StatefulWidget {
 }
 
 class _CallsScreenState extends State<CallsScreen> {
-  late final LocalAppService _appService = ProviderScope.of(context).read(localAppServiceProvider);
+  late final LocalAppService _appService = ProviderScope.containerOf(context).read(localAppServiceProvider);
   List<Map<String, dynamic>> _calls = const [];
   bool _loading = true;
 

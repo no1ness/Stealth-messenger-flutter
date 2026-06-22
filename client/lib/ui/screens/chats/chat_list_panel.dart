@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../constants/accessibility_ids.dart';
 import '../../../local_app_service.dart';
-import '../../../themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 import '../../widgets/empty_state.dart';
 import 'create_group_sheet.dart';
 import 'group_management_sheet.dart';

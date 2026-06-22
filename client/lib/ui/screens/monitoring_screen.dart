@@ -5,7 +5,7 @@ import 'package:stealth/p2p_service.dart';
 import 'package:stealth/services/dashboard/dashboard_service.dart';
 import 'package:stealth/services/device/device_info_service.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});

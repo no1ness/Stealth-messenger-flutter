@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 /// Renders a deterministic, ultra-faint hex fingerprint pattern behind
 /// the empty-state icon — the kind of grid you'd see formatting a

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/services/app_update/app_update_models.dart';
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class UpdateStatusCard extends StatelessWidget {
   const UpdateStatusCard({

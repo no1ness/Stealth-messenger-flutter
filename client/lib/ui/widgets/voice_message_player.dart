@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/logging/logger.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:stealth/themes/tg/tg_colors.dart';
+import 'package:stealth/themes/apple_liquid/theme_exports.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   final String audioUrl;
