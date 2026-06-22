@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 /// Right-rail dashboard with session insights (realtime sync / platform
 /// / current user marker) and a tiny animated bar chart.
@@ -24,6 +24,7 @@ class InsightPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final theme = Theme.of(context);
     final values = [
       messageCount == 0 ? 0.18 : 0.68,
@@ -41,19 +42,19 @@ class InsightPanel extends StatelessWidget {
           const _InsightTile(
             label: 'Синхронизация',
             value: 'Активна',
-            accent: AppColors.systemGreen,
+            accent: c.green,
           ),
           const SizedBox(height: 10),
           _InsightTile(
             label: 'Платформа',
             value: kIsWeb ? 'Web' : 'Mobile',
-            accent: AppColors.systemBlue,
+            accent: c.primary,
           ),
           const SizedBox(height: 10),
           _InsightTile(
             label: 'Текущий пользователь',
             value: myUserId == null ? 'Неизвестно' : myUserId!.substring(0, 8),
-            accent: AppColors.systemOrange,
+            accent: c.warning,
           ),
           const SizedBox(height: 22),
           Text('Профиль нагрузки', style: theme.textTheme.titleSmall),
@@ -71,7 +72,7 @@ class InsightPanel extends StatelessWidget {
                           duration: const Duration(milliseconds: 240),
                           height: 110 * value,
                           decoration: BoxDecoration(
-                            color: AppColors.systemBlue.withValues(alpha: 0.7),
+                            color: c.primary.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
@@ -100,6 +101,7 @@ class _InsightTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),

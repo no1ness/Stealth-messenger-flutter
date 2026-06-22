@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 
 Future<void> showUserDetailSheet(
@@ -19,6 +19,7 @@ class _UserDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final name = contact['name'] as String? ?? 'Неизвестно';
     final userId = (contact['user_id'] ?? contact['contact_user_id'] ?? '').toString();
     final deviceModel = contact['deviceModel'] as String?;
@@ -36,38 +37,38 @@ class _UserDetailSheet extends StatelessWidget {
       expand: false,
       builder: (ctx, scrollController) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(TgSpacing.md),
           child: ListView(
             controller: scrollController,
             children: [
               CircleAvatar(
                 radius: 32,
-                backgroundColor: AppColors.systemBlue,
+                backgroundColor: c.primary,
                 child: Text(
                   _initials(name),
-                  style: AppTypography.title1.copyWith(
-                    color: AppColors.textOnGlass,
+                  style: TgTypography.title1.copyWith(
+                    color: c.text,
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: TgSpacing.md),
               Text(
                 name,
                 textAlign: TextAlign.center,
-                style: AppTypography.title2.copyWith(
-                  color: AppColors.textOnGlass,
+                style: TgTypography.title2.copyWith(
+                  color: c.text,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: TgSpacing.xs),
               Text(
                 userId,
                 textAlign: TextAlign.center,
-                style: AppTypography.captionMono.copyWith(
-                  color: AppColors.textSecondary,
+                style: TgTypography.captionMono.copyWith(
+                  color: c.textSecondary,
                 ),
               ),
               if (isOnline != null) ...[
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: TgSpacing.xs),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -76,23 +77,23 @@ class _UserDetailSheet extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         color: isOnline
-                            ? AppColors.systemGreen
-                            : AppColors.systemGray,
+                            ? c.green
+                            : c.gray,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: TgSpacing.xs),
                     Text(
                       isOnline ? 'В сети' : 'Не в сети',
-                      style: AppTypography.caption1.copyWith(
+                      style: TgTypography.caption1.copyWith(
                         color:
-                            isOnline ? AppColors.systemGreen : AppColors.textSecondary,
+                            isOnline ? c.green : c.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ],
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: TgSpacing.lg),
               if (deviceModel != null || platform != null) ...[
                 _sectionHeader('Устройство'),
                 if (deviceModel != null) _infoRow('Модель', deviceModel),
@@ -111,7 +112,7 @@ class _UserDetailSheet extends StatelessWidget {
                 if (isOnline != null)
                   _infoRow('Статус', isOnline ? 'Online' : 'Offline'),
               ],
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: TgSpacing.lg),
               Row(
                 children: [
                   Expanded(
@@ -120,7 +121,7 @@ class _UserDetailSheet extends StatelessWidget {
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
-                          StealthHaptics.light(context);
+                          TgHaptics.light(context);
                           Navigator.of(context).pop();
                           _openChat(context, userId);
                         },
@@ -129,14 +130,14 @@ class _UserDetailSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: TgSpacing.sm),
                   Expanded(
                     child: Semantics(
                       label: 'Позвонить',
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
-                          StealthHaptics.light(context);
+                          TgHaptics.light(context);
                           Navigator.of(context).pop();
                           _startCall(context, contact);
                         },
@@ -148,7 +149,7 @@ class _UserDetailSheet extends StatelessWidget {
                 ],
               ),
               if (!autoPopulated) ...[
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: TgSpacing.sm),
                 Semantics(
                   label: 'Редактировать профиль',
                   button: true,
@@ -168,11 +169,11 @@ class _UserDetailSheet extends StatelessWidget {
 
   Widget _sectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+      padding: const EdgeInsets.only(top: TgSpacing.md, bottom: TgSpacing.xs),
       child: Text(
         title,
-        style: AppTypography.caption1.copyWith(
-          color: AppColors.textSecondary,
+        style: TgTypography.caption1.copyWith(
+          color: c.textSecondary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -181,12 +182,12 @@ class _UserDetailSheet extends StatelessWidget {
 
   Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      padding: const EdgeInsets.symmetric(vertical: TgSpacing.xxs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: AppTypography.body.copyWith(color: AppColors.textOnGlass)),
+          Text(label, style: TgTypography.body.copyWith(color: c.textSecondary)),
+          Text(value, style: TgTypography.body.copyWith(color: c.text)),
         ],
       ),
     );

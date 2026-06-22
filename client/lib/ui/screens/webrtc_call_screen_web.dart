@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/calls/web_call_controller.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 
@@ -65,7 +65,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    showStealthSnackBar(context, message, kind: SnackKind.danger);
+    TgSnackBar.show(context, message, isError: true);
   }
 
   void _popIfPossible() {
@@ -83,6 +83,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) => _buildScreen(),
@@ -103,14 +104,14 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        body: StealthAnimatedBackground(
+        body: Container(
           child: SafeArea(
             child: Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                    horizontal: TgSpacing.md,
+                    vertical: TgSpacing.sm,
                   ),
                   child: Row(
                     children: [
@@ -142,17 +143,17 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                 ),
                 const Spacer(),
                 if (widget.isVideoCall) _buildVideoArea(),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: TgSpacing.xl),
                 Text(
                   widget.peerName,
-                  style: AppTypography.largeTitle.copyWith(
+                  style: TgTypography.largeTitle.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: TgSpacing.md),
                 if (_controller.setupError != null) _buildSetupErrorPanel(),
-                _buildStatusChips(),
+                _buildChips(),
                 const Spacer(),
                 _buildControls(),
               ],
@@ -165,7 +166,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Widget _buildVideoArea() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: TgSpacing.lg),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -180,7 +181,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                 Center(
                   child: Text(
                     'Ожидание видео...',
-                    style: AppTypography.body.copyWith(color: Colors.white70),
+                    style: TgTypography.body.copyWith(color: Colors.white70),
                   ),
                 ),
               Positioned(
@@ -213,14 +214,14 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       height: 120,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.glassLight.withValues(alpha: 0.1),
+        color: c.backgroundSecondary.withValues(alpha: 0.1),
         border: Border.all(
-          color: AppColors.glassLight.withValues(alpha: 0.2),
+          color: c.backgroundSecondary.withValues(alpha: 0.2),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.systemBlue.withValues(alpha: 0.3),
+            color: c.primary.withValues(alpha: 0.3),
             blurRadius: 30,
             spreadRadius: 5,
           ),
@@ -241,18 +242,18 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Widget _buildSetupErrorPanel() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: TgSpacing.lg),
       child: Column(
         children: [
           Text(
             _controller.setupError!,
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.systemRed),
+            style: TgTypography.body.copyWith(color: c.error),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: TgSpacing.md),
           Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.md,
+            spacing: TgSpacing.md,
+            runSpacing: TgSpacing.md,
             alignment: WrapAlignment.center,
             children: [
               FilledButton.icon(
@@ -273,42 +274,42 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: TgSpacing.md),
         ],
       ),
     );
   }
 
-  Widget _buildStatusChips() {
+  Widget _buildChips() {
     final iceConnected = _controller.iceConnectionState == 'connected' ||
         _controller.iceConnectionState == 'completed';
     return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+      spacing: TgSpacing.sm,
+      runSpacing: TgSpacing.sm,
       alignment: WrapAlignment.center,
       children: [
-        _buildStatusChip(
+        _buildChip(
           label: _controller.connected ? 'Соединено' : 'Установка связи',
           active: _controller.connected,
         ),
-        _buildStatusChip(
+        _buildChip(
           label:
               _controller.microphoneEnabled ? 'Микрофон вкл' : 'Микрофон выкл',
           active: _controller.microphoneEnabled,
         ),
-        _buildStatusChip(
+        _buildChip(
           label: _controller.speakerEnabled ? 'Динамик вкл' : 'Динамик выкл',
           active: _controller.speakerEnabled,
         ),
-        _buildStatusChip(
+        _buildChip(
           label: 'ICE: ${_controller.iceConnectionState}',
           active: iceConnected,
         ),
-        _buildStatusChip(
+        _buildChip(
           label: 'Signal: ${_controller.signalingState}',
           active: _controller.signalingState == 'stable',
         ),
-        _buildStatusChip(
+        _buildChip(
           label: 'Peer: ${_controller.connectionState}',
           active: _controller.connectionState == 'connected',
         ),
@@ -345,7 +346,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
           ),
           _buildControlButton(
             icon: Icons.call_end,
-            color: AppColors.systemRed,
+            color: c.error,
             iconColor: Colors.white,
             size: 72,
             onPressed: _controller.hangUp,
@@ -385,25 +386,25 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     );
   }
 
-  Widget _buildStatusChip({required String label, required bool active}) {
+  Widget _buildChip({required String label, required bool active}) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: TgSpacing.md, vertical: TgSpacing.sm),
       decoration: BoxDecoration(
         color: active
-            ? AppColors.systemGreen.withValues(alpha: 0.16)
+            ? c.green.withValues(alpha: 0.16)
             : Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: active
-              ? AppColors.systemGreen.withValues(alpha: 0.4)
+              ? c.green.withValues(alpha: 0.4)
               : Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Text(
         label,
-        style: AppTypography.caption1.copyWith(
-          color: active ? AppColors.systemGreen : Colors.white,
+        style: TgTypography.caption1.copyWith(
+          color: active ? c.green : Colors.white,
         ),
       ),
     );

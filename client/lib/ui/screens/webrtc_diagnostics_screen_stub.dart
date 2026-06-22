@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class WebRTCDiagnosticsScreen extends StatelessWidget {
   const WebRTCDiagnosticsScreen({super.key});

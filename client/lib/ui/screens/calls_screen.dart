@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
 class CallsScreen extends StatefulWidget {
@@ -44,9 +44,10 @@ class _CallsScreenState extends State<CallsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const GlassAppBar(
+      appBar: const TgAppBar(
         isLargeTitle: true,
         title: 'Звонки',
       ),
@@ -57,14 +58,14 @@ class _CallsScreenState extends State<CallsScreen> {
               : ListView.separated(
                   padding: EdgeInsets.fromLTRB(
                     0,
-                    AppSpacing.sm,
+                    TgSpacing.sm,
                     0,
                     MediaQuery.of(context).padding.bottom +
-                        AppSpacing.bottomBarOverlap,
+                        TgSpacing.bottomBarOverlap,
                   ),
                   itemCount: _calls.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: AppSpacing.xxs),
+                      const SizedBox(height: TgSpacing.xxs),
                   itemBuilder: (context, index) {
                     final call = _calls[index];
                     return _buildCallTile(call);
@@ -86,13 +87,13 @@ class _CallsScreenState extends State<CallsScreen> {
     Color iconColor;
     if (isMissed) {
       icon = Icons.call_missed;
-      iconColor = AppColors.systemRed;
+      iconColor = c.error;
     } else if (isIncoming) {
       icon = Icons.call_received;
-      iconColor = AppColors.systemGreen;
+      iconColor = c.green;
     } else {
       icon = Icons.call_made;
-      iconColor = AppColors.systemBlue;
+      iconColor = c.primary;
     }
 
     final dateStr = startedAt.isNotEmpty
@@ -100,17 +101,17 @@ class _CallsScreenState extends State<CallsScreen> {
         : '';
 
     return ListTile(
-      leading: Icon(icon, color: iconColor, size: AppSpacing.iconMd),
+      leading: Icon(icon, color: iconColor, size: TgSpacing.iconMd),
       title: Text(
         peerName,
-        style: AppTypography.bodyEmphasis.copyWith(
-          color: AppColors.textPrimary,
+        style: TgTypography.bodyEmphasis.copyWith(
+          color: c.text,
         ),
       ),
       subtitle: Text(
         dateStr,
-        style: AppTypography.caption1.copyWith(
-          color: AppColors.textSecondary,
+        style: TgTypography.caption1.copyWith(
+          color: c.textSecondary,
         ),
       ),
       onTap: () {},

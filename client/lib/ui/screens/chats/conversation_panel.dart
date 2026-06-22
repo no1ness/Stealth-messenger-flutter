@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart' as glass;
 import 'package:stealth/ui/screens/chats/conversation_attachment.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
@@ -45,8 +45,9 @@ class ConversationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     if (loadingMessages) {
-      return const Center(child: StealthLoadingIndicator());
+      return const Center(child: TgLoading());
     }
 
     return Column(
@@ -58,10 +59,10 @@ class ConversationPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.systemYellow.withValues(alpha: 0.12),
+                color: c.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppColors.systemYellow.withValues(alpha: 0.24),
+                  color: c.warning.withValues(alpha: 0.24),
                 ),
               ),
               child: Row(
@@ -126,7 +127,7 @@ class ConversationPanel extends StatelessWidget {
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Center(
                             child:
-                                StealthLoadingIndicator(size: 20, strokeWidth: 2),
+                                TgLoading(size: 20, strokeWidth: 2),
                           ),
                         );
                       }
@@ -190,7 +191,7 @@ class ConversationPanel extends StatelessWidget {
                       displayText = '$rawText$editedMarker';
                     }
 
-                    final bubble = glass.GlassChatBubble(
+                    final bubble = glass.TgChatBubble(
                       message: displayText,
                       timestamp: message['timestamp'] as String?,
                       isDelivered: message['isDelivered'] as bool?,
@@ -247,6 +248,7 @@ class _ReplyPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(

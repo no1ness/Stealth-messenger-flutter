@@ -5,7 +5,7 @@ import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -333,10 +333,10 @@ class _CallManagerState extends State<CallManager> {
                                     extras: {'error': preflightError ?? 'OK'});
                                 if (preflightError != null) {
                                   if (dialogContext.mounted) {
-                                    showStealthSnackBar(
+                                    TgSnackBar.show(
                                       dialogContext,
                                       preflightError,
-                                      kind: SnackKind.danger,
+                                      isError: true,
                                     );
                                     setDialogState(
                                         () => _answeringCall = false);
@@ -376,9 +376,9 @@ class _CallManagerState extends State<CallManager> {
                                 }
                               },
                         icon: _answeringCall
-                            ? const StealthLoadingIndicator(
+                            ? TgLoading.spinner(
                                 size: 18,
-                                strokeWidth: 2,
+                                 2,
                               )
                             : const Icon(Icons.phone),
                         label: Text(canAnswer ? 'Ответить' : 'Недоступно'),

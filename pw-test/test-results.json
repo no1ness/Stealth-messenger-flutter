@@ -1,0 +1,399 @@
+{
+  "config": {
+    "argv": [
+      "/home/ruslan/.nvm/versions/node/v22.20.0/bin/node",
+      "/home/ruslan/projects/STEALTH/pw-test/node_modules/.bin/playwright",
+      "test",
+      "--list"
+    ],
+    "configFile": "/home/ruslan/projects/STEALTH/pw-test/playwright.config.js",
+    "rootDir": "/home/ruslan/projects/STEALTH/pw-test/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ruslan/projects/STEALTH/pw-test/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ruslan/projects/STEALTH/pw-test/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.0",
+    "workers": 8,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "call.spec.js",
+      "file": "call.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Call",
+          "file": "call.spec.js",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "can navigate to contacts and see call buttons",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e00a74000aae42bca4be-2890a44a817db0ba9f7e",
+              "file": "call.spec.js",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "incoming call notification appears after signaling offer",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "e00a74000aae42bca4be-3e9d9fd0f01c0b573453",
+              "file": "call.spec.js",
+              "line": 42,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "chat.spec.js",
+      "file": "chat.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Chat",
+          "file": "chat.spec.js",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "both users see Chats tab after registration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3e6486b881f4eb937326-320a5092bf7dbfd56340",
+              "file": "chat.spec.js",
+              "line": 34,
+              "column": 3
+            },
+            {
+              "title": "user can navigate to Contacts tab",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3e6486b881f4eb937326-b25344373331b10a1588",
+              "file": "chat.spec.js",
+              "line": 39,
+              "column": 3
+            },
+            {
+              "title": "contact bundle can be read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3e6486b881f4eb937326-a0501726bb1b5c3c384f",
+              "file": "chat.spec.js",
+              "line": 47,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "contacts.spec.js",
+      "file": "contacts.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Contacts",
+          "file": "contacts.spec.js",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Add contact button is visible on Contacts tab",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d36c0a2d018a09404ff9-553a1f6102c12a429c60",
+              "file": "contacts.spec.js",
+              "line": 33,
+              "column": 3
+            },
+            {
+              "title": "add contact sheet opens with search input",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d36c0a2d018a09404ff9-23baa1c39c9ad3a170ca",
+              "file": "contacts.spec.js",
+              "line": 40,
+              "column": 3
+            },
+            {
+              "title": "can paste contact bundle",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d36c0a2d018a09404ff9-55ced93648ed5abc8949",
+              "file": "contacts.spec.js",
+              "line": 51,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "file-transfer.spec.js",
+      "file": "file-transfer.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "File Transfer",
+          "file": "file-transfer.spec.js",
+          "line": 7,
+          "column": 6,
+          "specs": [
+            {
+              "title": "attach file button triggers file chooser",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a84a73269d697c639704-11621428aa788c2d6e8a",
+              "file": "file-transfer.spec.js",
+              "line": 36,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "registration.spec.js",
+      "file": "registration.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Registration",
+          "file": "registration.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "user can register with nickname",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1551a940dbfbf0872387-4ab6edf1431fad04a0c2",
+              "file": "registration.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "registration screen shows input and start button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1551a940dbfbf0872387-096e5cd10f78c7906d8f",
+              "file": "registration.spec.js",
+              "line": 14,
+              "column": 3
+            },
+            {
+              "title": "start button enables after typing nickname",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1551a940dbfbf0872387-e737eda70c7108339172",
+              "file": "registration.spec.js",
+              "line": 24,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-06-21T05:30:39.050Z",
+    "duration": 256.567,
+    "expected": 0,
+    "skipped": 12,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

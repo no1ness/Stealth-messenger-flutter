@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 /// Renders a deterministic, ultra-faint hex fingerprint pattern behind
 /// the empty-state icon — the kind of grid you'd see formatting a
@@ -49,6 +49,7 @@ class _KeyFingerprintBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final isLight = Theme.of(context).brightness == Brightness.light;
     if (isLight) return const SizedBox.shrink();
 
@@ -59,8 +60,8 @@ class _KeyFingerprintBackdrop extends StatelessWidget {
           child: Text(
             _buildPattern(),
             textAlign: TextAlign.center,
-            style: AppTypography.captionMono.copyWith(
-              color: AppColors.textPrimary,
+            style: TgTypography.captionMono.copyWith(
+              color: c.text,
               height: 1.25,
             ),
           ),
@@ -116,6 +117,7 @@ class StealthEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     Logger.debug('[ds:empty-state] title=$title');
     return GrainOverlay(
       child: Stack(
@@ -124,7 +126,7 @@ class StealthEmptyState extends StatelessWidget {
           _KeyFingerprintBackdrop(seed: title),
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
+              padding: const EdgeInsets.all(TgSpacing.xl),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -134,37 +136,37 @@ class StealthEmptyState extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.textTertiary,
+                        color: c.textSecondary,
                         width: 1,
                       ),
-                      color: AppColors.shadow,
+                      color: c.defaultShadow,
                     ),
                     child: Icon(
                       icon,
                       size: 32,
-                      color: AppColors.textSecondary,
+                      color: c.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: TgSpacing.lg),
                   Text(
                     title,
-                    style: AppTypography.headline.copyWith(
-                      color: AppColors.textOnGlass,
+                    style: TgTypography.headline.copyWith(
+                      color: c.text,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   if (message != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: TgSpacing.xs),
                     Text(
                       message!,
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.textSecondary,
+                      style: TgTypography.body.copyWith(
+                        color: c.textSecondary,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ],
                   if (action != null) ...[
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: TgSpacing.lg),
                     action!,
                   ],
                 ],
@@ -189,6 +191,7 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     switch (type) {
       case 'chats':
         return const StealthEmptyState.chats();

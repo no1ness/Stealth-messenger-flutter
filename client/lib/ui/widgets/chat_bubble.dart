@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'voice_message_player.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -77,15 +77,15 @@ class ChatBubble extends StatelessWidget {
       // await LocalAppService().softDeleteMessage(messageId: messageId!);
       onDeleted?.call();
       if (!context.mounted) return;
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Сообщение удалено',
-        kind: SnackKind.success,
+        isError: false,
         duration: const Duration(seconds: 1),
       );
     } catch (e) {
       if (!context.mounted) return;
-      showStealthSnackBar(context, 'Ошибка: $e', kind: SnackKind.danger);
+      TgSnackBar.show(context, 'Ошибка: $e', isError: true);
     }
   }
 

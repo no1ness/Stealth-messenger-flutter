@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 
 /// Opens the "Manage group" bottom sheet for a group chat.
@@ -150,10 +150,10 @@ Future<void> showManageGroupSheet({
                                     if (!context.mounted) {
                                       return;
                                     }
-                                    showStealthSnackBar(
+                                    TgSnackBar.show(
                                       context,
                                       '$error',
-                                      kind: SnackKind.danger,
+                                      isError: true,
                                     );
                                   }
                                 },
@@ -227,10 +227,10 @@ Future<void> showManageGroupSheet({
                                         if (!context.mounted) {
                                           return;
                                         }
-                                        showStealthSnackBar(
+                                        TgSnackBar.show(
                                           context,
                                           '$error',
-                                          kind: SnackKind.danger,
+                                          isError: true,
                                         );
                                       }
                                     },

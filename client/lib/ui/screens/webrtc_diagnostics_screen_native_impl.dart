@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class WebRTCDiagnosticsScreen extends StatefulWidget {
   const WebRTCDiagnosticsScreen({super.key});
@@ -108,39 +108,40 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Диагностика WebRTC', showBackButton: true),
+        child: TgAppBar(title: 'Диагностика WebRTC', showBackButton: true),
       ),
-      body: StealthAnimatedBackground(
+      body: Container(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(TgSpacing.md),
             child: Column(
               children: [
-                GlassContainer(
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Тест микрофона',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       if (_error.isNotEmpty)
                         Text(
                           _error,
-                          style: AppTypography.body
-                              .copyWith(color: AppColors.systemRed),
+                          style: TgTypography.body
+                              .copyWith(color: c.error),
                           textAlign: TextAlign.center,
                         )
                       else
                         Text(
                           _status,
-                          style: AppTypography.body,
+                          style: TgTypography.body,
                           textAlign: TextAlign.center,
                         ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: TgSpacing.lg),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -159,16 +160,16 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                GlassContainer(
+                const SizedBox(height: TgSpacing.xl),
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Тест соединения',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       Text(_connectivityStatus, textAlign: TextAlign.center),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: TgSpacing.md),
                       ElevatedButton.icon(
                         onPressed: _testConnectivity,
                         icon: const Icon(Icons.network_check),
@@ -177,13 +178,13 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                GlassContainer(
+                const SizedBox(height: TgSpacing.xl),
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Системная информация',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       _buildInfoRow('Flutter WebRTC', 'Installed'),
                       _buildInfoRow(
@@ -213,11 +214,11 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
         children: [
           Text(
             label,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+            style: TgTypography.body.copyWith(color: c.textSecondary),
           ),
           Text(
             value,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
+            style: TgTypography.body.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),

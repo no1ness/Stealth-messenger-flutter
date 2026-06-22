@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 Widget? buildConversationAttachment({
   required Map<String, dynamic> message,
@@ -26,7 +26,7 @@ Widget? buildConversationAttachment({
             return const SizedBox(
               width: 200,
               height: 200,
-              child: Center(child: StealthLoadingIndicator()),
+              child: Center(child: TgLoading()),
             );
           }
           if (snapshot.hasData && snapshot.data != null) {
@@ -68,7 +68,7 @@ Widget? buildConversationAttachment({
   return Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(Icons.insert_drive_file, color: AppColors.systemBlue),
+      Icon(Icons.insert_drive_file, color: c.primary),
       const SizedBox(width: 8),
       Text(isEncrypted ? 'Encrypted File' : 'File Attachment'),
     ],
@@ -90,12 +90,13 @@ class _AudioAttachment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
           icon: const Icon(Icons.play_circle_fill,
-              color: AppColors.systemBlue, size: 32),
+              color: c.primary, size: 32),
           onPressed: () async {
             final bytes = await appService.downloadAttachment(
               url,
@@ -112,7 +113,7 @@ class _AudioAttachment extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           isEncrypted ? 'Encrypted Voice' : 'Voice Note',
-          style: AppTypography.caption1,
+          style: TgTypography.caption1,
         ),
       ],
     );

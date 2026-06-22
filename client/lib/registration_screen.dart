@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -26,16 +26,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     try {
       await _appService.registerUser(nickname);
       if (!mounted) return;
-      StealthHaptics.success(context);
+      TgHaptics.medium();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainTabs()),
       );
     } catch (e) {
       if (!mounted) return;
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Ошибка регистрации: $e',
-        kind: SnackKind.danger,
+        isError: true,
       );
     } finally {
       if (mounted) {
@@ -54,54 +54,51 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final isWeb = kIsWeb;
-
-    final background = isWeb
-        ? const StealthBackground(child: SizedBox.expand())
-        : const StealthAnimatedBackground(child: SizedBox.expand());
 
     final content = SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.security_rounded,
                   size: 80,
-                  color: AppColors.systemBlue,
+                  color: c.primary,
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: 24),
                 Text(
                   'STEALTH',
-                  style: AppTypography.largeTitle.copyWith(
+                  style: TgTypography.largeTitle.copyWith(
                     letterSpacing: 8,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 8),
                 Text(
                   'Безопасный и приватный мессенджер',
-                  style: AppTypography.subheadline.copyWith(
-                    color: AppColors.textSecondary,
+                  style: TgTypography.subheadline.copyWith(
+                    color: c.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppSpacing.xxl * 2),
-                GlassTextField(
+                const SizedBox(height: 64),
+                TgTextField(
                   controller: _nicknameController,
                   labelText: 'Выберите никнейм',
                   hintText: 'Введите ваш алиас...',
-                  prefixIcon: const Icon(Icons.person_outline,
-                      color: AppColors.systemBlue),
+                  prefixIcon: Icon(Icons.person_outline,
+                      color: c.primary),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
@@ -110,35 +107,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ? _register
                         : null,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: AppColors.systemBlue,
+                      side: BorderSide(
+                        color: c.primary,
                         width: 1.5,
                       ),
-                      foregroundColor: AppColors.systemBlue,
+                      foregroundColor: c.primary,
                       backgroundColor:
-                          AppColors.systemBlue.withValues(alpha: 0.08),
+                          c.primary.withValues(alpha: 0.08),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xxl,
-                        vertical: AppSpacing.sm,
+                        horizontal: 32,
+                        vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusLg),
+                            BorderRadius.circular(16),
                       ),
                     ),
                     child: _isLoading
-                        ? const StealthLoadingIndicator(
+                        ? TgLoading.spinner(
                             size: 20,
-                            strokeWidth: 2,
                           )
                         : const Text('НАЧАТЬ'),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: 24),
                 Text(
                   'Без номера телефона. Без email.\nВаша приватность — наш приоритет.',
-                  style: AppTypography.caption1.copyWith(
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
+                  style: TgTypography.caption1.copyWith(
+                    color: c.textSecondary.withValues(alpha: 0.6),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -151,15 +147,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      body: isWeb
-          ? Stack(children: [background, content])
-          : Stack(
-              children: [
-                background,
-                GrainOverlay(force: true, child: const SizedBox.expand()),
-                content,
-              ],
-            ),
+      backgroundColor: c.background,
+      body: content,
     );
   }
 }

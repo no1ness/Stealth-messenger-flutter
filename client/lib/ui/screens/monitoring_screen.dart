@@ -5,7 +5,7 @@ import 'package:stealth/p2p_service.dart';
 import 'package:stealth/services/dashboard/dashboard_service.dart';
 import 'package:stealth/services/device/device_info_service.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});
@@ -77,7 +77,7 @@ class _MonitoringScreenState extends State<MonitoringScreen>
         child: GlassAppBar(title: 'Мониторинг'),
       ),
       body: _isLoading
-          ? const Center(child: StealthLoadingIndicator())
+          ? const Center(child: TgLoading.spinner())
           : ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [

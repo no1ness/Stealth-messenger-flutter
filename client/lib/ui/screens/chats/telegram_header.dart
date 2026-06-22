@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/p2p_service.dart';
 
 /// Telegram-style chat header with avatar, name, and status.
@@ -21,15 +21,16 @@ class TelegramHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final isP2P = P2PService.instance.isP2PReady(chatId);
 
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: TgSpacing.sm),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: AppColors.dividerSubtle,
+            color: c.dividers,
             width: 0.5,
           ),
         ),
@@ -40,7 +41,7 @@ class TelegramHeader extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.arrow_back_ios, size: 20),
               onPressed: onBack,
-              color: AppColors.systemBlue,
+              color: c.primary,
             ),
           Container(
             width: 40,
@@ -52,12 +53,12 @@ class TelegramHeader extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               _initials(chatName),
-              style: AppTypography.calloutEmphasis.copyWith(
-                color: AppColors.textOnGlass,
+              style: TgTypography.calloutEmphasis.copyWith(
+                color: c.text,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: TgSpacing.sm),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -65,8 +66,8 @@ class TelegramHeader extends StatelessWidget {
               children: [
                 Text(
                   chatName,
-                  style: AppTypography.bodyEmphasis.copyWith(
-                    color: AppColors.textOnGlass,
+                  style: TgTypography.bodyEmphasis.copyWith(
+                    color: c.text,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -79,16 +80,16 @@ class TelegramHeader extends StatelessWidget {
                       height: 6,
                       decoration: BoxDecoration(
                         color: isP2P
-                            ? AppColors.systemGreen
-                            : AppColors.systemBlue,
+                            ? c.green
+                            : c.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       isP2P ? 'P2P' : 'Локально',
-                      style: AppTypography.caption1.copyWith(
-                        color: AppColors.textSecondary,
+                      style: TgTypography.caption1.copyWith(
+                        color: c.textSecondary,
                       ),
                     ),
                   ],
@@ -100,7 +101,7 @@ class TelegramHeader extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.more_vert, size: 20),
               onPressed: onMenuPressed,
-              color: AppColors.textSecondary,
+              color: c.textSecondary,
             ),
         ],
       ),

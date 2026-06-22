@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../services/diagnostics/service_status.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class ServiceStatusTile extends StatelessWidget {
   const ServiceStatusTile({super.key, required this.status});
@@ -10,16 +10,17 @@ class ServiceStatusTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: TgSpacing.md,
+        vertical: TgSpacing.xs,
       ),
-      child: GlassContainer(
+      child: FlatContainer(
         intensity: GlassIntensity.light,
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+          horizontal: TgSpacing.md,
+          vertical: TgSpacing.sm,
         ),
         child: MergeSemantics(
           child: Row(
@@ -28,17 +29,17 @@ class ServiceStatusTile extends StatelessWidget {
                 label: _semanticLabelFor(status.state),
                 child: _StatusDot(state: status.state),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(status.label, style: AppTypography.bodyEmphasis),
+                    Text(status.label, style: TgTypography.bodyEmphasis),
                     const SizedBox(height: 2),
                     Text(
                       status.detail,
-                      style: AppTypography.caption1.copyWith(
-                        color: AppColors.systemGray,
+                      style: TgTypography.caption1.copyWith(
+                        color: c.gray,
                       ),
                     ),
                   ],
@@ -72,18 +73,19 @@ class _StatusDot extends StatelessWidget {
   Color get _color {
     switch (state) {
       case HealthState.ok:
-        return AppColors.systemGreen;
+        return c.green;
       case HealthState.warn:
-        return AppColors.systemOrange;
+        return c.warning;
       case HealthState.error:
-        return AppColors.systemRed;
+        return c.error;
       case HealthState.unknown:
-        return AppColors.systemGray;
+        return c.gray;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Container(
       width: 12,
       height: 12,

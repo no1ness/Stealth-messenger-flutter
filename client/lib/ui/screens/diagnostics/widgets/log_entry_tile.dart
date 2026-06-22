@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../logging/log_buffer.dart';
 import '../../../../logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class LogEntryTile extends StatelessWidget {
   const LogEntryTile({super.key, required this.entry});
@@ -11,6 +11,7 @@ class LogEntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final levelColor = _colorFor(entry.level);
     final hh = entry.timestampUtc.hour.toString().padLeft(2, '0');
     final mm = entry.timestampUtc.minute.toString().padLeft(2, '0');
@@ -18,8 +19,8 @@ class LogEntryTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: TgSpacing.md,
+        vertical: TgSpacing.xs,
       ),
       child: MergeSemantics(
         child: Row(
@@ -29,13 +30,13 @@ class LogEntryTile extends StatelessWidget {
               width: 60,
               child: Text(
                 '$hh:$mm:$ss',
-                style: AppTypography.caption1.copyWith(
-                  color: AppColors.systemGray,
+                style: TgTypography.caption1.copyWith(
+                  color: c.gray,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: TgSpacing.xs),
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 6,
@@ -47,23 +48,23 @@ class LogEntryTile extends StatelessWidget {
               ),
               child: Text(
                 entry.level.name.toUpperCase(),
-                style: AppTypography.caption2Emphasis.copyWith(
+                style: TgTypography.caption2Emphasis.copyWith(
                   color: levelColor,
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: TgSpacing.xs),
             Expanded(
               child: SelectableText.rich(
                 TextSpan(
-                  style: AppTypography.caption1,
+                  style: TgTypography.caption1,
                   children: [
                     TextSpan(text: entry.message),
                     if (entry.extrasText != null)
                       TextSpan(
                         text: entry.extrasText,
-                        style: AppTypography.caption1.copyWith(
-                          color: AppColors.systemGray,
+                        style: TgTypography.caption1.copyWith(
+                          color: c.gray,
                         ),
                       ),
                   ],
@@ -80,12 +81,12 @@ class LogEntryTile extends StatelessWidget {
 Color _colorFor(LogLevel level) {
   switch (level) {
     case LogLevel.debug:
-      return AppColors.systemGray;
+      return c.gray;
     case LogLevel.info:
-      return AppColors.systemBlue;
+      return c.primary;
     case LogLevel.warn:
-      return AppColors.systemOrange;
+      return c.warning;
     case LogLevel.error:
-      return AppColors.systemRed;
+      return c.error;
   }
 }

@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:path_provider/path_provider.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../logging/logger.dart';
@@ -123,7 +123,7 @@ Future<ShareOutcome> _fallbackToClipboard(
   try {
     await Clipboard.setData(ClipboardData(text: reportText));
     if (context.mounted) {
-      showStealthSnackBar(context, 'Диагностика скопирована');
+      TgSnackBar.show(context, 'Диагностика скопирована');
     }
     return ShareOutcome.copiedToClipboard;
   } catch (error) {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class ConversationFooter extends StatelessWidget {
   const ConversationFooter({
@@ -27,6 +27,7 @@ class ConversationFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -44,7 +45,7 @@ class ConversationFooter extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: AppColors.systemBlue.withValues(alpha: 0.25),
+                      color: c.primary.withValues(alpha: 0.25),
                     ),
                   ),
                   child: Row(
@@ -73,7 +74,7 @@ class ConversationFooter extends StatelessWidget {
                           : messagesCount.clamp(1, 50) / 50,
                       minHeight: 6,
                       borderRadius: BorderRadius.circular(999),
-                      color: AppColors.systemBlue,
+                      color: c.primary,
                       backgroundColor: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
@@ -91,7 +92,7 @@ class ConversationFooter extends StatelessWidget {
                   child: Text(
                     'Печатает...',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.systemGreen,
+                          color: c.green,
                           fontWeight: FontWeight.w600,
                         ),
                   ),
@@ -100,7 +101,7 @@ class ConversationFooter extends StatelessWidget {
             ],
           ),
         ),
-        GlassMessageInput(
+        TgMessageInput(
           onSendMessage: onSendMessage,
           onAttachment: onAttachment,
           onVoiceRecorded: onVoiceRecorded,

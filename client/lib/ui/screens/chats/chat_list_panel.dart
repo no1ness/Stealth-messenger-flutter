@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../constants/accessibility_ids.dart';
 import '../../../local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import '../../widgets/empty_state.dart';
 import 'create_group_sheet.dart';
 import 'group_management_sheet.dart';
@@ -54,6 +54,7 @@ class ChatListPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Column(
       children: [
         Padding(
@@ -86,7 +87,7 @@ class ChatListPanel extends StatelessWidget {
                       child: _StatCard(
                         label: 'Chats',
                         value: '$totalChatsCount',
-                        accent: AppColors.systemBlue,
+                        accent: c.primary,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -94,7 +95,7 @@ class ChatListPanel extends StatelessWidget {
                       child: _StatCard(
                         label: 'Unread',
                         value: '$unreadCount',
-                        accent: AppColors.systemOrange,
+                        accent: c.warning,
                       ),
                     ),
                   ],
@@ -138,7 +139,7 @@ class ChatListPanel extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final chat = chats[index];
                         final isSelected = chat['id'] == selectedChatId;
-                        return _ChatTile(
+                        return _TgChatTile(
                           chat: chat,
                           isSelected: isSelected,
                           appService: appService,
@@ -156,8 +157,8 @@ class ChatListPanel extends StatelessWidget {
   }
 }
 
-class _ChatTile extends StatelessWidget {
-  const _ChatTile({
+class _TgChatTile extends StatelessWidget {
+  const _TgChatTile({
     required this.chat,
     required this.isSelected,
     required this.appService,
@@ -179,6 +180,7 @@ class _ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     final unreadCount = chat['unreadCount'] as int? ?? 0;
     final memberCount = chat['memberCount'] as int? ?? 0;
     final isPrivate = chat['isPrivate'] as bool? ?? true;
@@ -191,12 +193,12 @@ class _ChatTile extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.systemBlue.withValues(alpha: 0.16)
+              ? c.primary.withValues(alpha: 0.16)
               : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: isSelected
-                ? AppColors.systemBlue.withValues(alpha: 0.45)
+                ? c.primary.withValues(alpha: 0.45)
                 : Colors.white.withValues(alpha: 0.05),
           ),
         ),
@@ -217,7 +219,7 @@ class _ChatTile extends StatelessWidget {
                     },
                   ),
           leading: CircleAvatar(
-            backgroundColor: AppColors.systemBlue.withValues(alpha: 0.85),
+            backgroundColor: c.primary.withValues(alpha: 0.85),
             child: Text(
               initials(chat['name'] as String?),
               style: const TextStyle(
@@ -256,7 +258,7 @@ class _ChatTile extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.systemOrange,
+                      color: c.warning,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -290,6 +292,7 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),

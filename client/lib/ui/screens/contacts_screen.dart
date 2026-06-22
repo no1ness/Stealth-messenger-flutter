@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/sheets/user_detail_sheet.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
@@ -142,7 +142,7 @@ class _ContactsScreenState extends State<ContactsScreen>
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(TgSpacing.md),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -203,7 +203,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                       await _loadContacts();
                     }
                     if (!mounted) return;
-                    showStealthSnackBar(this.context, snackMsg);
+                    TgSnackBar.show(this.context, snackMsg);
                   },
                 ),
               ],
@@ -220,15 +220,15 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (userId == null) return;
 
     if (mounted) {
-      showStealthDialog<void>(
+      TgDialog.show<void>(
         context: context,
         title: 'Генерация отпечатка',
         barrierDismissible: false,
         body: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            StealthLoadingIndicator(size: 20, strokeWidth: 2),
-            SizedBox(width: AppSpacing.md),
+            TgLoading(size: 20, strokeWidth: 2),
+            SizedBox(width: TgSpacing.md),
             Text('Генерация отпечатка...'),
           ],
         ),
@@ -240,7 +240,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     if (mounted) {
       Navigator.of(context).pop(); // Закрываем диалог загрузки
 
-      showStealthDialog<void>(
+      TgDialog.show<void>(
         context: context,
         title: 'Код безопасности — $name',
         body: Column(
@@ -248,10 +248,10 @@ class _ContactsScreenState extends State<ContactsScreen>
           children: [
             Text(
               'Сравните этот номер с контактом. Если он точно совпадает, ваше сквозное шифрование безопасно.',
-              style: AppTypography.caption1
-                  .copyWith(color: AppColors.textSecondary),
+              style: TgTypography.caption1
+                  .copyWith(color: c.textSecondary),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: TgSpacing.xl),
             Text(
               safetyNumber ?? 'Ошибка генерации номера',
               style: const TextStyle(
@@ -259,7 +259,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
                 fontFamily: 'GeistMono',
-                color: AppColors.systemBlue,
+                color: c.primary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -299,10 +299,10 @@ class _ContactsScreenState extends State<ContactsScreen>
                 if (!context.mounted) {
                   return;
                 }
-                showStealthSnackBar(
+                TgSnackBar.show(
                   context,
                   'Буфер обмена пуст',
-                  kind: SnackKind.warn,
+                  isError: true,
                 );
                 return;
               }
@@ -313,11 +313,11 @@ class _ContactsScreenState extends State<ContactsScreen>
 
             return Padding(
               padding: EdgeInsets.only(
-                left: AppSpacing.md,
-                right: AppSpacing.md,
-                top: AppSpacing.md,
+                left: TgSpacing.md,
+                right: TgSpacing.md,
+                top: TgSpacing.md,
                 bottom:
-                    MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+                    MediaQuery.of(context).viewInsets.bottom + TgSpacing.md,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -334,14 +334,14 @@ class _ContactsScreenState extends State<ContactsScreen>
                       onChanged: (_) => search(),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: TgSpacing.sm),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Подсказка: откройте Профиль на другом устройстве и скопируйте данные контакта для E2E-сообщений.',
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: TgSpacing.sm),
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton.icon(
@@ -350,7 +350,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                       label: const Text('Вставить контакт'),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: TgSpacing.md),
                   SizedBox(
                     height: 280,
                     child: results.isEmpty
@@ -430,10 +430,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     final support = await getWebRTCSupport();
     if (!support.isSupported) {
       if (mounted) {
-        showStealthSnackBar(
+        TgSnackBar.show(
           context,
           support.blockingIssues.join(' '),
-          kind: SnackKind.danger,
+          isError: true,
         );
       }
       if (mounted) {
@@ -447,10 +447,10 @@ class _ContactsScreenState extends State<ContactsScreen>
     );
     if (preflightError != null) {
       if (mounted) {
-        showStealthSnackBar(
+        TgSnackBar.show(
           context,
           preflightError,
-          kind: SnackKind.danger,
+          isError: true,
         );
         setState(() => _startingCall = false);
       }
@@ -477,7 +477,7 @@ class _ContactsScreenState extends State<ContactsScreen>
     // который шлёт WebRTCCallScreen после открытия, и есть «звонок».
     // Это устраняет лишний канал связи и упрощает race-conditions.
     await Navigator.of(context).push(
-      GlassPageRoute.modal(
+      MaterialPageRoute(
         builder: (_) => WebRTCCallScreen(
           peerName: (contact['name'] as String?) ?? 'Контакт',
           chatId: chatId,
@@ -504,6 +504,7 @@ class _ContactsScreenState extends State<ContactsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     super.build(context);
     final query = _searchController.text.trim().toLowerCase();
     final filtered = query.isEmpty
@@ -520,26 +521,26 @@ class _ContactsScreenState extends State<ContactsScreen>
       backgroundColor: Colors.transparent,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Контакты'),
+        child: TgAppBar(title: 'Контакты'),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Padding(
             padding: EdgeInsets.all(
-              constraints.maxWidth >= 900 ? AppSpacing.xl : AppSpacing.md,
+              constraints.maxWidth >= 900 ? TgSpacing.xl : TgSpacing.md,
             ),
             child: Column(
               children: [
-                GlassTextField(
+                TgTextField(
                   controller: _searchController,
                   hintText: 'Поиск контактов',
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: AppColors.textSecondary,
+                    color: c.textSecondary,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: TgSpacing.md),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Semantics(
@@ -552,12 +553,12 @@ class _ContactsScreenState extends State<ContactsScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: TgSpacing.md),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _loadContacts,
                     child: _loading
-                        ? const Center(child: StealthLoadingIndicator())
+                        ? const Center(child: TgLoading())
                         : filtered.isEmpty
                             ? Semantics(
                                 label: 'Нет контактов',
@@ -569,8 +570,8 @@ class _ContactsScreenState extends State<ContactsScreen>
                                   crossAxisCount: constraints.maxWidth >= 1200
                                       ? 3
                                       : (constraints.maxWidth >= 700 ? 2 : 1),
-                                  crossAxisSpacing: AppSpacing.md,
-                                  mainAxisSpacing: AppSpacing.md,
+                                  crossAxisSpacing: TgSpacing.md,
+                                  mainAxisSpacing: TgSpacing.md,
                                   childAspectRatio:
                                       constraints.maxWidth >= 700 ? 2.3 : 2.8,
                                 ),
@@ -578,7 +579,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                 padding: EdgeInsets.only(
                                   bottom:
                                       MediaQuery.of(context).padding.bottom +
-                                          AppSpacing.bottomBarOverlap,
+                                          TgSpacing.bottomBarOverlap,
                                 ),
                                 itemBuilder: (context, index) {
                                   final contact = filtered[index];
@@ -587,7 +588,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                       contact['auto_populated'] == true;
                                   return Opacity(
                                     opacity: autoPopulated ? 0.85 : 1.0,
-                                    child: ContactTile(
+                                    child: TgContactTile(
                                       contact: contact,
                                       isOnline: isOnline,
                                       onTap: _startingCall
@@ -605,7 +606,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                 : () => _openChat(contact),
                                             icon: const Icon(
                                               Icons.chat_bubble_outline,
-                                              color: AppColors.systemBlue,
+                                              color: c.primary,
                                             ),
                                           ),
                                           Semantics(
@@ -625,7 +626,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                       width: 18,
                                                       height: 18,
                                                       child:
-                                                          StealthLoadingIndicator(
+                                                          TgLoading(
                                                         size: 18,
                                                         strokeWidth: 2,
                                                       ),
@@ -652,7 +653,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                       ),
                                               icon: const Icon(
                                                 Icons.videocam_outlined,
-                                                color: AppColors.systemBlue,
+                                                color: c.primary,
                                               ),
                                             ),
                                           ),
@@ -662,7 +663,7 @@ class _ContactsScreenState extends State<ContactsScreen>
                                                 _showContactActions(contact),
                                             icon: const Icon(
                                               Icons.more_horiz,
-                                              color: AppColors.textSecondary,
+                                              color: c.textSecondary,
                                             ),
                                           ),
                                         ],
