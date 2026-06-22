@@ -83,3 +83,4 @@ pw-test/*-report.json
 server/pb_backup_*.zip
 .mimocode/
 tmp_*
+fix_*
