@@ -130,8 +130,6 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: TgAppBar(
@@ -185,9 +183,9 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                     ),
                   ),
                   if (_logs.isEmpty)
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.all(TgSpacing.md),
+                        padding: const EdgeInsets.all(TgSpacing.md),
                         child: Text(
                           'Пока нет записей в логе',
                           style: TgTypography.body,

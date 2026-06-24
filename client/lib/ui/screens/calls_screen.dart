@@ -15,6 +15,7 @@ class CallsScreen extends StatefulWidget {
 }
 
 class _CallsScreenState extends State<CallsScreen> {
+  TgThemeColors get c => TgThemeColors.of(context);
   late final LocalAppService _appService = ProviderScope.containerOf(context).read(localAppServiceProvider);
   List<Map<String, dynamic>> _calls = const [];
   bool _loading = true;
@@ -44,7 +45,6 @@ class _CallsScreenState extends State<CallsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -66,7 +66,7 @@ class _CallsScreenState extends State<CallsScreen> {
                   ),
                   itemCount: _calls.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: TgSpacing.xxs),
+                      SizedBox(height: TgSpacing.xxs),
                   itemBuilder: (context, index) {
                     final call = _calls[index];
                     return _buildCallTile(call);

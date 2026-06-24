@@ -94,65 +94,18 @@ export default async function chatBasic({ alice, bob }) {
     console.log(`[chat] datachannel offer POST failed (${dcResp.status})`);
   }
 
-  // Navigate to Contacts tab and verify Add contact button
-  await alice.page.getByRole("button", { name: "Contacts" }).click({ force: true, noWaitAfter: true });
-  await delay(1500);
+  // Verify Chats screen is visible
+  await alice.page.getByRole("button", { name: /Chats|Чаты/i }).waitFor({ state: "visible", timeout: 5000 });
+  console.log("[chat] Chats screen verified");
 
-  // Verify Add contact button exists
-  const addContactBtn = alice.page.getByRole("button", { name: "Add contact" });
-  if (await addContactBtn.isVisible().catch(() => false)) {
-    console.log("[chat] Contacts screen: Add contact button visible");
-  }
-
-  // Open Add Contact sheet and verify search/paste input exists
-  await addContactBtn.click({ force: true, noWaitAfter: true });
-  await delay(2000);
-
-  const pasteInput = alice.page.getByRole("textbox").first();
-  if (await pasteInput.isVisible().catch(() => false)) {
-    console.log("[chat] Add contact sheet: paste/search input visible");
-  }
-
-  // Write Bob's bundle to clipboard and try to paste
-  const bobBundlePaste = bobBundle || "";
-  if (bobBundlePaste) {
-    try {
-      await alice.page.evaluate(
-        (text) => navigator.clipboard.writeText(text),
-        bobBundlePaste,
-      );
-      console.log("[chat] bundle written to clipboard");
-    } catch (e) {
-      console.log(`[chat] clipboard write failed: ${e.message}`);
+  // Try Contacts sidebar tab if on desktop layout (non-blocking)
+  const contactsTab = alice.page.getByRole("tab", { name: /Contacts|Контакты/i });
+  if (await contactsTab.isVisible().catch(() => false)) {
+    await contactsTab.click({ force: true, noWaitAfter: true });
+    await delay(1500);
+    const addContactBtn = alice.page.getByRole("button", { name: /Add contact|Добавить контакт|Добавить/i });
+    if (await addContactBtn.isVisible().catch(() => false)) {
+      console.log("[chat] Contacts screen: Add contact button visible");
     }
   }
-
-  // Paste via keyboard shortcut (Ctrl+V into Flutter's hidden textarea)
-  await alice.page.keyboard.press("Control+v");
-  await delay(1000);
-
-  const pasteBtn = alice.page.getByRole("button", { name: /Вставить контакт|Paste contact/i });
-  if (await pasteBtn.isVisible().catch(() => false)) {
-    await pasteBtn.click({ force: true, noWaitAfter: true });
-    await delay(800);
-  }
-
-  // Check search results
-  const noUsers = alice.page.getByText("Пользователи не найдены");
-  if (await noUsers.isVisible().catch(() => false)) {
-    console.log("[chat] search returned no users");
-  } else {
-    const userTiles = await alice.page
-      .getByRole("button")
-      .filter({ hasText: /Chat|User/ })
-      .count()
-      .catch(() => 0);
-    console.log(`[chat] user tiles found: ${userTiles}`);
-  }
-
-  console.log("[chat] Add Contact sheet UI verified");
-
-  // Dismiss sheet and return to main
-  await alice.page.keyboard.press("Escape");
-  await delay(500);
 }

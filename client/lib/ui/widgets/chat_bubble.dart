@@ -59,7 +59,7 @@ class ChatBubble extends StatelessWidget {
   }
 
   Future<void> _showDeleteDialog(BuildContext context) async {
-    final result = await TgDialog.show<bool>(
+    final result = await TgDialog.show(
       context,
       title: 'Удалить сообщение?',
       message: 'Это действие нельзя отменить.',
@@ -79,7 +79,6 @@ class ChatBubble extends StatelessWidget {
         context,
         'Сообщение удалено',
         isError: false,
-        duration: const Duration(seconds: 1),
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -89,7 +88,6 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isSent
         ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade600)

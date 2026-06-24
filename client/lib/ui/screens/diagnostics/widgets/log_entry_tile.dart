@@ -13,13 +13,13 @@ class LogEntryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
 
-    final levelColor = _colorFor(entry.level);
+    final levelColor = _colorFor(c, entry.level);
     final hh = entry.timestampUtc.hour.toString().padLeft(2, '0');
     final mm = entry.timestampUtc.minute.toString().padLeft(2, '0');
     final ss = entry.timestampUtc.second.toString().padLeft(2, '0');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: TgSpacing.md,
         vertical: TgSpacing.xs,
       ),
@@ -37,7 +37,7 @@ class LogEntryTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: TgSpacing.xs),
+            SizedBox(width: TgSpacing.xs),
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 6,
@@ -54,7 +54,7 @@ class LogEntryTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: TgSpacing.xs),
+            SizedBox(width: TgSpacing.xs),
             Expanded(
               child: SelectableText.rich(
                 TextSpan(
@@ -79,7 +79,7 @@ class LogEntryTile extends StatelessWidget {
   }
 }
 
-Color _colorFor(LogLevel level) {
+Color _colorFor(TgThemeColors c, LogLevel level) {
   switch (level) {
     case LogLevel.debug:
       return c.gray;

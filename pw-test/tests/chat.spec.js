@@ -32,15 +32,20 @@ test.describe("Chat", () => {
   });
 
   test("both users see Chats tab after registration", async () => {
-    await expect(alice.getByRole("button", { name: "Chats" })).toBeVisible();
-    await expect(bob.getByRole("button", { name: "Chats" })).toBeVisible();
+    await expect(alice.getByRole("button", { name: /Chats|Чаты/i })).toBeVisible();
+    await expect(bob.getByRole("button", { name: /Chats|Чаты/i })).toBeVisible();
   });
 
   test("user can navigate to Contacts tab", async () => {
-    const navigated = await goToTab(alice, "Contacts");
+    // Contacts are now inside the Chats screen; navigate via sidebar tabs
+    const navigated = await goToTab(alice, "Чаты");
     expect(navigated).toBe(true);
+    // Within Chats, click the Контакты sidebar tab
+    const contactsTab = alice.getByRole("tab", { name: /Contacts|Контакты/i });
+    await contactsTab.waitFor({ state: "visible", timeout: 8_000 });
+    await contactsTab.click();
 
-    const addContactBtn = alice.getByRole("button", { name: /Add contact/i });
+    const addContactBtn = alice.getByRole("button", { name: /Add contact|Добавить контакт|Добавить/i });
     await expect(addContactBtn.first()).toBeVisible({ timeout: 10_000 });
   });
 

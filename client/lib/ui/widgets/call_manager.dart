@@ -188,7 +188,6 @@ class _CallManagerState extends State<CallManager> {
   }
 
   Widget _buildIncomingCallDialog(BuildContext dialogContext, String chatId, String fromUserId, String fromNickname, bool isVideoCall, Map<String, dynamic> offerSdp) {
-    final c = TgThemeColors.of(dialogContext);
     _activeDialogClosers[chatId] = () {
       if (Navigator.of(dialogContext).canPop()) {
         Navigator.of(dialogContext).pop();
@@ -400,7 +399,6 @@ class _CallManagerState extends State<CallManager> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return widget.child;
   }
 

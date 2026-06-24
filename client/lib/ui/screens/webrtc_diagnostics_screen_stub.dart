@@ -6,7 +6,6 @@ class WebRTCDiagnosticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
@@ -16,8 +15,7 @@ class WebRTCDiagnosticsScreen extends StatelessWidget {
           showBackButton: true,
         ),
       ),
-      body: Container(
-        child: SafeArea(
+      body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(TgSpacing.md),
             child: FlatContainer(
@@ -29,7 +27,6 @@ class WebRTCDiagnosticsScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }

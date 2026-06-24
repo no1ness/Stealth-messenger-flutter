@@ -13,13 +13,13 @@ class ServiceStatusTile extends StatelessWidget {
     final c = TgThemeColors.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: TgSpacing.md,
         vertical: TgSpacing.xs,
       ),
       child: FlatContainer(
         intensity: FlatIntensity.light,
-        padding: const EdgeInsets.symmetric(
+        padding: EdgeInsets.symmetric(
           horizontal: TgSpacing.md,
           vertical: TgSpacing.sm,
         ),
@@ -30,7 +30,7 @@ class ServiceStatusTile extends StatelessWidget {
                 label: _semanticLabelFor(status.state),
                 child: _StatusDot(state: status.state),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +71,7 @@ class _StatusDot extends StatelessWidget {
   const _StatusDot({required this.state});
   final HealthState state;
 
-  Color get _color {
+  Color _colorFor(TgThemeColors c) {
     switch (state) {
       case HealthState.ok:
         return c.green;
@@ -92,11 +92,11 @@ class _StatusDot extends StatelessWidget {
       width: 12,
       height: 12,
       decoration: BoxDecoration(
-        color: _color,
+        color: _colorFor(c),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: _color.withValues(alpha: 0.6),
+            color: _colorFor(c).withValues(alpha: 0.6),
             blurRadius: 6,
           ),
         ],

@@ -38,7 +38,7 @@ class _UserDetailSheet extends StatelessWidget {
       expand: false,
       builder: (ctx, scrollController) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(TgSpacing.md),
+          padding: EdgeInsets.all(TgSpacing.md),
           child: ListView(
             controller: scrollController,
             children: [
@@ -52,7 +52,7 @@ class _UserDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: TgSpacing.md),
+              SizedBox(height: TgSpacing.md),
               Text(
                 name,
                 textAlign: TextAlign.center,
@@ -60,7 +60,7 @@ class _UserDetailSheet extends StatelessWidget {
                   color: c.text,
                 ),
               ),
-              const SizedBox(height: TgSpacing.xs),
+              SizedBox(height: TgSpacing.xs),
               Text(
                 userId,
                 textAlign: TextAlign.center,
@@ -69,7 +69,7 @@ class _UserDetailSheet extends StatelessWidget {
                 ),
               ),
               if (isOnline != null) ...[
-                const SizedBox(height: TgSpacing.xs),
+                SizedBox(height: TgSpacing.xs),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -83,7 +83,7 @@ class _UserDetailSheet extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: TgSpacing.xs),
+                    SizedBox(width: TgSpacing.xs),
                     Text(
                       isOnline ? 'В сети' : 'Не в сети',
                       style: TgTypography.caption1.copyWith(
@@ -94,26 +94,26 @@ class _UserDetailSheet extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: TgSpacing.lg),
+              SizedBox(height: TgSpacing.lg),
               if (deviceModel != null || platform != null) ...[
-                _sectionHeader('Устройство'),
-                if (deviceModel != null) _infoRow('Модель', deviceModel),
-                if (platform != null) _infoRow('Платформа', platform),
+                _sectionHeader('Устройство', c),
+                if (deviceModel != null) _infoRow('Модель', deviceModel, c),
+                if (platform != null) _infoRow('Платформа', platform, c),
               ],
               if (appVersion != null) ...[
-                _sectionHeader('Приложение'),
-                _infoRow('Версия', appVersion),
+                _sectionHeader('Приложение', c),
+                _infoRow('Версия', appVersion, c),
               ],
               if (registeredAt != null || lastSeen != null || isOnline != null) ...[
-                _sectionHeader('Активность'),
+                _sectionHeader('Активность', c),
                 if (registeredAt != null)
-                  _infoRow('Зарегистрирован', _formatDate(registeredAt)),
+                  _infoRow('Зарегистрирован', _formatDate(registeredAt), c),
                 if (lastSeen != null)
-                  _infoRow('Последний раз', _formatDate(lastSeen)),
+                  _infoRow('Последний раз', _formatDate(lastSeen), c),
                 if (isOnline != null)
-                  _infoRow('Статус', isOnline ? 'Online' : 'Offline'),
+                  _infoRow('Статус', isOnline ? 'Online' : 'Offline', c),
               ],
-              const SizedBox(height: TgSpacing.lg),
+              SizedBox(height: TgSpacing.lg),
               Row(
                 children: [
                   Expanded(
@@ -122,7 +122,7 @@ class _UserDetailSheet extends StatelessWidget {
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
-                          TgHaptics.light(context);
+                          TgHaptics.light();
                           Navigator.of(context).pop();
                           _openChat(context, userId);
                         },
@@ -131,14 +131,14 @@ class _UserDetailSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: TgSpacing.sm),
+                  SizedBox(width: TgSpacing.sm),
                   Expanded(
                     child: Semantics(
                       label: 'Позвонить',
                       button: true,
                       child: FilledButton.icon(
                         onPressed: () {
-                          TgHaptics.light(context);
+                          TgHaptics.light();
                           Navigator.of(context).pop();
                           _startCall(context, contact);
                         },
@@ -150,7 +150,7 @@ class _UserDetailSheet extends StatelessWidget {
                 ],
               ),
               if (!autoPopulated) ...[
-                const SizedBox(height: TgSpacing.sm),
+                SizedBox(height: TgSpacing.sm),
                 Semantics(
                   label: 'Редактировать профиль',
                   button: true,
@@ -168,9 +168,9 @@ class _UserDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader(String title) {
+  Widget _sectionHeader(String title, TgThemeColors c) {
     return Padding(
-      padding: const EdgeInsets.only(top: TgSpacing.md, bottom: TgSpacing.xs),
+      padding: EdgeInsets.only(top: TgSpacing.md, bottom: TgSpacing.xs),
       child: Text(
         title,
         style: TgTypography.caption1.copyWith(
@@ -181,9 +181,9 @@ class _UserDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(String label, String value) {
+  Widget _infoRow(String label, String value, TgThemeColors c) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: TgSpacing.xxs),
+      padding: EdgeInsets.symmetric(vertical: TgSpacing.xxs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

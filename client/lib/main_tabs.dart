@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/helpers/responsive_breakpoints.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
-import 'package:stealth/themes/tg/tg_theme_data.dart';
 import 'package:stealth/ui/screens/calls_screen.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/profile_screen.dart';
@@ -36,7 +35,6 @@ class _MainTabsState extends State<MainTabs> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return CallManager(
       child: LayoutBuilder(
         builder: (context, constraints) {

@@ -121,8 +121,7 @@ class StealthEmptyState extends StatelessWidget {
     final c = TgThemeColors.of(context);
 
     Logger.debug('[ds:empty-state] title=$title');
-    return GrainOverlay(
-      child: Stack(
+    return Stack(
         alignment: Alignment.center,
         children: [
           _KeyFingerprintBackdrop(seed: title),
@@ -176,10 +175,9 @@ class StealthEmptyState extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      );
+    }
   }
-}
 
 /// Legacy alias to keep existing import sites compiling during the
 /// migration. New code should reach for [StealthEmptyState] directly.
@@ -193,8 +191,6 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     switch (type) {
       case 'chats':
         return const StealthEmptyState.chats();

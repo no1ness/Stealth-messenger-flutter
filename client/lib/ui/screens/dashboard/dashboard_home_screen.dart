@@ -71,7 +71,6 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return Scaffold(
       backgroundColor: Color(0xFF17212B),
       body: _isLoading
@@ -547,7 +546,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     );
   }
 
-  Widget _platformIcon(String platform, {double size = 16}) {
+  Widget _platformIcon(String platform) {
     final color = _platformColor(platform);
     IconData icon;
     switch (platform.toLowerCase()) {

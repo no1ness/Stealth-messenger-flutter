@@ -203,14 +203,14 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                       _isPlaying || _currentPosition.inSeconds > 0
                           ? _formatDuration(_currentPosition)
                           : _formatDuration(_totalDuration),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         color: c.textSecondary,
                       ),
                     ),
                     Text(
                       _formatDuration(_totalDuration),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         color: c.textSecondary,
                       ),
@@ -232,7 +232,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
               ),
               child: Text(
                 '${_playbackSpeed.toStringAsFixed(1)}x',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: c.primary,

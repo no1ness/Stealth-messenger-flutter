@@ -21,6 +21,7 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with SingleTickerProviderStateMixin {
+  TgThemeColors get c => TgThemeColors.of(context);
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   final List<String> _steps = const [
@@ -59,10 +60,7 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     if (!mounted) return;
 
-    // Give the background crossfade a beat to land before the nav cut,
-    // so the handoff feels like the system finishing booting rather
-    // than a hard screen swap.
-    await Future<void>.delayed();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     await Navigator.of(context).pushReplacement(
@@ -75,7 +73,6 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
 
     final isLastStep = _currentStep >= _steps.length - 1;
     final stepCounter =
@@ -87,20 +84,12 @@ class _LoadingScreenState extends State<LoadingScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Bottom layer: stealth animated background, always present.
-          // Becomes visible as the circuit-board layer fades out.
-          const Container(child: SizedBox.expand()),
-          // Top layer: circuit-board "boot sequence". Crossfades to
-          // transparent as bootstrap reaches the last step — the
-          // animated background underneath becomes the new canvas.
+          const SizedBox.expand(),
           AnimatedOpacity(
-            duration: ,
-            curve: ,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
             opacity: isLastStep ? 0.0 : 1.0,
-            child:  SizedBox(
-              animated: true,
-              child: const SizedBox.expand(),
-            ),
+            child: const SizedBox.expand(),
           ),
           // Foreground: glass card with the boot-sequence telemetry.
           Center(
@@ -109,19 +98,19 @@ class _LoadingScreenState extends State<LoadingScreen>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Padding(
-                  padding: const EdgeInsets.all(TgSpacing.lg),
+                  padding: EdgeInsets.all(TgSpacing.lg),
                   child: FlatContainer(
                     intensity: FlatIntensity.light,
-                    padding: const EdgeInsets.all(TgSpacing.xl),
+                    padding: EdgeInsets.all(TgSpacing.xl),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.security_rounded,
                           size: 64,
                           color: c.primary,
                         ),
-                        const SizedBox(height: TgSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         // Signature decryption-glitch reveal. The
                         // wordmark animates from random hex chars to
                         // STEALTH over `` — the first
@@ -135,7 +124,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                             color: c.text,
                           ),
                         ),
-                        const SizedBox(height: TgSpacing.sm),
+                        SizedBox(height: TgSpacing.sm),
                         Text(
                           stepCounter,
                           style: TgTypography.captionMono.copyWith(
@@ -143,7 +132,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                             letterSpacing: 1.2,
                           ),
                         ),
-                        const SizedBox(height: TgSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(999),
                           child: LinearProgressIndicator(
@@ -151,14 +140,14 @@ class _LoadingScreenState extends State<LoadingScreen>
                             minHeight: 4,
                             backgroundColor:
                                 c.surface.withValues(alpha: 0.2),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
+                            valueColor: AlwaysStoppedAnimation<Color>(
                               c.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: TgSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         AnimatedSwitcher(
-                          duration: ,
+                          duration: const Duration(milliseconds: 250),
                           child: Text(
                             _steps[_currentStep],
                             key: ValueKey<int>(_currentStep),

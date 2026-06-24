@@ -21,6 +21,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  TgThemeColors get c => TgThemeColors.of(context);
   late final LocalAppService _appService = ProviderScope.containerOf(context).read(localAppServiceProvider);
   final TextEditingController _nicknameController = TextEditingController();
   String? _userId;
@@ -164,7 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
 
     Logger.debug(
       '[Profile] build',
@@ -178,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_userId == null || _userId!.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(TgSpacing.lg),
+          padding: EdgeInsets.all(TgSpacing.lg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -187,14 +187,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TgTypography.headline.copyWith(color: Colors.white),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: TgSpacing.md),
+              SizedBox(height: TgSpacing.md),
               Text(
                 'Отсутствует ID пользователя. Проверьте логи или повторите попытку.',
                 style:
                     TgTypography.body.copyWith(color: c.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: TgSpacing.lg),
+              SizedBox(height: TgSpacing.lg),
               FilledButton.icon(
                 onPressed: _loadProfile,
                 icon: const Icon(Icons.refresh),
@@ -236,14 +236,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(child: _buildSecurityCard()),
-                          const SizedBox(width: TgSpacing.md),
+                          SizedBox(width: TgSpacing.md),
                           Expanded(child: _buildActivityCard()),
                         ],
                       )
                     : Column(
                         children: [
                           _buildSecurityCard(),
-                          const SizedBox(height: TgSpacing.md),
+                          SizedBox(height: TgSpacing.md),
                           _buildActivityCard(),
                         ],
                       );
@@ -256,11 +256,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   children: [
                     RepaintBoundary(child: _buildIdentityCard()),
-                    const SizedBox(height: TgSpacing.md),
+                    SizedBox(height: TgSpacing.md),
                     RepaintBoundary(child: securityActivityRow),
-                    const SizedBox(height: TgSpacing.md),
+                    SizedBox(height: TgSpacing.md),
                     RepaintBoundary(child: _buildStorageCard()),
-                    const SizedBox(height: TgSpacing.md),
+                    SizedBox(height: TgSpacing.md),
                     RepaintBoundary(child: _buildCallHistoryCard()),
                   ],
                 );
@@ -278,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Идентификация', style: TgTypography.headline),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           if (_userId != null && _userId!.isNotEmpty)
             Center(
               child: QrImageView(
@@ -295,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Semantics(
             label: AccessibilityIds.username,
             child: TextField(
@@ -308,7 +308,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onSubmitted: (_) => _saveNickname(),
             ),
           ),
-          const SizedBox(height: TgSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           Semantics(
             label: AccessibilityIds.userId,
             readOnly: true,
@@ -322,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          const SizedBox(height: TgSpacing.lg),
+          SizedBox(height: TgSpacing.lg),
           Row(
             children: [
               Expanded(
@@ -336,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _saveNickname,
@@ -365,18 +365,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Безопасность', style: TgTypography.headline),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           LinearProgressIndicator(
             value: readinessScore,
             minHeight: 10,
             borderRadius: BorderRadius.circular(999),
           ),
-          const SizedBox(height: TgSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           Text(
             '${(readinessScore * 100).round()}% настроено',
             style: TgTypography.body.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           _buildMetricRow('E2E ключи', _secureStorageReady ? 'Готово' : 'Отсутствуют'),
           _buildMetricRow('Безопасное хранилище',
               _secureStorageReady ? 'Включено' : 'Проверьте устройство'),
@@ -386,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Данные контакта',
             _contactBundle?.isNotEmpty == true ? 'Доступны' : 'Отсутствуют',
           ),
-          const SizedBox(height: TgSpacing.lg),
+          SizedBox(height: TgSpacing.lg),
           Semantics(
             label: AccessibilityIds.copyContactBundle,
             button: true,
@@ -409,7 +409,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Недельная активность', style: TgTypography.headline),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           SizedBox(
             height: 180,
             child: Row(
@@ -444,21 +444,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }),
             ),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Row(
             children: [
               Expanded(
                 child: _buildMiniKpi('Чаты', _chatCount.toString()),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _buildMiniKpi('Контакты', _contactCount.toString()),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _buildMiniKpi('Сообщения', _messageCount.toString()),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _buildMiniKpi('Звонки', _callCount.toString()),
               ),
@@ -475,12 +475,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Отладка хранилища', style: TgTypography.headline),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           _buildMetricRow('Локальные медиа', _bucketReady ? 'Готово' : 'Отсутствуют'),
           _buildMetricRow('Файлы', _storageFileCount.toString()),
           _buildMetricRow(
               'Платформа', kIsWeb ? 'веб' : Platform.operatingSystem),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           LinearProgressIndicator(
             value: _bucketReady ? 1 : 0.25,
             minHeight: 10,
@@ -488,14 +488,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color:
                 _bucketReady ? c.green : c.warning,
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             'Эта карточка проверяет зашифрованное локальное хранилище вложений.',
             style: TgTypography.caption1.copyWith(
               color: c.textSecondary,
             ),
           ),
-          const SizedBox(height: TgSpacing.lg),
+          SizedBox(height: TgSpacing.lg),
           FilledButton.icon(
             onPressed: _loadProfile,
             icon: const Icon(Icons.sync),
@@ -512,7 +512,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Недавние звонки', style: TgTypography.headline),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           if (_recentCalls.isEmpty)
             SizedBox(
               height: 80,
@@ -531,7 +531,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListView.separated(
                 itemCount: _recentCalls.length,
                 separatorBuilder: (context, index) =>
-                    const SizedBox(height: TgSpacing.sm),
+                    SizedBox(height: TgSpacing.sm),
                 itemBuilder: (context, index) {
                   final call = _recentCalls[index];
                   final startedAt = DateTime.tryParse(
@@ -544,7 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Compact call history tile for both web and mobile layouts.
                   return Container(
-                    padding: const EdgeInsets.all(TgSpacing.sm),
+                    padding: EdgeInsets.all(TgSpacing.sm),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(16),
@@ -557,7 +557,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? c.primary
                               : c.green,
                         ),
-                        const SizedBox(width: TgSpacing.sm),
+                        SizedBox(width: TgSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,7 +598,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildMetricRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: TgSpacing.sm),
+      padding: EdgeInsets.only(bottom: TgSpacing.sm),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -617,7 +617,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildMiniKpi(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: TgSpacing.sm,
         vertical: TgSpacing.sm,
       ),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_text_field.dart';
 
 
 
@@ -43,8 +42,7 @@ class _ChatSearchBarState extends State<ChatSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-    return GlassSearchField(
+    return TgSearchField(
       controller: widget.controller,
       hintText: 'Поиск чатов',
       onChanged: _onChanged,

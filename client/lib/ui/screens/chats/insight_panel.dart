@@ -40,7 +40,7 @@ class InsightPanel extends StatelessWidget {
         children: [
           Text('Информация о сессии', style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
-          const _InsightTile(
+          _InsightTile(
             label: 'Синхронизация',
             value: 'Активна',
             accent: c.green,
@@ -102,8 +102,6 @@ class _InsightTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),

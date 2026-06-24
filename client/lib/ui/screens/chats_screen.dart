@@ -705,7 +705,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         ),
         Expanded(
           child: _loading
-              ? const Column(count: 6)
+              ? const Center(child: CircularProgressIndicator())
               : chats.isEmpty
                   ? Semantics(
                       label: 'Нет чатов',
@@ -869,8 +869,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final result = await FilePicker.pickFiles(
-      allowMultiple: false,
-      withData: true,
       type: FileType.any,
     );
     if (result == null || result.files.isEmpty) {
@@ -878,18 +876,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      if (!mounted) {
-        return;
-      }
-      TgSnackBar.show(
-        context,
-        'Выбранный файл не читается',
-        isError: true,
-      );
-      return;
-    }
+    final bytes = await file.readAsBytes();
 
     final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,

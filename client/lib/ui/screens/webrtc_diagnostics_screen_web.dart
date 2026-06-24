@@ -16,6 +16,7 @@ class WebRTCDiagnosticsScreen extends StatefulWidget {
 }
 
 class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
+  TgThemeColors get c => TgThemeColors.of(context);
   web.MediaStream? _localStream;
   final bool _isInitialized = true;
   String _status = 'Idle';
@@ -210,16 +211,13 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
         child: TgAppBar(title: 'Диагностика WebRTC', showBackButton: true),
       ),
-      body: Container(
-        child: SafeArea(
+      body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(TgSpacing.md),
             child: Column(
@@ -362,8 +360,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildInfoRow(String label, String value) {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:stealth/bootstrap_env.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/dashboard/dashboard_home_screen.dart';
 
 void main() async {
@@ -24,7 +23,6 @@ class DashboardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return MaterialApp(
       title: 'STEALTH Dashboard',
       debugShowCheckedModeBanner: false,

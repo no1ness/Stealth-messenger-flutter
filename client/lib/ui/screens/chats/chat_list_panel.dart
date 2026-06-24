@@ -294,8 +294,6 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),

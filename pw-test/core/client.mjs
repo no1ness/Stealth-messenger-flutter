@@ -51,7 +51,7 @@ export class Client {
     await gotoApp(this._page, WEB_URL);
     await enableFlutterA11y(this._page);
     await this._page
-      .getByRole("button", { name: "Chats" })
+      .getByRole("button", { name: /Chats|Чаты/i })
       .waitFor({ state: "visible", timeout: 30000 });
   }
 

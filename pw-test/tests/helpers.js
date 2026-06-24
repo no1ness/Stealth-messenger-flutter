@@ -22,7 +22,7 @@ export async function enableA11y(page, deadlineMs = 30_000) {
   while (Date.now() < deadline) {
     const textboxes = await page.getByRole("textbox").count();
     const startButtons = await page.getByRole("button", { name: /GET STARTED|НАЧАТЬ/i }).count();
-    const chatsButtons = await page.getByRole("button", { name: "Chats" }).count();
+    const chatsButtons = await page.getByRole("button", { name: /Chats|Чаты/i }).count();
 
     if (textboxes > 0 || startButtons > 0 || chatsButtons > 0) {
       return true;
@@ -43,7 +43,7 @@ export async function enableA11y(page, deadlineMs = 30_000) {
         const counts = await Promise.all([
           page.getByRole("textbox").count(),
           page.getByRole("button", { name: /GET STARTED|НАЧАТЬ/i }).count(),
-          page.getByRole("button", { name: "Chats" }).count(),
+          page.getByRole("button", { name: /Chats|Чаты/i }).count(),
         ]);
         if (counts.some((c) => c > 0)) return true;
       }
@@ -56,7 +56,7 @@ export async function enableA11y(page, deadlineMs = 30_000) {
 }
 
 export async function registerUser(page, nickname) {
-  const isRegistered = await page.getByRole("button", { name: "Chats" }).isVisible().catch(() => false);
+  const isRegistered = await page.getByRole("button", { name: /Chats|Чаты/i }).isVisible().catch(() => false);
   if (isRegistered) return;
 
   const a11yReady = await enableA11y(page);
@@ -74,13 +74,23 @@ export async function registerUser(page, nickname) {
   }
   await startButton.click();
 
-  await page.getByRole("button", { name: "Chats" }).waitFor({ state: "visible", timeout: 60_000 });
+  await page.getByRole("button", { name: /Chats|Чаты/i }).waitFor({ state: "visible", timeout: 60_000 });
 }
 
+const TAB_ALIASES = {
+  Chats: /Chats|Чаты/i,
+  Чаты: /Chats|Чаты/i,
+  Contacts: /Contacts|Контакты/i,
+  Контакты: /Contacts|Контакты/i,
+  Calls: /Calls|Звонки/i,
+  Звонки: /Calls|Звонки/i,
+};
+
 export async function goToTab(page, tabName) {
+  const nameRe = TAB_ALIASES[tabName] || new RegExp(tabName, 'i');
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const btn = page.getByRole("button", { name: tabName });
+      const btn = page.getByRole("button", { name: nameRe });
       await btn.waitFor({ state: "visible", timeout: 8_000 });
       await btn.click();
       await delay(1000);

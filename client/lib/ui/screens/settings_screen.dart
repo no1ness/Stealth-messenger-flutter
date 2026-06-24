@@ -22,6 +22,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
+  TgThemeColors get c => TgThemeColors.of(context);
   final LocalAppService _appService = LocalAppService();
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
@@ -114,7 +115,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     // Also persist to SharedPreferences.
     await ThemeController.setMode(mode);
     if (mounted) {
-      TgHaptics.selection(context);
+      TgHaptics.selection();
     }
     if (!mounted) {
       return;
@@ -151,7 +152,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
 
     final cards = [
       RepaintBoundary(child: _buildSecurityCard()),
@@ -170,7 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       body: _isLoading
           ? Center(child: TgLoading.spinner())
           : Padding(
-              padding: const EdgeInsets.all(TgSpacing.md),
+              padding: EdgeInsets.all(TgSpacing.md),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   if (constraints.maxWidth >= 1100) {
@@ -186,7 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   return ListView.separated(
                     itemCount: cards.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: TgSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                     itemBuilder: (context, index) => cards[index],
                   );
                 },
@@ -231,13 +231,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             onChanged: (value) => setState(() => _contactVerification = value),
             title: const Text('Проверка контактов'),
           )),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           LinearProgressIndicator(
             value: _countdown / 24,
             minHeight: 10,
             borderRadius: BorderRadius.circular(999),
           ),
-          const SizedBox(height: TgSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           Text(
             'Таймер предпросмотра: $_countdownс',
             style: TgTypography.body.copyWith(
@@ -269,7 +269,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             subtitle:
                 const Text('Отправляйте сообщения напрямую на устройства, когда они онлайн'),
           )),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             'Активно только локальное хранилище',
             style: TgTypography.body.copyWith(
@@ -277,9 +277,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           _SignalServerLine(),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _bypassEnabled,
             onChanged: (value) async {
@@ -321,14 +321,14 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             onChanged: (value) => setState(() => _callNotifications = value),
             title: const Text('Звонки'),
           )),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             _webrtcSummary,
             style: TgTypography.body.copyWith(
               color: c.textSecondary,
             ),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             _webrtcPlatformLabel,
             maxLines: 2,
@@ -337,7 +337,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               color: c.textSecondary,
             ),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Row(
             children: [
               Expanded(
@@ -369,7 +369,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             selected: {_themeMode},
             onSelectionChanged: (selection) => _changeTheme(selection.first),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             'Текущий режим: ${_themeMode.name == 'system' ? 'Матч ОС' : _themeMode.name == 'dark' ? 'Темная' : 'Светлая'}',
             style: TgTypography.body.copyWith(
@@ -412,18 +412,18 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   .toList(),
             ),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Row(
             children: [
               Expanded(child: _MiniStat(label: 'Чаты', value: '$_chatCount')),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _MiniStat(
                   label: 'Локальные медиа',
                   value: _bucketReady ? 'Готово' : 'Проверить',
                 ),
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _MiniStat(
                   label: 'Аудиовходы',
@@ -432,7 +432,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               ),
             ],
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           OutlinedButton.icon(
             onPressed: () {
               Navigator.of(context).push(
@@ -444,13 +444,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             icon: Icon(Icons.network_check),
             label: const Text('Открыть диагностику WebRTC'),
           ),
-          const SizedBox(height: TgSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           OutlinedButton.icon(
             onPressed: _loadSettings,
             icon: Icon(Icons.refresh),
             label: const Text('Обновить диагностику'),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           OutlinedButton.icon(
             onPressed: () {
               Navigator.of(context).push(
@@ -486,7 +486,7 @@ class _MiniStat extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(TgSpacing.md),
+        padding: EdgeInsets.all(TgSpacing.md),
         child: Column(
           children: [
             Text(value, style: TgTypography.title2),
@@ -520,7 +520,7 @@ class _SignalServerLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(Icons.dns, color: c.textSecondary),
-        const SizedBox(width: TgSpacing.sm),
+        SizedBox(width: TgSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

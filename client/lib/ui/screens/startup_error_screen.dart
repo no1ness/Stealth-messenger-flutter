@@ -14,10 +14,8 @@ class StartupErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
-
     return Scaffold(
-      body: Container(
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
@@ -37,12 +35,12 @@ class StartupErrorScreen extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.settings_ethernet,
                           size: 72,
                           color: c.warning,
                         ),
-                        const SizedBox(height: TgSpacing.lg),
+                        SizedBox(height: TgSpacing.lg),
                         Text(
                           'Требуется настройка окружения',
                           textAlign: TextAlign.center,
@@ -101,7 +99,6 @@ class StartupErrorScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ),
         ),
       ),
     );

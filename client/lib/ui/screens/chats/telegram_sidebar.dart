@@ -185,7 +185,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         TgSpacing.sm,
         TgSpacing.sm,
         TgSpacing.sm,
@@ -204,7 +204,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
   Widget _buildTabBar() {
     return Container(
       height: 40,
-      margin: const EdgeInsets.symmetric(horizontal: TgSpacing.sm),
+      margin: EdgeInsets.symmetric(horizontal: TgSpacing.sm),
       child: TabBar(
         controller: _tabController,
         onTap: (_) => setState(() {}),
@@ -225,7 +225,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildChatList() {
     if (widget.loading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
           color: c.primary,
           strokeWidth: 2,
@@ -245,7 +245,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: TgSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: TgSpacing.xs),
       itemCount: _filteredChats.length,
       itemBuilder: (context, index) {
         final chat = _filteredChats[index];
@@ -261,7 +261,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildContactList() {
     if (_loadingContacts) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
           color: c.primary,
           strokeWidth: 2,
@@ -281,7 +281,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: TgSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: TgSpacing.xs),
       itemCount: _filteredContacts.length,
       itemBuilder: (context, index) {
         final contact = _filteredContacts[index];
@@ -300,7 +300,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
         onTap: () => widget.onContactSelected(contact),
         borderRadius: BorderRadius.circular(TgSpacing.radiusMd),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
+          padding: EdgeInsets.symmetric(
             horizontal: TgSpacing.sm,
             vertical: TgSpacing.xs,
           ),
@@ -330,7 +330,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
                       child: Container(
                         width: 12,
                         height: 12,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: c.green,
                           border: Border.fromBorderSide(
@@ -341,7 +341,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
                     ),
                 ],
               ),
-              const SizedBox(width: TgSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

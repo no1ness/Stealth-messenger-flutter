@@ -6,10 +6,12 @@ import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 Widget? buildConversationAttachment({
+  required BuildContext context,
   required Map<String, dynamic> message,
   required LocalAppService appService,
   required String chatId,
 }) {
+  final c = TgThemeColors.of(context);
   final type = message['type'] as String?;
   final content = message['message'] as String?;
   if (content == null || content.isEmpty) return null;
@@ -96,8 +98,7 @@ class _AudioAttachment extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          icon: const Icon(Icons.play_circle_fill,
-              color: c.primary),
+          icon: Icon(Icons.play_circle_fill, color: c.primary),
           onPressed: () async {
             final bytes = await appService.downloadAttachment(
               url,

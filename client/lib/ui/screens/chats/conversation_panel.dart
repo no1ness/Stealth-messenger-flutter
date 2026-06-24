@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
-import 'package:stealth/themes/apple_liquid/widgets/glass_chat_bubble.dart' as glass;
+import 'package:stealth/ui/widgets/outgoing_delivery_status_icon.dart';
 import 'package:stealth/ui/screens/chats/conversation_attachment.dart';
 import 'package:stealth/ui/widgets/empty_state.dart';
 
@@ -169,6 +169,7 @@ class ConversationPanel extends StatelessWidget {
                     final messageId = message['id']?.toString();
 
                     final attachmentWidget = buildConversationAttachment(
+                      context: context,
                       message: message,
                       appService: appService,
                       chatId: chatId,
@@ -192,7 +193,7 @@ class ConversationPanel extends StatelessWidget {
                       displayText = '$rawText$editedMarker';
                     }
 
-                    final bubble = glass.TgChatBubble(
+                    final bubble = TgChatBubble(
                       message: displayText,
                       timestamp: message['timestamp'] as String?,
                       isDelivered: message['isDelivered'] as bool?,
@@ -204,8 +205,8 @@ class ConversationPanel extends StatelessWidget {
                               text: repliedMessage['message'] as String? ?? '',
                             ),
                       type: isSent
-                          ? glass.MessageType.sent
-                          : glass.MessageType.received,
+                          ? TgMessageType.sent
+                          : TgMessageType.received,
                     );
 
                     return GestureDetector(
@@ -249,8 +250,6 @@ class _ReplyPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(

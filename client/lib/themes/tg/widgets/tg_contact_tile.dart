@@ -21,13 +21,15 @@ class TgContactTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
-    return Card(
-      color: c.cardBackground,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(horizontal: TgSpacing.screenEdge, vertical: TgSpacing.xxs),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TgSpacing.radiusXl)),
-      child: ListTile(
+    return Semantics(
+      label: 'Contact $name',
+      child: Card(
+        color: c.cardBackground,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(horizontal: TgSpacing.screenEdge, vertical: TgSpacing.xxs),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TgSpacing.radiusXl)),
+        child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TgSpacing.radiusXl)),
         onTap: onTap,
         leading: Container(
@@ -58,6 +60,7 @@ class TgContactTile extends StatelessWidget {
               )
             : null,
         trailing: trailing,
+        ),
       ),
     );
   }

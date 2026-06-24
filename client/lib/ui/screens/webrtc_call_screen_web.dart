@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
-import 'package:stealth/themes/apple_liquid/widgets/call/call_hud_overlay.dart';
+import 'package:stealth/ui/widgets/call_hud_overlay.dart';
+import 'package:stealth/ui/widgets/status_chip.dart';
 import 'package:stealth/ui/screens/calls/web_call_controller.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 
@@ -37,6 +38,7 @@ class WebRTCCallScreen extends StatefulWidget {
 }
 
 class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
+  TgThemeColors get c => TgThemeColors.of(context);
   late final WebCallController _controller;
 
   @override
@@ -84,8 +86,6 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
-
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) => _buildScreen(),
@@ -106,12 +106,11 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        body: Container(
-          child: SafeArea(
+        body: SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: TgSpacing.md,
                     vertical: TgSpacing.sm,
                   ),
@@ -145,7 +144,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                 ),
                 const Spacer(),
                 if (widget.isVideoCall) _buildVideoArea(),
-                const SizedBox(height: TgSpacing.xl),
+                SizedBox(height: TgSpacing.xl),
                 Text(
                   widget.peerName,
                   style: TgTypography.largeTitle.copyWith(
@@ -153,7 +152,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: TgSpacing.md),
+                SizedBox(height: TgSpacing.md),
                 if (_controller.setupError != null) _buildSetupErrorPanel(),
                 _buildChips(),
                 const Spacer(),
@@ -162,13 +161,12 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildVideoArea() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: TgSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: TgSpacing.lg),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -244,7 +242,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Widget _buildSetupErrorPanel() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: TgSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: TgSpacing.lg),
       child: Column(
         children: [
           Text(
@@ -252,7 +250,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
             textAlign: TextAlign.center,
             style: TgTypography.body.copyWith(color: c.error),
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Wrap(
             spacing: TgSpacing.md,
             runSpacing: TgSpacing.md,
@@ -276,7 +274,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
               ),
             ],
           ),
-          const SizedBox(height: TgSpacing.md),
+          SizedBox(height: TgSpacing.md),
         ],
       ),
     );
@@ -367,6 +365,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
     );
   }
 
+
   Widget _buildControlButton({
     required IconData icon,
     required Color color,
@@ -390,7 +389,7 @@ class _WebRTCCallScreenState extends State<WebRTCCallScreen> {
 
   Widget _buildChip({required String label, required bool active}) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
           horizontal: TgSpacing.md, vertical: TgSpacing.sm),
       decoration: BoxDecoration(
         color: active

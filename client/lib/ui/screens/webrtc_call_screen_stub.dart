@@ -24,7 +24,6 @@ class WebRTCCallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
@@ -34,8 +33,7 @@ class WebRTCCallScreen extends StatelessWidget {
           showBackButton: true,
         ),
       ),
-      body: Container(
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(TgSpacing.lg),
@@ -52,11 +50,11 @@ class WebRTCCallScreen extends StatelessWidget {
                     Text('Peer: $peerName', style: TgTypography.caption1),
                   ],
                 ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
+

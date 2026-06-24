@@ -70,7 +70,6 @@ class _MonitoringScreenState extends State<MonitoringScreen>
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: PreferredSize(

@@ -16,7 +16,6 @@ import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
 import 'package:stealth/test_controller/test_controller.dart';
 import 'package:stealth/test_controller/test_web_bridge.dart';
-import 'package:stealth/themes/tg/tg_theme_data.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/ui/screens/startup_error_screen.dart';
 
@@ -37,21 +36,8 @@ String? _readLocalStorage(String key) {
   try {
     final result = _nativeGetItem(key.toJS);
     if (result == null) return null;
-    if (result is JSString) return result.toDart;
+    if (result.isA<JSString>()) return (result as JSString).toDart;
     return result.toString();
-  } catch (_) {
-    return null;
-  }
-}
-
-String? _decryptLocalStorageSync(String encrypted) {
-  try {
-    final raw = _nativeEval(
-      '(function() { try { return window.stealthCrypto._decryptSync && window.stealthCrypto._decryptSync("${encrypted.replaceAll('"', '\\"')}"); } catch(e) { return null; } })()'.toJS,
-    );
-    if (raw == null) return null;
-    if (raw is JSString) return raw.toDart;
-    return null;
   } catch (_) {
     return null;
   }
@@ -229,7 +215,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    final c = TgThemeColors.of(context);
     // Listen to the global theme controller so the Settings toggle
     // takes effect immediately, without restarting the app.
     return Consumer(
@@ -243,7 +228,7 @@ class _MyAppState extends State<MyApp> {
           darkTheme: TgThemeData.dark,
           home: _isLoading
               ? const Scaffold(
-                  body: const Center(child: CircularProgressIndicator()),
+                  body: Center(child: CircularProgressIndicator()),
                 )
               : _startupError != null
                   ? StartupErrorScreen(

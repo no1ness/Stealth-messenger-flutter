@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
 import 'package:stealth/local_app_service.dart';
@@ -55,8 +54,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     final c = TgThemeColors.of(context);
-
-    final isWeb = kIsWeb;
 
     final content = SafeArea(
       child: Center(
