@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:stealth/logging/logger.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class VoiceMessagePlayer extends StatefulWidget {
   final String audioUrl;
@@ -140,20 +140,22 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     final progress = _totalDuration.inMilliseconds > 0
         ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
         : 0.0;
 
     final accent =
-        widget.isSent ? AppColors.systemBlue : AppColors.systemTeal;
+        widget.isSent ? c.primary : c.primary;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 280, minWidth: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: widget.isSent
-            ? AppColors.systemBlue.withValues(alpha: 0.1)
-            : AppColors.backgroundSecondary,
+            ? c.primary.withValues(alpha: 0.1)
+            : c.backgroundSecondary,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -188,7 +190,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                     painter: WaveformPainter(
                       progress: progress,
                       color: accent,
-                      backgroundColor: AppColors.separator,
+                      backgroundColor: c.dividers,
                     ),
                     size: const Size(double.infinity, 24),
                   ),
@@ -201,16 +203,16 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                       _isPlaying || _currentPosition.inSeconds > 0
                           ? _formatDuration(_currentPosition)
                           : _formatDuration(_totalDuration),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: c.textSecondary,
                       ),
                     ),
                     Text(
                       _formatDuration(_totalDuration),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: c.textSecondary,
                       ),
                     ),
                   ],
@@ -225,15 +227,15 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.separator.withValues(alpha: 0.3),
+                color: c.dividers.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${_playbackSpeed.toStringAsFixed(1)}x',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.systemBlue,
+                  color: c.primary,
                 ),
               ),
             ),

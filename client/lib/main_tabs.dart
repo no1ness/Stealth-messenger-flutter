@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/helpers/responsive_breakpoints.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
-import 'package:stealth/themes/tg/tg_theme_data.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/calls_screen.dart';
 import 'package:stealth/ui/screens/chats_screen.dart';
 import 'package:stealth/ui/screens/profile_screen.dart';
@@ -51,35 +50,28 @@ class _MainTabsState extends State<MainTabs> {
   }
 
   Widget _buildDesktopLayout() {
+    final c = TgThemeColors.of(context);
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: StealthAnimatedBackground(
-        child: Column(
-          children: [
-            const DebugStatusBar(),
-            Expanded(
-              child: Row(
-                children: [
-                  _buildDesktopNavRail(),
-                  Expanded(
-                    child: _screens[_currentIndex],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      backgroundColor: c.background,
+      body: Column(
+        children: [
+          _buildDesktopNavRail(),
+          Expanded(
+            child: _screens[_currentIndex],
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDesktopNavRail() {
+    final c = TgThemeColors.of(context);
     return Container(
       width: 68,
       decoration: BoxDecoration(
         border: Border(
           right: BorderSide(
-            color: AppColors.dividerSubtle,
+            color: c.dividersAndroid,
             width: 0.5,
           ),
         ),
@@ -119,6 +111,7 @@ class _MainTabsState extends State<MainTabs> {
     required IconData selectedIcon,
     required int index,
   }) {
+    final c = TgThemeColors.of(context);
     final isSelected = _currentIndex == index;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -132,13 +125,13 @@ class _MainTabsState extends State<MainTabs> {
             padding: const EdgeInsets.all(10),
             decoration: isSelected
                 ? BoxDecoration(
-                    color: AppColors.systemBlue.withValues(alpha: 0.10),
+                    color: c.primaryOpacity,
                     borderRadius: BorderRadius.circular(12),
                   )
                 : null,
             child: Icon(
               isSelected ? selectedIcon : icon,
-              color: isSelected ? AppColors.systemBlue : AppColors.textSecondary,
+              color: isSelected ? c.primary : c.textSecondary,
               size: 22,
             ),
           ),
@@ -148,22 +141,21 @@ class _MainTabsState extends State<MainTabs> {
   }
 
   Widget _buildMobileLayout() {
+    final c = TgThemeColors.of(context);
     return Scaffold(
       extendBody: true,
-      body: StealthAnimatedBackground(
-        child: Column(
-          children: [
-            const DebugStatusBar(),
-            Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
+      backgroundColor: c.background,
+      body: Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      bottomNavigationBar: GlassBottomNavBar(
+      bottomNavigationBar: TgBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -171,25 +163,25 @@ class _MainTabsState extends State<MainTabs> {
           });
         },
         items: const [
-          GlassBottomNavBarItem(
+          TgBottomNavBarItem(
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
             label: 'Чаты',
             semanticLabel: AccessibilityIds.chatsTab,
           ),
-          GlassBottomNavBarItem(
+          TgBottomNavBarItem(
             icon: Icons.call_outlined,
             selectedIcon: Icons.call,
             label: 'Звонки',
             semanticLabel: AccessibilityIds.callsTab,
           ),
-          GlassBottomNavBarItem(
+          TgBottomNavBarItem(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             label: 'Профиль',
             semanticLabel: AccessibilityIds.profileTab,
           ),
-          GlassBottomNavBarItem(
+          TgBottomNavBarItem(
             icon: Icons.settings_outlined,
             selectedIcon: Icons.settings,
             label: 'Настройки',

@@ -19,7 +19,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 0.1.0+1
 
 environment:
-    sdk: ">=3.0.0 <4.0.0"
+    sdk: ">=3.4.0 <4.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -38,17 +38,16 @@ dependencies:
     flutter_dotenv: ^6.0.0
     uuid: ^4.5.1
     qr_flutter: ^4.1.0
-    flutter_secure_storage_x: ^13.0.1
+    flutter_secure_storage_x: ^13.1.0
     path_provider: ^2.1.5
     file_picker: ^12.0.0-beta.7
     intl: ^0.20.2
-    flutter_webrtc:
-        path: T:/
+    flutter_webrtc: ^1.5.1
     permission_handler: ^12.0.1
     url_launcher: ^6.3.1
     record: ^7.1.0
     flutter_native_splash: ^2.4.8
-    audioplayers: ^6.1.0
+    audioplayers: ^6.8.0
     shared_preferences: ^2.5.5
     cryptography: ^2.7.0
     crypto: ^3.0.0
@@ -119,23 +118,13 @@ flutter:
         # header for the full list of supported keys.
         - .env.defaults
 
-    fonts:
-        - family: Geist
-          fonts:
-              - asset: assets/fonts/geist/Geist-Regular.otf
-              - asset: assets/fonts/geist/Geist-Medium.otf
-                weight: 500
-              - asset: assets/fonts/geist/Geist-SemiBold.otf
-                weight: 600
-              - asset: assets/fonts/geist/Geist-Bold.otf
-                weight: 700
-        - family: GeistMono
-          fonts:
-              - asset: assets/fonts/geist-mono/GeistMono-Regular.otf
-              - asset: assets/fonts/geist-mono/GeistMono-Medium.otf
-                weight: 500
-              - asset: assets/fonts/geist-mono/GeistMono-SemiBold.otf
-                weight: 600
+    # Geist → Roboto: Flutter includes Roboto by default, so explicit
+    # font declarations are no longer needed. Add Roboto/RobotoMono
+    # font files here if custom weights/variants are required.
+    # fonts:
+    #   - family: Roboto
+    #     fonts:
+    #         - asset: assets/fonts/roboto/Roboto-Regular.ttf
 
     # An image asset can refer to one or more resolution-specific "variants", see
     # https://flutter.dev/to/resolution-aware-images

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:stealth/themes/apple_liquid/constants/app_colors.dart';
-import 'package:stealth/themes/apple_liquid/widgets/outgoing_delivery_status_icon.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
+import 'package:stealth/ui/widgets/outgoing_delivery_status_icon.dart';
 
 /// Smoke tests for the four lifecycle states + the failed-state tap path.
 /// Full golden tests are out of scope for this task — these assertions
@@ -25,38 +25,38 @@ void main() {
       final iconFinder = find.byIcon(Icons.access_time);
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, AppColors.systemGray2);
+      expect(icon.color, TgThemeColors.light.gray);
       expect(icon.size, 16);
     });
 
-    testWidgets('sent renders single check (systemGray2)', (tester) async {
+    testWidgets('sent renders single check (gray)', (tester) async {
       await tester.pumpWidget(wrap(
         const OutgoingDeliveryStatusIcon(status: 'sent'),
       ));
       final iconFinder = find.byIcon(Icons.done);
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, AppColors.systemGray2);
+      expect(icon.color, TgThemeColors.light.gray);
     });
 
-    testWidgets('delivered renders double check (systemBlue)', (tester) async {
+    testWidgets('delivered renders double check (primary)', (tester) async {
       await tester.pumpWidget(wrap(
         const OutgoingDeliveryStatusIcon(status: 'delivered'),
       ));
       final iconFinder = find.byIcon(Icons.done_all);
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, AppColors.systemBlue);
+      expect(icon.color, TgThemeColors.light.primary);
     });
 
-    testWidgets('failed renders error icon (systemRed)', (tester) async {
+    testWidgets('failed renders error icon (error)', (tester) async {
       await tester.pumpWidget(wrap(
         const OutgoingDeliveryStatusIcon(status: 'failed'),
       ));
       final iconFinder = find.byIcon(Icons.error_outline);
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.color, AppColors.systemRed);
+      expect(icon.color, TgThemeColors.light.error);
     });
 
     testWidgets('failed + onRetryNow makes the icon tappable', (tester) async {

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:stealth/services/monitoring/monitoring_data_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class DashboardHomeScreen extends StatefulWidget {
   const DashboardHomeScreen({super.key});
@@ -13,6 +13,7 @@ class DashboardHomeScreen extends StatefulWidget {
 
 class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     with WidgetsBindingObserver {
+  TgThemeColors get c => TgThemeColors.of(context);
   final MonitoringDataService _dataService = MonitoringDataService();
   Timer? _refreshTimer;
   bool _isLoading = true;
@@ -71,13 +72,13 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.dashboardBg,
+      backgroundColor: Color(0xFF17212B),
       body: _isLoading
-          ? const Center(child: StealthLoadingIndicator())
+          ? Center(child: TgLoading.spinner())
           : RefreshIndicator(
               onRefresh: _refresh,
-              color: AppColors.dashboardGreen,
-              backgroundColor: AppColors.dashboardBg,
+              color: Color(0xFF00C853),
+              backgroundColor: Color(0xFF17212B),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 800;
@@ -115,9 +116,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
         decoration: const BoxDecoration(
-          color: AppColors.dashboardBg,
+          color: Color(0xFF17212B),
           border: Border(
-            bottom: BorderSide(color: AppColors.dashboardBorder, width: 0.5),
+            bottom: BorderSide(color: Color(0xFF3C4A57), width: 0.5),
           ),
         ),
         child: Row(
@@ -127,7 +128,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               height: 40,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.dashboardGreen, AppColors.dashboardBlue],
+                  colors: [Color(0xFF00C853), Color(0xFF2AABEE)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -140,14 +141,14 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'STEALTH Dashboard',
                     style: TextStyle(
-                      color: AppColors.dashboardText,
+                      color: Color(0xFFF5F5F5),
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.3,
@@ -157,7 +158,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                   Text(
                     'System Monitor',
                     style: TextStyle(
-                      color: AppColors.dashboardTextSecondary,
+                      color: c.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -167,7 +168,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.dashboardGreen.withValues(alpha: 0.15),
+                color: Color(0xFF00C853).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -177,7 +178,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                     width: 7,
                     height: 7,
                     decoration: const BoxDecoration(
-                      color: AppColors.dashboardGreen,
+                      color: Color(0xFF00C853),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -192,7 +193,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                   const Text(
                     'LIVE',
                     style: TextStyle(
-                      color: AppColors.dashboardGreen,
+                      color: Color(0xFF00C853),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -212,11 +213,11 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.access_time, size: 12, color: AppColors.dashboardTextSecondary),
+        Icon(Icons.access_time, color: c.textSecondary),
         const SizedBox(width: 4),
         Text(
           'Updated ${_formatTime(_lastUpdated!)}',
-          style: const TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 11),
+          style: TextStyle(color: c.textSecondary, fontSize: 11),
         ),
       ],
     );
@@ -228,13 +229,13 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
         'Users',
         '${_aggregated['totalUsers'] ?? 0}',
         Icons.people_outline,
-        AppColors.dashboardBlue,
+        Color(0xFF2AABEE),
       ),
       _StatItem(
         'Chats',
         '${_aggregated['totalChats'] ?? 0}',
         Icons.chat_bubble_outline,
-        AppColors.dashboardGreen,
+        Color(0xFF00C853),
       ),
       _StatItem(
         'Messages',
@@ -275,9 +276,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: AppColors.dashboardCard,
+        color: Color(0xFF242F3D),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+        border: Border.all(color: Color(0xFF3C4A57), width: 0.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -291,13 +292,13 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 color: stat.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(stat.icon, color: stat.color, size: 20),
+              child: Icon(stat.icon, color: stat.color),
             ),
             const SizedBox(height: 14),
             Text(
               stat.value,
               style: const TextStyle(
-                color: AppColors.dashboardText,
+                color: Color(0xFFF5F5F5),
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
@@ -307,8 +308,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             const SizedBox(height: 4),
             Text(
               stat.label,
-              style: const TextStyle(
-                color: AppColors.dashboardTextSecondary,
+              style: TextStyle(
+                color: c.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
               ),
@@ -326,9 +327,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.dashboardCard,
+        color: Color(0xFF242F3D),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+        border: Border.all(color: Color(0xFF3C4A57), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -338,18 +339,18 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             child: Text(
               'Platforms',
               style: TextStyle(
-                color: AppColors.dashboardText,
+                color: Color(0xFFF5F5F5),
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           if (entries.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'No data yet',
-                style: TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 14),
+                style: TextStyle(color: c.textSecondary, fontSize: 14),
               ),
             )
           else
@@ -370,7 +371,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                             Text(
                               e.key,
                               style: const TextStyle(
-                                color: AppColors.dashboardText,
+                                color: Color(0xFFF5F5F5),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -379,8 +380,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                         ),
                         Text(
                           '${e.value}',
-                          style: const TextStyle(
-                            color: AppColors.dashboardTextSecondary,
+                          style: TextStyle(
+                            color: c.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -392,7 +393,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                       borderRadius: BorderRadius.circular(3),
                       child: LinearProgressIndicator(
                         value: pct,
-                        backgroundColor: AppColors.dashboardBorder,
+                        backgroundColor: Color(0xFF3C4A57),
                         valueColor: AlwaysStoppedAnimation(
                           _platformColor(e.key),
                         ),
@@ -412,9 +413,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
   Widget _buildRecentSection() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.dashboardCard,
+        color: Color(0xFF242F3D),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.dashboardBorder, width: 0.5),
+        border: Border.all(color: Color(0xFF3C4A57), width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -424,18 +425,18 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
             child: Text(
               'Recent Activity',
               style: TextStyle(
-                color: AppColors.dashboardText,
+                color: Color(0xFFF5F5F5),
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           if (_recentRecords.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'No records yet',
-                style: TextStyle(color: AppColors.dashboardTextSecondary, fontSize: 14),
+                style: TextStyle(color: c.textSecondary, fontSize: 14),
               ),
             )
           else
@@ -446,8 +447,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               child: Center(
                 child: Text(
                   'and ${_recentRecords.length - 10} more...',
-                  style: const TextStyle(
-                    color: AppColors.dashboardTextSecondary,
+                  style: TextStyle(
+                    color: c.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -470,7 +471,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.dashboardBorder, width: 0.3),
+          bottom: BorderSide(color: Color(0xFF3C4A57), width: 0.3),
         ),
       ),
       child: Row(
@@ -483,7 +484,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
-              child: _platformIcon(platform, size: 18),
+              child: _platformIcon(platform),
             ),
           ),
           const SizedBox(width: 12),
@@ -494,7 +495,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 Text(
                   _truncate(userId, 12),
                   style: const TextStyle(
-                    color: AppColors.dashboardText,
+                    color: Color(0xFFF5F5F5),
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -503,8 +504,8 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
                 const SizedBox(height: 2),
                 Text(
                   [platform, device, version].where((s) => s.isNotEmpty).join(' \u00b7 '),
-                  style: const TextStyle(
-                    color: AppColors.dashboardTextSecondary,
+                  style: TextStyle(
+                    color: c.textSecondary,
                     fontSize: 12,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -531,7 +532,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: color),
+        Icon(icon, color: color),
         const SizedBox(width: 3),
         Text(
           text,
@@ -545,7 +546,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
     );
   }
 
-  Widget _platformIcon(String platform, {double size = 16}) {
+  Widget _platformIcon(String platform) {
     final color = _platformColor(platform);
     IconData icon;
     switch (platform.toLowerCase()) {
@@ -570,7 +571,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       default:
         icon = Icons.device_unknown;
     }
-    return Icon(icon, size: size, color: color);
+    return Icon(icon, color: color);
   }
 
   Color _platformColor(String platform) {
@@ -580,15 +581,15 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen>
       case 'ios':
         return const Color(0xFF007AFF);
       case 'web':
-        return AppColors.dashboardGreen;
+        return Color(0xFF00C853);
       case 'windows':
         return const Color(0xFF00A4EF);
       case 'macos':
-        return AppColors.dashboardTextSecondary;
+        return const Color(0xFF8E8E93);
       case 'linux':
         return const Color(0xFFDD4814);
       default:
-        return AppColors.dashboardTextSecondary;
+        return const Color(0xFF8E8E93);
     }
   }
 

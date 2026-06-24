@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/services/app_update/app_update_models.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class UpdateStatusCard extends StatelessWidget {
   const UpdateStatusCard({
@@ -24,42 +24,44 @@ class UpdateStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     final latest = status?.manifest?.latestVersion.display;
     final progress = installState?.progress;
     final canInstall = status?.isUpdateAvailable ?? false;
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Обновления', style: AppTypography.headline),
-          const SizedBox(height: AppSpacing.md),
-          Text('Stealth $appVersionLabel', style: AppTypography.title3),
-          const SizedBox(height: AppSpacing.sm),
+          Text('Обновления', style: TgTypography.headline),
+          const SizedBox(height: TgSpacing.md),
+          Text('Stealth $appVersionLabel', style: TgTypography.title3),
+          const SizedBox(height: TgSpacing.sm),
           Text(
             latest == null
                 ? updateStatusLabel(status)
                 : '${updateStatusLabel(status)}\nНовая: $latest',
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+            style: TgTypography.body.copyWith(color: c.textSecondary),
           ),
           if (isInstallingUpdate) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: TgSpacing.md),
             LinearProgressIndicator(value: progress),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: TgSpacing.sm),
             Text(
               installState?.phase.name ?? 'preparing',
-              style: AppTypography.caption1.copyWith(
-                color: AppColors.textSecondary,
+              style: TgTypography.caption1.copyWith(
+                color: c.textSecondary,
               ),
             ),
           ],
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: TgSpacing.md),
           OutlinedButton.icon(
             onPressed: isCheckingUpdate ? null : onCheckForUpdates,
             icon: const Icon(Icons.refresh),
             label: Text(isCheckingUpdate ? 'Проверка...' : 'Проверить обновления'),
           ),
           if (canInstall) ...[
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: TgSpacing.sm),
             FilledButton.icon(
               onPressed: isInstallingUpdate ? null : onInstallUpdate,
               icon: const Icon(Icons.download),

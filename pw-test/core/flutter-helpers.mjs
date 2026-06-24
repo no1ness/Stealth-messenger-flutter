@@ -111,13 +111,13 @@ export async function resetToMain(page, baseUrl) {
 
   try {
     await page
-      .getByRole("button", { name: "Chats" })
+      .getByRole("button", { name: /Chats|Чаты/i })
       .waitFor({ state: "visible", timeout: 15000 });
   } catch (error) {
     console.warn(`Chats button not found after reset: ${error.message}`);
     await enableFlutterA11y(page);
     await page
-      .getByRole("button", { name: "Chats" })
+      .getByRole("button", { name: /Chats|Чаты/i })
       .waitFor({ state: "visible", timeout: 10000 });
   }
 }

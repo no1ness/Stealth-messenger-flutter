@@ -3,13 +3,15 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 Widget? buildConversationAttachment({
+  required BuildContext context,
   required Map<String, dynamic> message,
   required LocalAppService appService,
   required String chatId,
 }) {
+  final c = TgThemeColors.of(context);
   final type = message['type'] as String?;
   final content = message['message'] as String?;
   if (content == null || content.isEmpty) return null;
@@ -23,10 +25,10 @@ Widget? buildConversationAttachment({
         future: appService.downloadAttachment(content, chatId, encrypted: true),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SizedBox(
+            return SizedBox(
               width: 200,
               height: 200,
-              child: Center(child: StealthLoadingIndicator()),
+              child: Center(child: TgLoading.spinner()),
             );
           }
           if (snapshot.hasData && snapshot.data != null) {
@@ -40,7 +42,7 @@ Widget? buildConversationAttachment({
               ),
             );
           }
-          return const Icon(Icons.broken_image, size: 48);
+          return const Icon(Icons.broken_image);
         },
       );
     }
@@ -51,7 +53,7 @@ Widget? buildConversationAttachment({
         width: 200,
         height: 200,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 48),
+        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
       ),
     );
   }
@@ -68,7 +70,7 @@ Widget? buildConversationAttachment({
   return Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(Icons.insert_drive_file, color: AppColors.systemBlue),
+      Icon(Icons.insert_drive_file, color: c.primary),
       const SizedBox(width: 8),
       Text(isEncrypted ? 'Encrypted File' : 'File Attachment'),
     ],
@@ -90,12 +92,13 @@ class _AudioAttachment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          icon: const Icon(Icons.play_circle_fill,
-              color: AppColors.systemBlue, size: 32),
+          icon: Icon(Icons.play_circle_fill, color: c.primary),
           onPressed: () async {
             final bytes = await appService.downloadAttachment(
               url,
@@ -112,7 +115,7 @@ class _AudioAttachment extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           isEncrypted ? 'Encrypted Voice' : 'Voice Note',
-          style: AppTypography.caption1,
+          style: TgTypography.caption1,
         ),
       ],
     );

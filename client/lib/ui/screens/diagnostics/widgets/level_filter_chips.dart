@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 /// Row of three single-select chips ("All", "Warnings", "Errors") that
 /// drives the diagnostics screen's log filter.
@@ -29,8 +29,8 @@ class LevelFilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: TgSpacing.md,
+        vertical: TgSpacing.xs,
       ),
       child: Row(
         children: [
@@ -40,7 +40,7 @@ class LevelFilterChips extends StatelessWidget {
               isSelected: selected == level,
               onTap: () => onSelected(level),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: TgSpacing.xs),
           ],
         ],
       ),
@@ -61,27 +61,29 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: AppMotion.fast,
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
+          horizontal: TgSpacing.md,
+          vertical: TgSpacing.xs,
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.systemBlue.withValues(alpha: 0.2)
-              : AppColors.systemGray6.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              ? c.primary.withValues(alpha: 0.2)
+              : c.gray.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(TgSpacing.radiusXl),
           border: Border.all(
-            color: isSelected ? AppColors.systemBlue : Colors.transparent,
+            color: isSelected ? c.primary : Colors.transparent,
           ),
         ),
         child: Text(
           label,
-          style: AppTypography.subheadlineEmphasis.copyWith(
-            color: isSelected ? AppColors.systemBlue : AppColors.systemGray,
+          style: TgTypography.subheadlineEmphasis.copyWith(
+            color: isSelected ? c.primary : c.gray,
           ),
         ),
       ),

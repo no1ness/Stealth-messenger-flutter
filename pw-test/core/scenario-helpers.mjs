@@ -46,7 +46,7 @@ export async function readPbToken(page) {
 
 export async function registerUser(client, nickname) {
   // Check if already registered first (Chats screen has a search textbox)
-  const isRegistered = await client.page.getByRole("button", { name: "Chats" }).isVisible().catch(() => false);
+  const isRegistered = await client.page.getByRole("button", { name: /Chats|Чаты/i }).isVisible().catch(() => false);
   if (isRegistered) {
     console.log(`[reg] ${nickname} already registered, skipping`);
     return;
@@ -70,7 +70,7 @@ export async function registerUser(client, nickname) {
   await startBtn.click({ force: true, noWaitAfter: true });
 
   await client.page
-    .getByRole("button", { name: "Chats" })
+    .getByRole("button", { name: /Chats|Чаты/i })
     .waitFor({ state: "visible", timeout: 60000 });
   console.log(`[reg] ${nickname} registered`);
 }

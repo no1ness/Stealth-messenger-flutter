@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class WebRTCDiagnosticsScreen extends StatelessWidget {
   const WebRTCDiagnosticsScreen({super.key});
@@ -10,25 +10,23 @@ class WebRTCDiagnosticsScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(
+        child: TgAppBar(
           title: 'WebRTC Diagnostics',
           showBackButton: true,
         ),
       ),
-      body: StealthAnimatedBackground(
-        child: SafeArea(
+      body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: GlassContainer(
+            padding: const EdgeInsets.all(TgSpacing.md),
+            child: FlatContainer(
               child: Text(
                 'Diagnostics are disabled in WebAssembly-safe web mode.',
-                style: AppTypography.body,
+                style: TgTypography.body,
                 textAlign: TextAlign.center,
               ),
             ),
           ),
         ),
-      ),
     );
   }
 }

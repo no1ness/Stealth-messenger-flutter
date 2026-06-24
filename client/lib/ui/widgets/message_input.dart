@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSendMessage;
@@ -42,6 +42,8 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -56,7 +58,7 @@ class _MessageInputState extends State<MessageInput> {
             IconButton(
               icon: const Icon(Icons.attachment),
               onPressed: _handleAttachment,
-              color: AppColors.systemBlue,
+              color: c.primary,
               tooltip: 'Прикрепить файл',
             ),
             if (!_isRecording)
@@ -123,7 +125,7 @@ class _MessageInputState extends State<MessageInput> {
               IconButton(
                 icon: const Icon(Icons.send),
                 onPressed: _handleSendMessage,
-                color: AppColors.systemBlue,
+                color: c.primary,
                 tooltip: 'Отправить',
               ),
           ],

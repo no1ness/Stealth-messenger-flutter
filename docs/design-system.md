@@ -1,71 +1,57 @@
 [← Architecture](ARCHITECTURE.md) · [Back to README](../README.md) · [Performance →](PERFORMANCE.md)
 
-# Дизайн-система Stealth
+# Дизайн-система Stealth — Telegram-tt Flat
 
-> Единый источник истины для визуального языка, дизайн-токенов и переиспользуемых
-> UI-примитивов клиента Stealth Messenger.
+> Плоский Telegram-дизайн, портированный с telegram-tt (https://github.com/Ajaxy/telegram-tt).
+> Исходные цветовые токены: `themes.json` (73+ токена), `_variables.scss` (120+ CSS-переменных).
 >
-> Владельцы: все, кто работает с `client/lib/themes/apple_liquid/` или
-> `client/lib/ui/screens/`. Изменения здесь должны отражаться в коде виджетов;
-> код виджетов должен ссылаться на эти токены, а не на магические числа.
->
-> **Визуальное сопровождение:** [`docs/design-mockups/`](design-mockups/) —
-> самостоятельные HTML-страницы, показывающие каждую ключевую поверхность в
-> контексте. Откройте `docs/design-mockups/index.html` в браузере; сборка не требуется.
+> Владельцы: все, кто работает с `client/lib/themes/tg/` или `client/lib/ui/screens/`.
+> Изменения здесь должны отражаться в коде виджетов; код виджетов должен ссылаться на токены,
+> а не на магические числа.
 
 ---
 
-## Эстетическое направление (полярная звезда)
+## Эстетическое направление
 
-**Утонченный крипто-нуар.**
+**Плоский Telegram-дизайн.**
 
-Мессенджер с надежным шифрованием, который ВЫГЛЯДИТ соответствующе. Глубокие черные
-и иссиня-черные тона образуют доминирующий холст. Единственный резкий акцент
-(systemBlue) несет на себе все призывы к действию и каждый момент "это передний
-край зашифрованной сущности". Моноширинные цифры делают каждый
-идентификатор (id пользователей, номера безопасности, длительность, метки времени)
-похожим на значение из `openssl`, а не на значение из панели настроек.
-Тонкая горизонтальная линия сканирования присутствует на исходящих пузырях сообщений и
-на диалогах высокой важности — это единственный визуальный элемент, который пользователь
-запомнит и будет ассоциировать со Stealth.
-
-Мы НЕ гонимся за "современной SaaS" мягкостью, пурпурными градиентами или округлой
-игривостью. Мы НЕ используем системные шрифты. Мы НЕ разбрасываем
-микро-взаимодействия; мы ставим хореографию небольшого числа высокоэффективных
-моментов (постепенное появление списка, одиночный пульс при подтверждении отправки,
-значок E2E ENCRYPTED во время звонка).
+Минималистичный, функциональный интерфейс в стиле Telegram Web Z. Никаких стеклянных
+эффектов, градиентов или декоративных наложений. Чистые поверхности, четкая типографика,
+иерархия через цвет и отступы.
 
 | Измерение      | Обязательство                                                |
-|----------------|-----------------------------------------------------------|
-| Палитра        | Темный Stealth (`#0A0E1A`) как доминанта + `#151922` для карточек + один резкий `#007AFF` акцент + выборочный обесцвеченный циан |
-| Типографика    | **Geist Mono** для цифр / ID / меток времени / хешей; **Geist Sans** для текста и UI-меток |
-| Движение       | `AppMotion.normal` (250 мс) по умолчанию; хореографические раскрытия при загрузке страниц вместо разбросанных hover-эффектов |
-| Подпись        | `ScanlineOverlay` на исходящих пузырях чата и на диалогах `DialogImportance.high`; экран звонка в стиле HUD |
-| Пустое простр. | Щедрое вокруг главной `IdentityCard`; контролируемая плотность внутри списка чатов и сетки контактов |
-| Темная/Светлая | **Темная — первичная идентичность.** Светлая тема — "доступность / высокая контрастность" (те же цвета, намеренно меньше украшений, эффекты отключаются) |
+|---------------|--------------------------------------------------------------|
+| Палитра       | Telegram Web Z: `#3390EC` (синий), `#00C73E` (зелёный), `#8774E1` (фиолетовый dark) |
+| Типографика   | **Roboto** для UI / текста; **Roboto Mono** для цифр, ID, кода (iOS: system-ui fallback) |
+| Движение      | Стандартные Material-анимации (opacity, scale, position) |
+| Подпись       | Нет signature-эффектов (Scanline, Grain, ChromaticAberration удалены) |
+| Темная/Светлая| Полноценная светлая и тёмная темы на основе telegram-tt |
 
 ### Референсы
 
-Вдохновляющие якоря для команды — не активы для копирования, а просто компасные
-точки:
-
-- Vercel dashboard (семейство Geist в дикой природе, монохромная поверхность, сдержанность акцентов).
-- Экран "Insights" Linear (плотные данные на темном фоне, моноширинные цифры, дисциплина движения).
-- 1Password 8 macOS (спокойные темные поверхности, единственный акцент, утонченная типографика).
-- Things 3 (негативное пространство + асимметричный акцент на карточки).
-- Экран звонка Signal (планка, которую нужно побить по ясности криптографического UX).
+- Telegram Web Z (web.telegram.org) — плоские карточки, iMessage-баблы, боковая панель
+- telegram-tt (github.com/Ajaxy/telegram-tt) — имплементация
 
 ### Анти-паттерны
 
-Это проектные ошибки, а не стилистические разногласия:
+- Использование `Theme.of(context).colorScheme.*` — используйте `TgThemeColors.of(context).*`
+- Голый `AlertDialog` / `SnackBar` — используйте `TgDialog.show()` / `TgSnackBar.show()`
+- Inline `EdgeInsets` с магическими числами — используйте `TgSpacing.*`
+- Любые glass-эффекты, scanline, grain, chromatic aberration — **удалены**
 
-- Использование `Theme.of(context).colorScheme.*` — используйте константы `AppColors.*` вместо этого. Material 3 ColorScheme настроена, но мы не читаем через нее; проект создал свои собственные токены не просто так.
-- Голый `AlertDialog(...)` и голый `ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(...))` — должны идти через `showStealthDialog` и `showStealthSnackBar`.
-- Резервный системный шрифт (Arial, Roboto, Liberation, SF Pro через заглушку) — типографика ДОЛЖНА разрешаться в настоящий шрифт Geist.
-- Inline `EdgeInsets` с магическими числами — должны ссылаться на `AppSpacing.*`.
-- Захардкоженные `Duration(milliseconds: ...)` в анимациях виджетов — должны ссылаться на `AppMotion.*`.
-- Отсутствующий `RepaintBoundary` вокруг оверлея или анимированного поддерева.
-- Эффекты (`ScanlineOverlay`, `GrainOverlay`, `ChromaticAberration`), просачивающиеся в светлую тему — они автоматически фильтруются по `Theme.brightness`; не обходите с помощью `force: true` вне тестов.
+---
+
+## Архитектура темы
+
+- `TgThemeColors` — ~76 цветовых токенов, переключаемых по `Brightness` через `TgThemeColors.of(context)`
+- `TgThemeData` — полноценный `ThemeData` (light/dark) с Telegram-цветами
+- `TgSpacing` — 6-tier scale отступов (xxs–xxl) + радиусы + UI-константы
+- `TgTypography` — 22 именованных стиля + `textTheme`
+- `FlatContainer` — замена `GlassContainer`: плоская, фон `surface`, `borderRadius: 12`
+- `TgAppBar` — плоский `AppBar`, `elevation: 0`
+- `TgBottomNavBar` — кастомная панель навигации (иконка + лейбл)
+- `TgChatBubble` — iMessage-стиль: sent = `backgroundOwn`, received = `background`
+- `TgSnackBar` / `TgDialog` / `TgHaptics` — Feedback-слой
 
 ---
 
@@ -73,129 +59,150 @@
 
 ### Семейства
 
-| Семейство    | Роль                                                  | Включенные веса  | Файлы                                                                                                  |
-|--------------|-------------------------------------------------------|------------------|--------------------------------------------------------------------------------------------------------|
-| `Geist`      | Тело, UI-метки, заголовки — любая нечисловая строка  | 400, 500, 600, 700 | `client/assets/fonts/geist/Geist-{Regular,Medium,SemiBold,Bold}.otf`                                  |
-| `GeistMono`  | Цифры, ID, хеши, метки времени, таймер звонка | 400, 500, 600   | `client/assets/fonts/geist-mono/GeistMono-{Regular,Medium,SemiBold}.otf`                                |
+| Семейство     | Роль                                                  | Источник |
+|---------------|-------------------------------------------------------|----------|
+| `Roboto`      | Тело, UI-метки, заголовки — вся нечисловая строка    | системный (Android), загрузка (web) |
+| `Roboto Mono` | Цифры, ID, хеши, метки времени, таймер звонка        | системный / загрузка |
 
-Оба семейства упоминаются в `client/lib/themes/apple_liquid/constants/app_typography.dart`. Каждый `TextStyle` объявляет лестницу `fontFamilyFallback`, чтобы отсутствующий шрифт не нарушал рендеринг.
+На iOS/macOS используется `system-ui` через `defaultTargetPlatform`.
 
-### Лицензирование
-
-И Geist, и Geist Mono выпущены Vercel под **SIL Open Font License 1.1**.
+Geist/GeistMono заменены на Roboto/RobotoMono (см. commit `feat(theme): add Roboto typography`).
 
 ### Бюджет активов
 
-Текущее влияние на сборку (сырой OTF): **~1.18 MB**. Мобильная сборка в пределах бюджета. Web сборка требует подмножества (subsetting).
+Шрифты Geist (~1.18 MB) удалены. Roboto — системный, не добавляет к размеру сборки.
+
+---
 
 ## Токены
 
-Все токены живут в `client/lib/themes/apple_liquid/constants/`. Тянитесь к именованному токену в первую очередь.
+Все токены живут в `client/lib/themes/tg/`. Используйте экспортный баррель:
 
-### Цвета — `app_colors.dart`
+```dart
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
+```
 
-| Псевдоним        | Под капотом       | Когда использовать                               |
-|------------------|-------------------|--------------------------------------------------|
-| `textPrimary`    | `0xFFFFFFFF`       | Текст по умолчанию на темных поверхностях.       |
-| `textSecondary`  | `0x99FFFFFF`       | Подписи, вспомогательный текст.                  |
-| `textTertiary`   | `0x4DFFFFFF`       | Плейсхолдеры, отключенные метки.                 |
-| `textOnGlass`    | псевдоним `textPrimary` | Текст поверх `GlassContainer`.          |
-| `dividerSubtle`  | псевдоним `separator`   | Ряды `ListDivider`, разделение групп. |
-| `surfaceMuted`   | псевдоним `backgroundTertiary` | Плейсхолдеры скелетонов, фоны пустых состояний. |
-| `statusSuccess`  | псевдоним `systemGreen` | Индикаторы успешности.                       |
-| `statusWarn`     | псевдоним `systemOrange`| Индикаторы предупреждений.           |
-| `statusDanger`   | псевдоним `systemRed`   | Деструктивные действия, ошибки.  |
-| `statusInfo`     | псевдоним `systemBlue`  | Информационные фишки, первичный акцент.      |
+### Цвета — `TgThemeColors`
 
-### Отступы — `app_spacing.dart`
+Instance-класс через `TgThemeColors.of(context)`.
+~76 цветовых токенов в light/dark вариантах:
 
-| Псевдоним          | Значение                      | Когда использовать                                         |
-|--------------------|-------------------------------|------------------------------------------------------------|
-| `screenEdge`       | 16                            | Горизонтальный отступ для любого верхнеуровневого экрана.  |
-| `cardPadding`      | 16                            | Внутри любого `GlassContainer` / карточки.                 |
-| `tileGap`          | 8                             | Разрыв между строками в списках. |
-| `bottomBarOverlap` | `tabBarHeight + 24` (≈80)      | Дополнительный нижний отступ на экранах с `GlassBottomNavBar`.  |
-| `buttonHeight`     | 44                            | Стандартный размер зоны касания iOS.                       |
+| Группа       | Примеры токенов |
+|-------------|-----------------|
+| Primary     | `primary` (`#3390EC` light, `#8774E1` dark) |
+| Background  | `background`, `backgroundSecondary`, `backgroundOwn` |
+| Text        | `text`, `textSecondary`, `textMeta`, `messageMetaOwn` |
+| Borders     | `borders`, `bordersInput`, `dividers` |
+| Status      | `success` (`#00C73E`), `warning` (`#FB8C00`), `error` (`#E53935`) |
+| Chat        | `chatHover`, `chatActive`, `chatUsername` |
+| Feedback    | `toastBackground`, `skeletonBackground`, `scrollbar` |
 
-### Движение — `app_motion.dart`
+**Контекст получения цвета в StatefulWidget:**
+```dart
+TgThemeColors get c => TgThemeColors.of(context);
+// используйте c.primary, c.textSecondary и т.д. в любом методе State
+```
 
-| Токен       | Значение             | Когда использовать                                       |
-|-------------|----------------------|----------------------------------------------------------|
-| `fast`      | 150 мс               | Нажатие кнопки, пульс подтверждения, вход снекбара.      |
-| `normal`    | 250 мс               | Исчезновение диалога, шаг списка, переключение темы.     |
-| `slow`      | 400 мс               | Модальные листы, кроссфейд фона, мерцание.               |
-| `pageRoute` | 320 мс               | Вход/выход маршрута страницы.                            |
+### Отступы — `TgSpacing`
 
-### Высота — `app_elevation.dart`
+| Токен  | Значение | Использование |
+|--------|----------|---------------|
+| `xxs`  | 4        | Микро-отступы, gap между иконкой и текстом |
+| `xs`   | 8        | Базовые отступы внутри строк |
+| `sm`   | 12       | Отступы внутри карточек |
+| `md`   | 16       | Стандартный отступ экрана (`screenEdge`) |
+| `lg`   | 20       | Крупные отступы между секциями |
+| `xl`   | 24       | Padding больших блоков |
+| `xxl`  | 32       | Макро-отступы |
 
-| Уровень | Состав                                | Когда использовать                                           |
-|---------|--------------------------------------------|--------------------------------------------------------------|
-| `level0`| плоский                                    | Встроенные метки на фоне.                                    |
-| `level1`| 8 px тень, 2 px Y сдвиг                  | Строки списка, тонкое разделение.                            |
-| `level2`| 16 px тень, 4 px Y сдвиг                 | Стандартный подъем стеклянной карточки.                      |
-| `level3`| 24 + 6 px тень                           | Диалоги, всплывающие окна, модальные листы.                  |
-| `level4`| 32 px тень + systemBlue 40 px свечение   | Геройские поверхности — `IdentityCard`, значки HUD в звонке, `DialogImportance.high`. |
+Радиусы: `radiusXs` (4), `radiusSm` (8), `radiusMd` (12), `radiusLg` (16), `radiusXl` (20), `radiusRound` (999).
 
-### Эффекты — `app_effects.dart`
+### Типографика — `TgTypography`
 
-| Токен                    | По умолч. | Когда использовать                                                |
-|--------------------------|---------|-------------------------------------------------------------------|
-| `grainOpacity`           | 0.04    | Непрозрачность для `GrainOverlay`. "Пыльное" ощущение.                 |
-| `grainCellPx`            | 1.5     | Размер ячейки для шума.                    |
-| `scanlineOpacity`        | 0.06    | Альфа на полосу для `ScanlineOverlay`.                           |
-| `scanlineSpacingPx`      | 4       | Вертикальный шаг между линиями сканирования.                         |
-| `scanlineThicknessPx`    | 1       | Толщина полосы.                              |
-| `aberrationDxPx`         | 1.5     | Разделение каналов R/B для состояния фокуса хроматической аберрации.|
+22 именованных стиля через статические геттеры:
 
-### Тактильная отдача — `app_haptics.dart`
+| Стиль                 | fontSize | weight | Material textTheme |
+|-----------------------|----------|--------|-------------------|
+| `largeTitle`          | 28       | w700   | `headlineMedium`  |
+| `title1`              | 22       | w600   | `titleLarge`      |
+| `title2`              | 20       | w600   | `titleMedium`     |
+| `title3`              | 18       | w500   | `titleSmall`      |
+| `headline`            | 17       | w600   | `titleLarge`      |
+| `body`                | 16       | w400   | `bodyMedium`      |
+| `caption1`            | 13       | w400   | `bodySmall`       |
+| `captionMono`         | 13       | w400   | `bodySmall` + mono |
+| `titleMono`           | 22       | w600   | `titleSmall` + mono |
 
-Используйте `HapticIntensity` для вызовов в `feedback/stealth_haptics.dart`.
+---
 
-## Фирменные элементы (Signature elements)
+## Ключевые компоненты
 
-То, что делает Stealth безошибочно узнаваемым.
+### `FlatContainer`
+Замена `GlassContainer`. Плоская карточка с фоном `surface`, `borderRadius: 12`, опциональным `intensity` для разных вариантов фона.
 
-### `ScanlineOverlay`
-Тонкие горизонтальные полосы, нарисованные поверх дочернего виджета. (Исходящие сообщения, важные диалоги, значок шифрования).
+### `TgAppBar`
+Плоский `AppBar` + `TgSliverAppBar`. `elevation: 0`, `backgroundColor: backgroundSecondary`.
 
-### `GrainOverlay`
-Процедурный шум, нарисованный поверх дочернего элемента. (Фон регистрации, пустые состояния).
+### `TgBottomNavBar`
+Кастомная нижняя панель с иконкой + лейблом, активный — `primary` цвет, плоский фон `backgroundSecondary`.
 
-### Фон из отпечатков ключей (`StealthEmptyState`)
-Позади каждого значка пустого состояния детерминированная сетка 14×8 шестнадцатеричных пар (`A2:5F:90:...`) отображается с ~3,5% непрозрачности в `GeistMono`.
+### `TgChatBubble`
+iMessage-стиль:
+- **Sent:** `backgroundOwn` (зелёный light, фиолетовый dark)
+- **Received:** `background` (белый light, тёмно-серый dark)
+- `borderRadius: 15` (как telegram-tt `--border-radius-messages`)
+- Время/статус внутри бабла
+- Никаких эффектов (scanline, grain)
 
-### `ChromaticAberration`
-Тонкий эффект разделения цветов (RGB-сдвиг). (Фокус `GlassTextField`).
+### `TgSearchField`
+Плоское поле поиска: фон `backgroundSecondary`, иконка поиска, кнопка очистки.
 
-### `DecryptText`
-Анимированное декодирование строки шифра. (Экран загрузки, номера безопасности).
+### Feedback
+- `TgSnackBar.show(context, message, {isError})` — плоский toast
+- `TgDialog.show(context, {title, message})` — плоский диалог
+- `TgLoading.spinner({size, color})` — Material CircularProgressIndicator
+- `TgHaptics.light()` / `TgHaptics.medium()` / `TgHaptics.heavy()` — тактильная отдача
+
+---
 
 ## Дисциплина производительности
 
-Добавление оверлеев (`ScanlineOverlay`, `GrainOverlay`) поверх уже анимированных стеклянных поверхностей накапливает работу по перерисовке. Без изоляции один кадр анимации делает недействительным все поддерево над оверлеем.
-Защита — это `RepaintBoundary` — примитив Flutter для "не перерисовывай моего родителя, когда я меняюсь".
+- Все виджеты — плоские, без оверлеев; `RepaintBoundary` не требуется
+- Нет `AnimationController` в базовых виджетах (кроме `CallHudOverlay` и `OutgoingDeliveryStatusIcon`)
+- Тема кэшируется per-brightness через `TgThemeColors._instances`
 
-### Непреложные правила
+---
 
-- **Каждый фирменный эффект** обернут в `RepaintBoundary` внутри самого виджета.
-- **Каждый элемент в `StaggeredListView`** обернут в `RepaintBoundary`.
-- **`StealthSkeletonTile`** оборачивает свое мерцание в `RepaintBoundary`.
-- **`StealthAnimatedBackground`** обернут в `RepaintBoundary`.
-- **Любой новый виджет, владеющий `AnimationController`**, относится к `RepaintBoundary`.
+## Двойная идентичность (тёмная против светлой)
+
+Обе темы — равноправные, на основе telegram-tt. Светлая тема использует те же токены, что и тёмная, но с инвертированными значениями (белый фон, чёрный текст).
+
+По умолчанию при новой установке: `ThemeMode.system`.
+
+---
 
 ## Инвентарь компонентов
-Включает `SectionHeader`, `ListDivider`, `showStealthSnackBar`, `showStealthDialog`, `StealthHaptics`, `StealthSkeletonTile`, `GlassPageRoute`, `ChatTile` и др. Все они находятся в `themes/apple_liquid`.
 
-## Двойная идентичность (темная против светлой)
+Весь UI собран из виджетов в `client/lib/themes/tg/widgets/`:
 
-Темный режим — это **фирменная** идентичность Stealth. Светлый режим существует как режим **доступности / высокой контрастности**. Они не являются визуальными ровесниками.
-**По умолчанию при новой установке:** `ThemeMode.dark`.
+| Компонент | Файл |
+|-----------|------|
+| FlatContainer | `flat_container.dart` |
+| TgAppBar | `tg_app_bar.dart` |
+| TgBottomNavBar | `tg_bottom_nav_bar.dart` |
+| TgChatBubble | `tg_chat_bubble.dart` |
+| TgChatTile | `tg_chat_tile.dart` |
+| TgContactTile | `tg_contact_tile.dart` |
+| TgSectionHeader | `tg_section_header.dart` |
+| TgTextField | `tg_text_field.dart` |
+| TgSearchField | `tg_text_field.dart` |
+| TgMessageInput | `tg_message_input.dart` |
+| CallHudOverlay | `ui/widgets/call_hud_overlay.dart` |
+| StatusChip | `ui/widgets/status_chip.dart` |
+| OutgoingDeliveryStatusIcon | `ui/widgets/outgoing_delivery_status_icon.dart` |
+| StealthEmptyState | `ui/widgets/empty_state.dart` |
 
-Светлая тема: `ScanlineOverlay` отключается, `GrainOverlay` отключается, `GlassContainer` использует пресет меньшей интенсивности, `StealthAnimatedBackground` останавливает анимацию.
-
-## Контракт доступности
-
-Каждая интерактивная поверхность в приложении должна сохранять или расширять `client/lib/constants/accessibility_ids.dart`. Этот файл является единым источником истины для меток `Semantics` и также потребляется внерепозиторным набором тестов Appium. **Не меняйте значения без координации обновления набора Appium.**
+---
 
 ## See Also
 

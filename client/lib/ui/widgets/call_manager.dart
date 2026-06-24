@@ -5,7 +5,7 @@ import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/logging/logger.dart';
 import 'package:stealth/services/signaling/incoming_call_service.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/webrtc_call_screen.dart';
 import 'package:stealth/ui/screens/webrtc_diagnostics_screen.dart';
 import 'package:stealth/webrtc_support.dart';
@@ -180,24 +180,22 @@ class _CallManagerState extends State<CallManager> {
       return;
     }
 
-    showStealthDialog<void>(
+    showDialog<void>(
       context: context,
-      title: 'Входящий звонок',
       barrierDismissible: false,
-      importance: DialogImportance.high,
-      // No top-level actions — the three buttons (Diagnostics / Decline /
-      // Answer) live inside `body` so each can drive its own async flow
-      // and dismiss the dialog manually. Semantics wrappers preserved
-      // verbatim per `call_manager_semantics_test.dart` contract.
-      body: Builder(builder: (dialogContext) {
-        _activeDialogClosers[chatId] = () {
-          if (Navigator.of(dialogContext).canPop()) {
-            Navigator.of(dialogContext).pop();
-          }
-        };
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            Future<void> refreshSupport() async {
+      builder: (dialogContext) => _buildIncomingCallDialog(dialogContext, chatId, fromUserId, fromNickname, isVideoCall, offerSdp),
+    );
+  }
+
+  Widget _buildIncomingCallDialog(BuildContext dialogContext, String chatId, String fromUserId, String fromNickname, bool isVideoCall, Map<String, dynamic> offerSdp) {
+    _activeDialogClosers[chatId] = () {
+      if (Navigator.of(dialogContext).canPop()) {
+        Navigator.of(dialogContext).pop();
+      }
+    };
+    return StatefulBuilder(
+      builder: (dialogContext, setDialogState) {
+        Future<void> refreshSupport() async {
               final support = await getWebRTCSupport();
               if (!dialogContext.mounted) return;
               setDialogState(() {
@@ -265,7 +263,7 @@ class _CallManagerState extends State<CallManager> {
                     TextButton.icon(
                       onPressed: () {
                         Navigator.of(dialogContext).push(
-                          GlassPageRoute(
+                          MaterialPageRoute(
                             builder: (_) => const WebRTCDiagnosticsScreen(),
                           ),
                         );
@@ -333,10 +331,10 @@ class _CallManagerState extends State<CallManager> {
                                     extras: {'error': preflightError ?? 'OK'});
                                 if (preflightError != null) {
                                   if (dialogContext.mounted) {
-                                    showStealthSnackBar(
+                                    TgSnackBar.show(
                                       dialogContext,
                                       preflightError,
-                                      kind: SnackKind.danger,
+                                      isError: true,
                                     );
                                     setDialogState(
                                         () => _answeringCall = false);
@@ -357,7 +355,7 @@ class _CallManagerState extends State<CallManager> {
                                 Logger.info(
                                     '[stealth-call] pushing WebRTCCallScreen with initialOffer');
                                 await navigatorRoot.push(
-                                  GlassPageRoute.modal(
+                                  MaterialPageRoute(
                                     builder: (_) => WebRTCCallScreen(
                                       peerName: fromNickname,
                                       chatId: chatId,
@@ -375,12 +373,11 @@ class _CallManagerState extends State<CallManager> {
                                   _answeringCall = false;
                                 }
                               },
-                        icon: _answeringCall
-                            ? const StealthLoadingIndicator(
-                                size: 18,
-                                strokeWidth: 2,
-                              )
-                            : const Icon(Icons.phone),
+                    icon: _answeringCall
+                        ? TgLoading.spinner(
+                            size: 18,
+                          )
+                        : const Icon(Icons.phone),
                         label: Text(canAnswer ? 'Ответить' : 'Недоступно'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
@@ -398,8 +395,6 @@ class _CallManagerState extends State<CallManager> {
             );
           },
         );
-      }),
-    );
   }
 
   @override

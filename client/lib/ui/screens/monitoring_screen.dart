@@ -5,7 +5,7 @@ import 'package:stealth/p2p_service.dart';
 import 'package:stealth/services/dashboard/dashboard_service.dart';
 import 'package:stealth/services/device/device_info_service.dart';
 import 'package:stealth/services/device/device_registry_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class MonitoringScreen extends StatefulWidget {
   const MonitoringScreen({super.key});
@@ -72,19 +72,19 @@ class _MonitoringScreenState extends State<MonitoringScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const PreferredSize(
+      appBar: PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Мониторинг'),
+        child: TgAppBar(title: 'Мониторинг'),
       ),
       body: _isLoading
-          ? const Center(child: StealthLoadingIndicator())
+          ? Center(child: TgLoading.spinner())
           : ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(TgSpacing.md),
               children: [
                 _buildDashboardSection(),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: TgSpacing.md),
                 _buildDeviceSection(),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: TgSpacing.md),
                 _buildP2PSection(),
               ],
             ),
@@ -92,12 +92,12 @@ class _MonitoringScreenState extends State<MonitoringScreen>
   }
 
   Widget _buildDashboardSection() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Статистика'),
-          const SizedBox(height: AppSpacing.sm),
+          TgSectionHeader(title: 'Статистика'),
+          SizedBox(height: TgSpacing.sm),
           _buildStatRow('Чаты', '${_dashboardStats['chatCount'] ?? '-'}'),
           _buildStatRow(
               'Контакты', '${_dashboardStats['contactCount'] ?? '-'}'),
@@ -110,12 +110,12 @@ class _MonitoringScreenState extends State<MonitoringScreen>
   }
 
   Widget _buildDeviceSection() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Устройство'),
-          const SizedBox(height: AppSpacing.sm),
+          const TgSectionHeader(title: 'Устройство'),
+          SizedBox(height: TgSpacing.sm),
           _buildStatRow('Платформа', _deviceInfo?.platformType ?? '-'),
           _buildStatRow('ОС', _deviceInfo?.osVersion ?? '-'),
           _buildStatRow('Модель', _deviceInfo?.deviceModel ?? '-'),
@@ -131,12 +131,12 @@ class _MonitoringScreenState extends State<MonitoringScreen>
   }
 
   Widget _buildP2PSection() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'P2P / WebRTC'),
-          const SizedBox(height: AppSpacing.sm),
+          const TgSectionHeader(title: 'P2P / WebRTC'),
+          SizedBox(height: TgSpacing.sm),
           _buildStatRow('Статус', '${_p2pStats['connectionSummary'] ?? '-'}'),
           _buildStatRow(
               'Подключения', '${_p2pStats['totalConnections'] ?? '-'}'),
@@ -156,8 +156,8 @@ class _MonitoringScreenState extends State<MonitoringScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTypography.footnote),
-          Text(value, style: AppTypography.caption1),
+          Text(label, style: TgTypography.footnote),
+          Text(value, style: TgTypography.caption1),
         ],
       ),
     );

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:stealth/main_tabs.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 /// App bootstrap screen.
 ///
 /// Visually choreographed as a short "boot sequence" — the user lands
-/// on a `CircuitBoardBackground` (system-coming-up flavour) and the
+/// on a ` SizedBox` (system-coming-up flavour) and the
 /// background crossfades to `StealthAnimatedBackground` (the app's
 /// home surface) as the last step completes. Step labels render in a
 /// glass card with a monospace step counter so the moment reads as
@@ -21,6 +21,7 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with SingleTickerProviderStateMixin {
+  TgThemeColors get c => TgThemeColors.of(context);
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   final List<String> _steps = const [
@@ -59,10 +60,7 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     if (!mounted) return;
 
-    // Give the background crossfade a beat to land before the nav cut,
-    // so the handoff feels like the system finishing booting rather
-    // than a hard screen swap.
-    await Future<void>.delayed(AppMotion.slow);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     await Navigator.of(context).pushReplacement(
@@ -75,6 +73,7 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   @override
   Widget build(BuildContext context) {
+
     final isLastStep = _currentStep >= _steps.length - 1;
     final stepCounter =
         '${(_currentStep + 1).toString().padLeft(2, '0')} / '
@@ -85,20 +84,12 @@ class _LoadingScreenState extends State<LoadingScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Bottom layer: stealth animated background, always present.
-          // Becomes visible as the circuit-board layer fades out.
-          const StealthAnimatedBackground(child: SizedBox.expand()),
-          // Top layer: circuit-board "boot sequence". Crossfades to
-          // transparent as bootstrap reaches the last step — the
-          // animated background underneath becomes the new canvas.
+          const SizedBox.expand(),
           AnimatedOpacity(
-            duration: AppMotion.slow,
-            curve: AppMotion.emphasized,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
             opacity: isLastStep ? 0.0 : 1.0,
-            child: CircuitBoardBackground(
-              animated: true,
-              child: const SizedBox.expand(),
-            ),
+            child: const SizedBox.expand(),
           ),
           // Foreground: glass card with the boot-sequence telemetry.
           Center(
@@ -107,62 +98,62 @@ class _LoadingScreenState extends State<LoadingScreen>
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: GlassContainer(
-                    intensity: GlassIntensity.light,
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                  padding: EdgeInsets.all(TgSpacing.lg),
+                  child: FlatContainer(
+                    intensity: FlatIntensity.light,
+                    padding: EdgeInsets.all(TgSpacing.xl),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.security_rounded,
                           size: 64,
-                          color: AppColors.systemBlue,
+                          color: c.primary,
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         // Signature decryption-glitch reveal. The
                         // wordmark animates from random hex chars to
-                        // STEALTH over `AppMotion.slow` — the first
+                        // STEALTH over `` — the first
                         // thing every user sees on cold launch.
-                        DecryptText(
+                        Text(
                           'STEALTH',
-                          style: AppTypography.title1.copyWith(
-                            fontFamily: AppTypography.fontFamilyMono,
-                            fontFamilyFallback: AppFontStacks.monoFallbacks,
+                          style: TgTypography.title1.copyWith(
+                            fontFamily: TgTypography.fontFamilyMono,
+                            fontFamilyFallback: ['monospace'],
                             letterSpacing: 4,
-                            color: AppColors.textPrimary,
+                            color: c.text,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
+                        SizedBox(height: TgSpacing.sm),
                         Text(
                           stepCounter,
-                          style: AppTypography.captionMono.copyWith(
-                            color: AppColors.textSecondary,
+                          style: TgTypography.captionMono.copyWith(
+                            color: c.textSecondary,
                             letterSpacing: 1.2,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(999),
                           child: LinearProgressIndicator(
                             value: (_currentStep + 1) / _steps.length,
                             minHeight: 4,
                             backgroundColor:
-                                AppColors.glassMedium.withValues(alpha: 0.2),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.systemBlue,
+                                c.surface.withValues(alpha: 0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              c.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                         AnimatedSwitcher(
-                          duration: AppMotion.normal,
+                          duration: const Duration(milliseconds: 250),
                           child: Text(
                             _steps[_currentStep],
                             key: ValueKey<int>(_currentStep),
                             textAlign: TextAlign.center,
-                            style: AppTypography.body.copyWith(
-                              color: AppColors.textSecondary,
+                            style: TgTypography.body.copyWith(
+                              color: c.textSecondary,
                             ),
                           ),
                         ),

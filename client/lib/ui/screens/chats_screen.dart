@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:stealth/helpers/file_bytes.dart';
 import 'package:intl/intl.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/ui/screens/chats/conversation_footer.dart';
 import 'package:stealth/ui/screens/chats/conversation_panel.dart';
 
@@ -220,10 +220,10 @@ class _ChatsScreenState extends State<ChatsScreen>
         _loading = false;
       });
       if (mounted) {
-        showStealthSnackBar(
+        TgSnackBar.show(
           context,
           'Ошибка загрузки чатов: $error',
-          kind: SnackKind.danger,
+          isError: true,
         );
       }
     }
@@ -567,6 +567,8 @@ class _ChatsScreenState extends State<ChatsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     super.build(context);
 
     final currentChat = _chats.firstWhere(
@@ -576,7 +578,7 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: GlassAppBar(
+      appBar: TgAppBar(
         isLargeTitle: _selectedChatId == null,
         titleWidget: _selectedChatId == null
             ? const Text(
@@ -587,7 +589,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                 children: [
                   Text(
                     currentChat['name'] as String? ?? 'Чат',
-                    style: AppTypography.headline.copyWith(
+                    style: TgTypography.headline.copyWith(
                       color: Colors.white,
                       fontSize: 16,
                     ),
@@ -601,8 +603,8 @@ class _ChatsScreenState extends State<ChatsScreen>
                         decoration: BoxDecoration(
                           color:
                               P2PService.instance.isP2PReady(_selectedChatId!)
-                                  ? AppColors.systemGreen
-                                  : AppColors.systemBlue,
+                                  ? c.green
+                                  : c.primary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -611,7 +613,7 @@ class _ChatsScreenState extends State<ChatsScreen>
                         P2PService.instance.isP2PReady(_selectedChatId!)
                             ? 'P2P'
                             : 'Локально',
-                        style: AppTypography.caption2.copyWith(
+                        style: TgTypography.caption2.copyWith(
                           color: Colors.white70,
                           fontSize: 10,
                         ),
@@ -703,7 +705,7 @@ class _ChatsScreenState extends State<ChatsScreen>
         ),
         Expanded(
           child: _loading
-              ? const StealthSkeletonList(count: 6)
+              ? const Center(child: CircularProgressIndicator())
               : chats.isEmpty
                   ? Semantics(
                       label: 'Нет чатов',
@@ -716,15 +718,15 @@ class _ChatsScreenState extends State<ChatsScreen>
                             0,
                             0,
                             MediaQuery.of(context).padding.bottom +
-                                AppSpacing.bottomBarOverlap,
+                                TgSpacing.bottomBarOverlap,
                           ),
                           itemCount: chats.length,
                           separatorBuilder: (context, index) =>
-                              const SizedBox(height: AppSpacing.xs),
+                              const SizedBox(height: TgSpacing.xs),
                           itemBuilder: (context, index) {
                             final chat = chats[index];
                             final isSelected = chat['id'] == _selectedChatId;
-                            return _buildChatTile(chat, isSelected);
+                            return _buildTgChatTile(chat, isSelected);
                           },
                         )
                       : ListView(
@@ -733,29 +735,29 @@ class _ChatsScreenState extends State<ChatsScreen>
                             0,
                             0,
                             MediaQuery.of(context).padding.bottom +
-                                AppSpacing.bottomBarOverlap,
+                                TgSpacing.bottomBarOverlap,
                           ),
                           children: [
                             if (_pinnedChats.isNotEmpty) ...[
-                              SectionHeader(
+                              TgSectionHeader(
                                 title: 'Закреплённые',
                                 count: _pinnedChats.length,
                               ),
                               ..._pinnedChats.map((chat) {
                                 final isSelected =
                                     chat['id'] == _selectedChatId;
-                                return _buildChatTile(chat, isSelected);
+                                return _buildTgChatTile(chat, isSelected);
                               }),
                             ],
                             if (_recentChats.isNotEmpty) ...[
-                              SectionHeader(
+                              TgSectionHeader(
                                 title: 'Последние',
                                 count: _recentChats.length,
                               ),
                               ..._recentChats.map((chat) {
                                 final isSelected =
                                     chat['id'] == _selectedChatId;
-                                return _buildChatTile(chat, isSelected);
+                                return _buildTgChatTile(chat, isSelected);
                               }),
                             ],
                           ],
@@ -765,9 +767,9 @@ class _ChatsScreenState extends State<ChatsScreen>
     );
   }
 
-  Widget _buildChatTile(Map<String, dynamic> chat, bool isSelected) {
+  Widget _buildTgChatTile(Map<String, dynamic> chat, bool isSelected) {
     final isPrivate = chat['isPrivate'] as bool? ?? true;
-    return ChatTile(
+    return TgChatTile(
       chat: chat,
       isSelected: isSelected,
       isSent: chat['isSent'] as bool?,
@@ -867,8 +869,6 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final result = await FilePicker.pickFiles(
-      allowMultiple: false,
-      withData: true,
       type: FileType.any,
     );
     if (result == null || result.files.isEmpty) {
@@ -876,18 +876,7 @@ class _ChatsScreenState extends State<ChatsScreen>
     }
 
     final file = result.files.single;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      if (!mounted) {
-        return;
-      }
-      showStealthSnackBar(
-        context,
-        'Выбранный файл не читается',
-        kind: SnackKind.danger,
-      );
-      return;
-    }
+    final bytes = await file.readAsBytes();
 
     final publicUrl = await _appService.uploadAttachmentBytes(
       bytes: bytes,
@@ -900,10 +889,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Ошибка загрузки вложения',
-        kind: SnackKind.danger,
+        isError: true,
       );
       return;
     }
@@ -930,10 +919,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Голосовой файл не читается',
-        kind: SnackKind.danger,
+        isError: true,
       );
       return;
     }
@@ -948,10 +937,10 @@ class _ChatsScreenState extends State<ChatsScreen>
       if (!mounted) {
         return;
       }
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Ошибка загрузки голосового сообщения',
-        kind: SnackKind.danger,
+        isError: true,
       );
       return;
     }

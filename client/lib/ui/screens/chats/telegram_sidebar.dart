@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
 import 'package:stealth/logging/logger.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/services/user_directory/presence_service.dart';
 import 'package:stealth/services/user_directory/user_directory_service.dart';
 
@@ -33,6 +33,7 @@ class TelegramSidebar extends StatefulWidget {
 
 class _TelegramSidebarState extends State<TelegramSidebar>
     with SingleTickerProviderStateMixin {
+  TgThemeColors get c => TgThemeColors.of(context);
   final TextEditingController _searchController = TextEditingController();
   final LocalAppService _appService = LocalAppService();
   late TabController _tabController;
@@ -158,11 +159,12 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           right: BorderSide(
-            color: AppColors.dividerSubtle,
+            color: c.dividers,
             width: 0.5,
           ),
         ),
@@ -183,13 +185,13 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.sm,
-        AppSpacing.sm,
-        AppSpacing.xs,
+      padding: EdgeInsets.fromLTRB(
+        TgSpacing.sm,
+        TgSpacing.sm,
+        TgSpacing.sm,
+        TgSpacing.xs,
       ),
-      child: GlassSearchField(
+      child: TgSearchField(
         controller: _searchController,
         hintText: 'Поиск',
         onChanged: (_) {
@@ -202,16 +204,16 @@ class _TelegramSidebarState extends State<TelegramSidebar>
   Widget _buildTabBar() {
     return Container(
       height: 40,
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      margin: EdgeInsets.symmetric(horizontal: TgSpacing.sm),
       child: TabBar(
         controller: _tabController,
         onTap: (_) => setState(() {}),
-        labelColor: AppColors.systemBlue,
-        unselectedLabelColor: AppColors.textSecondary,
-        indicatorColor: AppColors.systemBlue,
+        labelColor: c.primary,
+        unselectedLabelColor: c.textSecondary,
+        indicatorColor: c.primary,
         indicatorSize: TabBarIndicatorSize.label,
-        labelStyle: AppTypography.subheadlineEmphasis,
-        unselectedLabelStyle: AppTypography.subheadline,
+        labelStyle: TgTypography.subheadlineEmphasis,
+        unselectedLabelStyle: TgTypography.subheadline,
         dividerHeight: 0,
         tabs: const [
           Tab(text: 'Чаты'),
@@ -223,9 +225,9 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildChatList() {
     if (widget.loading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.systemBlue,
+          color: c.primary,
           strokeWidth: 2,
         ),
       );
@@ -235,20 +237,20 @@ class _TelegramSidebarState extends State<TelegramSidebar>
       return Center(
         child: Text(
           'Нет чатов',
-          style: AppTypography.subheadline.copyWith(
-            color: AppColors.textSecondary,
+          style: TgTypography.subheadline.copyWith(
+            color: c.textSecondary,
           ),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: TgSpacing.xs),
       itemCount: _filteredChats.length,
       itemBuilder: (context, index) {
         final chat = _filteredChats[index];
         final isSelected = chat['id'] == widget.selectedChatId;
-        return ChatTile(
+        return TgChatTile(
           chat: chat,
           isSelected: isSelected,
           onTap: () => widget.onChatSelected(chat['id'] as String),
@@ -259,9 +261,9 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
   Widget _buildContactList() {
     if (_loadingContacts) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.systemBlue,
+          color: c.primary,
           strokeWidth: 2,
         ),
       );
@@ -271,24 +273,24 @@ class _TelegramSidebarState extends State<TelegramSidebar>
       return Center(
         child: Text(
           'Нет контактов',
-          style: AppTypography.subheadline.copyWith(
-            color: AppColors.textSecondary,
+          style: TgTypography.subheadline.copyWith(
+            color: c.textSecondary,
           ),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: TgSpacing.xs),
       itemCount: _filteredContacts.length,
       itemBuilder: (context, index) {
         final contact = _filteredContacts[index];
-        return _buildContactTile(contact);
+        return _buildTgContactTile(contact);
       },
     );
   }
 
-  Widget _buildContactTile(Map<String, dynamic> contact) {
+  Widget _buildTgContactTile(Map<String, dynamic> contact) {
     final name = (contact['nickname'] ?? contact['name'] ?? 'Контакт').toString();
     final isOnline = contact['isOnline'] as bool? ?? false;
 
@@ -296,11 +298,11 @@ class _TelegramSidebarState extends State<TelegramSidebar>
       color: Colors.transparent,
       child: InkWell(
         onTap: () => widget.onContactSelected(contact),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(TgSpacing.radiusMd),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
+          padding: EdgeInsets.symmetric(
+            horizontal: TgSpacing.sm,
+            vertical: TgSpacing.xs,
           ),
           child: Row(
             children: [
@@ -316,8 +318,8 @@ class _TelegramSidebarState extends State<TelegramSidebar>
                     alignment: Alignment.center,
                     child: Text(
                       _initials(name),
-                      style: AppTypography.calloutEmphasis.copyWith(
-                        color: AppColors.textOnGlass,
+                      style: TgTypography.calloutEmphasis.copyWith(
+                        color: c.text,
                       ),
                     ),
                   ),
@@ -328,26 +330,26 @@ class _TelegramSidebarState extends State<TelegramSidebar>
                       child: Container(
                         width: 12,
                         height: 12,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.systemGreen,
+                          color: c.green,
                           border: Border.fromBorderSide(
-                            BorderSide(color: AppColors.backgroundPrimary, width: 2),
+                            BorderSide(color: c.background, width: 2),
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       name,
-                      style: AppTypography.bodyEmphasis.copyWith(
-                        color: AppColors.textOnGlass,
+                      style: TgTypography.bodyEmphasis.copyWith(
+                        color: c.text,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -355,10 +357,10 @@ class _TelegramSidebarState extends State<TelegramSidebar>
                     const SizedBox(height: 2),
                     Text(
                       isOnline ? 'в сети' : 'не в сети',
-                      style: AppTypography.caption1.copyWith(
+                      style: TgTypography.caption1.copyWith(
                         color: isOnline
-                            ? AppColors.systemGreen
-                            : AppColors.textSecondary,
+                            ? c.green
+                            : c.textSecondary,
                       ),
                     ),
                   ],

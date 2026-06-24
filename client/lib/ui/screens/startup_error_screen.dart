@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class StartupErrorScreen extends StatelessWidget {
   const StartupErrorScreen({
@@ -13,14 +13,14 @@ class StartupErrorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
     return Scaffold(
-      body: StealthAnimatedBackground(
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
+                padding: const EdgeInsets.all(TgSpacing.xl),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.32),
@@ -30,35 +30,35 @@ class StartupErrorScreen extends StatelessWidget {
                     ),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    padding: const EdgeInsets.all(TgSpacing.xl),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.settings_ethernet,
                           size: 72,
-                          color: AppColors.systemOrange,
+                          color: c.warning,
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        SizedBox(height: TgSpacing.lg),
                         Text(
                           'Требуется настройка окружения',
                           textAlign: TextAlign.center,
-                          style: AppTypography.title1.copyWith(
+                          style: TgTypography.title1.copyWith(
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: TgSpacing.md),
                         Text(
                           message,
                           textAlign: TextAlign.center,
-                          style: AppTypography.body.copyWith(
-                            color: AppColors.textSecondary,
+                          style: TgTypography.body.copyWith(
+                            color: c.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: TgSpacing.lg),
                         Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
+                          padding: const EdgeInsets.all(TgSpacing.md),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(18),
@@ -70,24 +70,24 @@ class StartupErrorScreen extends StatelessWidget {
                               Text(
                                 'Укажите настоящий POCKETBASE_URL одним из способов:',
                                 textAlign: TextAlign.center,
-                                style: AppTypography.caption1.copyWith(
+                                style: TgTypography.caption1.copyWith(
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.sm),
+                              const SizedBox(height: TgSpacing.sm),
                               Text(
                                 '• flutter run --dart-define=POCKETBASE_URL=…\n'
                                 '• отредактируйте client/.env.defaults\n'
                                 '• см. docs/POCKETBASE_SETUP.md',
                                 textAlign: TextAlign.left,
-                                style: AppTypography.caption1.copyWith(
-                                  color: AppColors.textSecondary,
+                                style: TgTypography.caption1.copyWith(
+                                  color: c.textSecondary,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: TgSpacing.lg),
                         FilledButton.icon(
                           onPressed: () => onRetry(),
                           icon: const Icon(Icons.refresh),
@@ -99,7 +99,6 @@ class StartupErrorScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ),
         ),
       ),
     );

@@ -7,7 +7,7 @@ import '../../../services/diagnostics/diagnostics_report.dart';
 import '../../../services/diagnostics/diagnostics_service.dart';
 import '../../../services/diagnostics/diagnostics_share.dart';
 import '../../../services/diagnostics/service_status.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'widgets/level_filter_chips.dart';
 import 'widgets/log_entry_tile.dart';
 import 'widgets/service_status_tile.dart';
@@ -132,7 +132,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: GlassAppBar(
+      appBar: TgAppBar(
         title: 'Диагностика и логи',
         showBackButton: true,
         actions: [
@@ -149,7 +149,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  const _SectionHeader(title: 'Сервисы'),
+                  const _TgSectionHeader(title: 'Сервисы'),
                   SliverToBoxAdapter(
                     child: StreamBuilder<List<ServiceStatus>>(
                       initialData: _diagnostics.lastKnownSnapshot,
@@ -158,7 +158,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         final statuses = snapshot.data ?? const [];
                         if (statuses.isEmpty) {
                           return const Padding(
-                            padding: EdgeInsets.all(AppSpacing.md),
+                            padding: EdgeInsets.all(TgSpacing.md),
                             child: Text('Загрузка...'),
                           );
                         }
@@ -171,11 +171,11 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       },
                     ),
                   ),
-                  const _SectionHeader(title: 'Производительность'),
+                  const _TgSectionHeader(title: 'Производительность'),
                   const SliverToBoxAdapter(
                     child: PerformanceMonitor(),
                   ),
-                  const _SectionHeader(title: 'Последние логи'),
+                  const _TgSectionHeader(title: 'Последние логи'),
                   SliverToBoxAdapter(
                     child: LevelFilterChips(
                       selected: _filter,
@@ -183,12 +183,12 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                     ),
                   ),
                   if (_logs.isEmpty)
-                    const SliverToBoxAdapter(
+                    SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.md),
+                        padding: const EdgeInsets.all(TgSpacing.md),
                         child: Text(
                           'Пока нет записей в логе',
-                          style: AppTypography.body,
+                          style: TgTypography.body,
                         ),
                       ),
                     )
@@ -200,16 +200,16 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                       ),
                     ),
                   const SliverToBoxAdapter(
-                    child: SizedBox(height: AppSpacing.lg),
+                    child: SizedBox(height: TgSpacing.lg),
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(TgSpacing.md),
               child: SizedBox(
                 width: double.infinity,
-                child: GlassButton(
+                child: FlatButton(
                   isPrimary: true,
                   onPressed: _isSharing ? null : _onShare,
                   child: Row(
@@ -223,7 +223,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         )
                       else
                         const Icon(Icons.ios_share),
-                      const SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: TgSpacing.sm),
                       const Text('Поделиться логами'),
                     ],
                   ),
@@ -237,23 +237,25 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+class _TgSectionHeader extends StatelessWidget {
+  const _TgSectionHeader({required this.title});
   final String title;
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.xs,
+          TgSpacing.md,
+          TgSpacing.md,
+          TgSpacing.md,
+          TgSpacing.xs,
         ),
         child: Text(
           title,
-          style: AppTypography.headline.copyWith(color: AppColors.systemGray),
+          style: TgTypography.headline.copyWith(color: c.gray),
         ),
       ),
     );

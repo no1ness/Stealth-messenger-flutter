@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'voice_message_player.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -59,15 +59,13 @@ class ChatBubble extends StatelessWidget {
   }
 
   Future<void> _showDeleteDialog(BuildContext context) async {
-    final result = await showStealthDialog<bool>(
-      context: context,
+    final result = await TgDialog.show(
+      context,
       title: 'Удалить сообщение?',
-      body: const Text('Это действие нельзя отменить.'),
-      importance: DialogImportance.high,
-      actions: const [
-        StealthDialogAction<bool>(label: 'Отмена', result: false),
-        StealthDialogAction<bool>.destructive(label: 'Удалить', result: true),
-      ],
+      message: 'Это действие нельзя отменить.',
+      isDestructive: true,
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
     );
 
     if (result != true || messageId == null) return;
@@ -77,15 +75,14 @@ class ChatBubble extends StatelessWidget {
       // await LocalAppService().softDeleteMessage(messageId: messageId!);
       onDeleted?.call();
       if (!context.mounted) return;
-      showStealthSnackBar(
+      TgSnackBar.show(
         context,
         'Сообщение удалено',
-        kind: SnackKind.success,
-        duration: const Duration(seconds: 1),
+        isError: false,
       );
     } catch (e) {
       if (!context.mounted) return;
-      showStealthSnackBar(context, 'Ошибка: $e', kind: SnackKind.danger);
+      TgSnackBar.show(context, 'Ошибка: $e', isError: true);
     }
   }
 

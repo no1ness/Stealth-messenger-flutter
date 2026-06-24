@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stealth/registration_screen.dart';
 import 'package:stealth/di.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/themes/theme_controller.dart';
 import 'package:stealth/services/bypass/bypass_state_controller.dart';
 import 'package:stealth/ui/screens/diagnostics/diagnostics_screen.dart';
@@ -22,6 +22,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
+  TgThemeColors get c => TgThemeColors.of(context);
   final LocalAppService _appService = LocalAppService();
   ThemeMode _themeMode = ThemeMode.system;
   bool _autoDeleteMessages = false;
@@ -114,7 +115,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     // Also persist to SharedPreferences.
     await ThemeController.setMode(mode);
     if (mounted) {
-      StealthHaptics.selection(context);
+      TgHaptics.selection();
     }
     if (!mounted) {
       return;
@@ -151,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+
     final cards = [
       RepaintBoundary(child: _buildSecurityCard()),
       RepaintBoundary(child: _buildConnectionCard()),
@@ -163,19 +165,19 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       backgroundColor: Colors.transparent,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Настройки'),
+        child: TgAppBar(title: 'Настройки'),
       ),
       body: _isLoading
-          ? const Center(child: StealthLoadingIndicator())
+          ? Center(child: TgLoading.spinner())
           : Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: EdgeInsets.all(TgSpacing.md),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   if (constraints.maxWidth >= 1100) {
                     return GridView.count(
                       crossAxisCount: 2,
-                      crossAxisSpacing: AppSpacing.md,
-                      mainAxisSpacing: AppSpacing.md,
+                      crossAxisSpacing: TgSpacing.md,
+                      mainAxisSpacing: TgSpacing.md,
                       childAspectRatio: 1.4,
                       children: cards,
                     );
@@ -184,7 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   return ListView.separated(
                     itemCount: cards.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(height: TgSpacing.md),
                     itemBuilder: (context, index) => cards[index],
                   );
                 },
@@ -196,7 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: FilledButton.icon(
             onPressed: _logout,
-            icon: const Icon(Icons.logout),
+            icon: Icon(Icons.logout),
             label: const Text('Выйти'),
           ),
         ),
@@ -205,13 +207,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildSecurityCard() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const TgSectionHeader(
             title: 'Конфиденциальность и безопасность',
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: EdgeInsets.only(bottom: TgSpacing.sm),
           ),
           Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: true,
@@ -229,17 +231,17 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             onChanged: (value) => setState(() => _contactVerification = value),
             title: const Text('Проверка контактов'),
           )),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           LinearProgressIndicator(
             value: _countdown / 24,
             minHeight: 10,
             borderRadius: BorderRadius.circular(999),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           Text(
             'Таймер предпросмотра: $_countdownс',
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
+            style: TgTypography.body.copyWith(
+              color: c.textSecondary,
             ),
           ),
         ],
@@ -248,13 +250,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildConnectionCard() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const TgSectionHeader(
             title: 'Подключение и Хранилище',
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: EdgeInsets.only(bottom: TgSpacing.sm),
           ),
           Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _useP2P,
@@ -267,17 +269,17 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             subtitle:
                 const Text('Отправляйте сообщения напрямую на устройства, когда они онлайн'),
           )),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             'Активно только локальное хранилище',
-            style: AppTypography.body.copyWith(
-              color: AppColors.systemGreen,
+            style: TgTypography.body.copyWith(
+              color: c.green,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           _SignalServerLine(),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _bypassEnabled,
             onChanged: (value) async {
@@ -300,13 +302,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildNotificationCard() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const TgSectionHeader(
             title: 'Уведомления',
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: EdgeInsets.only(bottom: TgSpacing.sm),
           ),
           Material(type: MaterialType.transparency, child: SwitchListTile.adaptive(
             value: _newMessageNotifications,
@@ -319,28 +321,28 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             onChanged: (value) => setState(() => _callNotifications = value),
             title: const Text('Звонки'),
           )),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             _webrtcSummary,
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
+            style: TgTypography.body.copyWith(
+              color: c.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             _webrtcPlatformLabel,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.caption1.copyWith(
-              color: AppColors.textSecondary,
+            style: TgTypography.caption1.copyWith(
+              color: c.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Row(
             children: [
               Expanded(
                   child: _MiniStat(label: 'Сообщения', value: '$_messageCount')),
-              SizedBox(width: AppSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(child: _MiniStat(label: 'Звонки', value: '$_callCount')),
             ],
           ),
@@ -350,13 +352,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildAppearanceCard() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const TgSectionHeader(
             title: 'Оформление',
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: EdgeInsets.only(bottom: TgSpacing.sm),
           ),
           SegmentedButton<ThemeMode>(
             segments: const [
@@ -367,11 +369,11 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             selected: {_themeMode},
             onSelectionChanged: (selection) => _changeTheme(selection.first),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Text(
             'Текущий режим: ${_themeMode.name == 'system' ? 'Матч ОС' : _themeMode.name == 'dark' ? 'Темная' : 'Светлая'}',
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
+            style: TgTypography.body.copyWith(
+              color: c.textSecondary,
             ),
           ),
         ],
@@ -380,13 +382,13 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Widget _buildDiagnosticsCard() {
-    return GlassContainer(
+    return FlatContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const TgSectionHeader(
             title: 'Диагностика',
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: EdgeInsets.only(bottom: TgSpacing.sm),
           ),
           SizedBox(
             height: 120,
@@ -399,7 +401,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: AppColors.systemBlue.withValues(alpha: 0.8),
+                            color: c.primary.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: SizedBox(height: 100 * value),
@@ -410,18 +412,18 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                   .toList(),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           Row(
             children: [
               Expanded(child: _MiniStat(label: 'Чаты', value: '$_chatCount')),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _MiniStat(
                   label: 'Локальные медиа',
                   value: _bucketReady ? 'Готово' : 'Проверить',
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: TgSpacing.sm),
               Expanded(
                 child: _MiniStat(
                   label: 'Аудиовходы',
@@ -430,7 +432,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           OutlinedButton.icon(
             onPressed: () {
               Navigator.of(context).push(
@@ -439,16 +441,16 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 ),
               );
             },
-            icon: const Icon(Icons.network_check),
+            icon: Icon(Icons.network_check),
             label: const Text('Открыть диагностику WebRTC'),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: TgSpacing.sm),
           OutlinedButton.icon(
             onPressed: _loadSettings,
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh),
             label: const Text('Обновить диагностику'),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: TgSpacing.md),
           OutlinedButton.icon(
             onPressed: () {
               Navigator.of(context).push(
@@ -459,7 +461,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                 ),
               );
             },
-            icon: const Icon(Icons.bug_report),
+            icon: Icon(Icons.bug_report),
             label: const Text('Открыть диагностику и логи'),
           ),
         ],
@@ -476,22 +478,24 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.glassLight.withValues(alpha: 0.08),
+        color: c.backgroundSecondary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(TgSpacing.md),
         child: Column(
           children: [
-            Text(value, style: AppTypography.title2),
+            Text(value, style: TgTypography.title2),
             const SizedBox(height: 4),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: AppTypography.caption1.copyWith(
-                color: AppColors.textSecondary,
+              style: TgTypography.caption1.copyWith(
+                color: c.textSecondary,
               ),
             ),
           ],
@@ -508,28 +512,30 @@ class _MiniStat extends StatelessWidget {
 class _SignalServerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     final url = dotenv.maybeGet('POCKETBASE_URL') ?? '';
     final hasUrl = url.isNotEmpty;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.dns, size: 18, color: AppColors.textSecondary),
-        const SizedBox(width: AppSpacing.sm),
+        Icon(Icons.dns, color: c.textSecondary),
+        SizedBox(width: TgSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Сигнальный сервер',
-                style: AppTypography.caption1.copyWith(
-                  color: AppColors.textSecondary,
+                style: TgTypography.caption1.copyWith(
+                  color: c.textSecondary,
                 ),
               ),
               Text(
                 hasUrl ? url : 'не настроено (установите POCKETBASE_URL в .env)',
-                style: AppTypography.body.copyWith(
+                style: TgTypography.body.copyWith(
                   color:
-                      hasUrl ? AppColors.systemGreen : AppColors.systemOrange,
+                      hasUrl ? c.green : c.warning,
                   fontWeight: FontWeight.w500,
                 ),
               ),

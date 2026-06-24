@@ -3,7 +3,7 @@ import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 import 'package:stealth/webrtc_support.dart';
 import 'package:web/web.dart' as web;
 
@@ -16,6 +16,7 @@ class WebRTCDiagnosticsScreen extends StatefulWidget {
 }
 
 class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
+  TgThemeColors get c => TgThemeColors.of(context);
   web.MediaStream? _localStream;
   final bool _isInitialized = true;
   String _status = 'Idle';
@@ -204,8 +205,8 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
     if (!mounted) {
       return;
     }
-    showStealthSnackBar(context, 'Диагностика скопирована',
-        kind: SnackKind.success);
+    TgSnackBar.show(context, 'Диагностика скопирована',
+        isError: false);
   }
 
   @override
@@ -214,49 +215,48 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
       extendBodyBehindAppBar: true,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: GlassAppBar(title: 'Диагностика WebRTC', showBackButton: true),
+        child: TgAppBar(title: 'Диагностика WebRTC', showBackButton: true),
       ),
-      body: StealthAnimatedBackground(
-        child: SafeArea(
+      body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(TgSpacing.md),
             child: Column(
               children: [
-                GlassContainer(
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Тест микрофона',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       if (_error.isNotEmpty)
                         Text(
                           _error,
-                          style: AppTypography.body.copyWith(
-                            color: AppColors.systemRed,
+                          style: TgTypography.body.copyWith(
+                            color: c.error,
                           ),
                           textAlign: TextAlign.center,
                         )
                       else
                         Text(
                           _status,
-                          style: AppTypography.body,
+                          style: TgTypography.body,
                           textAlign: TextAlign.center,
                         ),
                       if (_blockingIssues.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: TgSpacing.md),
                         Text(
                           _blockingIssues.join('\n'),
-                          style: AppTypography.caption1.copyWith(
-                            color: AppColors.systemRed,
+                          style: TgTypography.caption1.copyWith(
+                            color: c.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ],
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: TgSpacing.lg),
                       Wrap(
-                        spacing: AppSpacing.md,
-                        runSpacing: AppSpacing.md,
+                        spacing: TgSpacing.md,
+                        runSpacing: TgSpacing.md,
                         alignment: WrapAlignment.center,
                         children: [
                           ElevatedButton.icon(
@@ -284,32 +284,32 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                GlassContainer(
+                const SizedBox(height: TgSpacing.xl),
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Тест соединения',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       Text(
                         _connectivityStatus,
                         textAlign: TextAlign.center,
-                        style: AppTypography.body,
+                        style: TgTypography.body,
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: TgSpacing.md),
                       ElevatedButton.icon(
                         onPressed: _testConnectivity,
                         icon: const Icon(Icons.network_check),
                         label: const Text('Тест STUN/ICE'),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: TgSpacing.sm),
                       OutlinedButton.icon(
                         onPressed: _loadSupport,
                         icon: const Icon(Icons.refresh),
                         label: const Text('Перезагрузить окружение'),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: TgSpacing.sm),
                       OutlinedButton.icon(
                         onPressed: _copyDiagnosticsSummary,
                         icon: const Icon(Icons.copy_all),
@@ -318,13 +318,13 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                GlassContainer(
+                const SizedBox(height: TgSpacing.xl),
+                FlatContainer(
                   child: Column(
                     children: [
-                      const SectionHeader(
+                      const TgSectionHeader(
                         title: 'Системная информация',
-                        padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                        padding: EdgeInsets.only(bottom: TgSpacing.sm),
                       ),
                       _buildInfoRow('Browser WebRTC', 'Enabled'),
                       _buildInfoRow('Support', _supportSummary),
@@ -360,8 +360,7 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -372,13 +371,13 @@ class _WebRTCDiagnosticsScreenState extends State<WebRTCDiagnosticsScreen> {
         children: [
           Text(
             label,
-            style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
+            style: TgTypography.body.copyWith(
+              color: c.textSecondary,
             ),
           ),
           Text(
             value,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
+            style: TgTypography.body.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),

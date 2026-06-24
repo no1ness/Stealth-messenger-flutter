@@ -59,7 +59,7 @@ class _WebTestBridge {
   String? _evalToString(String jsCode) {
     final result = _eval(jsCode.toJS);
     if (result == null) return null;
-    if (result is JSString) return result.toDart;
+    if (result.isA<JSString>()) return (result as JSString).toDart;
     return result.toString();
   }
 
@@ -100,17 +100,17 @@ class _WebTestBridge {
       case 'getContactBundle':
         app.generateQRCode().then((b) {
           _evalToString('window.__test._result = ${jsonEncode(b)}');
-        }).catchError((e) => Logger.warn('[test-bridge] bundle: $e'));
+        }).catchError((e) { Logger.warn('[test-bridge] bundle: $e'); return null; });
         break;
       case 'searchUsers':
         app.searchUsers(args[0]).then((r) {
           _evalToString('window.__test._result = ${jsonEncode(r)}');
-        }).catchError((e) => Logger.warn('[test-bridge] search: $e'));
+        }).catchError((e) { Logger.warn('[test-bridge] search: $e'); return null; });
         break;
       case 'getUserId':
         app.getUserId().then((id) {
           _evalToString('window.__test._result = ${jsonEncode(id ?? '')}');
-        }).catchError((e) => Logger.warn('[test-bridge] getUserId: $e'));
+        }).catchError((e) { Logger.warn('[test-bridge] getUserId: $e'); return null; });
         break;
       case 'waitForEvent':
         final type = args[0];

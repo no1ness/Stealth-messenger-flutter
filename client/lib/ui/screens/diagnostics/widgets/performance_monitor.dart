@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import 'package:stealth/themes/apple_liquid/theme_exports.dart';
+import 'package:stealth/themes/tg/tg_theme_exports.dart';
 
 class PerformanceMonitor extends StatefulWidget {
   const PerformanceMonitor({super.key});
@@ -69,41 +69,43 @@ class _PerformanceMonitorState extends State<PerformanceMonitor>
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(TgSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('FPS', style: AppTypography.title1),
-              const SizedBox(width: AppSpacing.sm),
+              Text('FPS', style: TgTypography.title1),
+              const SizedBox(width: TgSpacing.sm),
               Text(
                 _currentFps.toStringAsFixed(1),
-                style: AppTypography.largeTitle.copyWith(
+                style: TgTypography.largeTitle.copyWith(
                   color: _currentFps >= 55
-                      ? AppColors.systemGreen
+                      ? c.green
                       : _currentFps >= 30
-                          ? AppColors.systemOrange
-                          : AppColors.systemRed,
+                          ? c.warning
+                          : c.error,
                 ),
               ),
               const Spacer(),
               Text(
                 '$_totalFrames кадров | $_jankFrames jank',
-                style: AppTypography.caption1.copyWith(
-                  color: AppColors.textSecondary,
+                style: TgTypography.caption1.copyWith(
+                  color: c.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: TgSpacing.sm),
           Row(
             children: [
               _StatChip(label: 'мин', value: '${_minFrameTime.toStringAsFixed(1)}ms'),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: TgSpacing.sm),
               _StatChip(label: 'макс', value: '${_maxFrameTime.toStringAsFixed(1)}ms'),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: TgSpacing.sm),
               _StatChip(label: 'средн', value: '${_avgFrameTime.toStringAsFixed(1)}ms'),
             ],
           ),
@@ -120,24 +122,26 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = TgThemeColors.of(context);
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.xs,
-          horizontal: AppSpacing.sm,
+          vertical: TgSpacing.xs,
+          horizontal: TgSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.glassLight.withValues(alpha: 0.1),
+          color: c.backgroundSecondary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
             Text(value,
-                style: AppTypography.body
+                style: TgTypography.body
                     .copyWith(fontWeight: FontWeight.w600)),
             Text(label,
-                style: AppTypography.caption1
-                    .copyWith(color: AppColors.textSecondary)),
+                style: TgTypography.caption1
+                    .copyWith(color: c.textSecondary)),
           ],
         ),
       ),
