@@ -38,7 +38,7 @@ export async function initApi(_onUpdate: OnApiUpdate, _initialArgs: ApiInitialAr
 }
 
 export async function callApi<T extends keyof Methods>(fnName: T, ...args: MethodArgs<T>): Promise<MethodResponse<T>> {
-  throw new Error(`Stealth API: ${fnName} not implemented`);
+  return undefined as MethodResponse<T>;
 }
 
 export function cancelApiProgress(progressCallback: ApiOnProgress) {
