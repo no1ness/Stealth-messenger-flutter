@@ -1,0 +1,6 @@
+telegram-tt/node_modules/
+telegram-tt/dist/
+telegram-tt/.cache/
+telegram-tt/bundle-stats/
+telegram-tt/src/lib/gramjs/tl/static/
+*.tsbuildinfo
