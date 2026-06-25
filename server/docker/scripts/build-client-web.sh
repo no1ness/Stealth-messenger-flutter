@@ -11,6 +11,7 @@ flutter pub get
 echo "[build-client-web] flutter build web --release..."
 START_SECONDS=$SECONDS
 flutter build web --release \
+  --base-href=/stealth/ \
   --dart-define="POCKETBASE_URL=https://${SIGNAL_DOMAIN}" \
   --dart-define="TURN_URL=turn:${TURN_DOMAIN}:3478" \
   --dart-define="TURN_USERNAME=${TURN_USERNAME}" \

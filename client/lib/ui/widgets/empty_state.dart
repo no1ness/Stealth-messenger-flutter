@@ -93,23 +93,20 @@ class StealthEmptyState extends StatelessWidget {
   /// Chats list when the user has no conversations.
   const StealthEmptyState.chats({super.key, this.action})
       : icon = Icons.chat_bubble_outline,
-        title = 'Нет переписок.',
-        message =
-            'Отправьте контактный бандл, чтобы начать. Stealth хранит молчание, пока вы не сделаете первый шаг.';
+        title = 'Выберите чат',
+        message = 'Выберите чат из списка слева, чтобы начать общение.';
 
   /// Contacts list when the user has no contacts.
   const StealthEmptyState.contacts({super.key, this.action})
-      : icon = Icons.person_add_alt_1_outlined,
-        title = 'Ваша адресная книга приватна.',
-        message =
-            'Отсканируйте контактный бандл или вставьте приглашение. Ничто не покидает устройство без вашего ведома.';
+      : icon = Icons.person_outline,
+        title = 'Нет контактов',
+        message = 'Добавьте контакты, чтобы начать общение.';
 
   /// Calls list when there is no recent call activity.
   const StealthEmptyState.calls({super.key, this.action})
       : icon = Icons.call_outlined,
-        title = 'Нет звонков.',
-        message =
-            'Исходящие или входящие — история начинается с первого вызова.';
+        title = 'Нет звонков',
+        message = 'Здесь будет история ваших звонков.';
 
   final IconData icon;
   final String title;
@@ -121,62 +118,44 @@ class StealthEmptyState extends StatelessWidget {
     final c = TgThemeColors.of(context);
 
     Logger.debug('[ds:empty-state] title=$title');
-    return Stack(
-        alignment: Alignment.center,
-        children: [
-          _KeyFingerprintBackdrop(seed: title),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(TgSpacing.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: c.textSecondary,
-                        width: 1,
-                      ),
-                      color: c.defaultShadow,
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 32,
-                      color: c.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: TgSpacing.lg),
-                  Text(
-                    title,
-                    style: TgTypography.headline.copyWith(
-                      color: c.text,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (message != null) ...[
-                    const SizedBox(height: TgSpacing.xs),
-                    Text(
-                      message!,
-                      style: TgTypography.body.copyWith(
-                        color: c.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  if (action != null) ...[
-                    const SizedBox(height: TgSpacing.lg),
-                    action!,
-                  ],
-                ],
-              ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(TgSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 120,
+              color: c.textSecondary,
             ),
-          ),
-        ],
-      );
-    }
+            const SizedBox(height: TgSpacing.lg),
+            Text(
+              title,
+              style: TgTypography.headline.copyWith(
+                color: c.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (message != null) ...[
+              const SizedBox(height: TgSpacing.xs),
+              Text(
+                message!,
+                style: TgTypography.body.copyWith(
+                  color: c.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (action != null) ...[
+              const SizedBox(height: TgSpacing.lg),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
   }
 
 /// Legacy alias to keep existing import sites compiling during the

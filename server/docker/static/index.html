@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stealth Messenger</title>
+  <meta name="theme-color" content="#1a1a1a">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #212121;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #aaa;
+      margin-bottom: 2rem;
+      font-size: 1rem;
+    }
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #2C2C2C;
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: background 0.2s;
+    }
+    .card:hover { background: #363636; }
+    .card .icon {
+      width: 48px; height: 48px;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .icon-stealth { background: #8774E1; }
+    .icon-telegram { background: #3390EC; }
+    .icon-dashboard { background: #00C73E; }
+    .card .info { text-align: left; }
+    .card .title {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    .card .desc {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stealth</h1>
+    <p>Выберите версию приложения</p>
+    <div class="cards">
+      <a href="/stealth/" class="card">
+        <div class="icon icon-stealth">S</div>
+        <div class="info">
+          <div class="title">Stealth (Flutter)</div>
+          <div class="desc">P2P зашифрованные сообщения и звонки</div>
+        </div>
+      </a>
+      <a href="/telegram/" class="card">
+        <div class="icon icon-telegram">T</div>
+        <div class="info">
+          <div class="title">Telegram (TypeScript)</div>
+          <div class="desc">Оригинальный Telegram Web K</div>
+        </div>
+      </a>
+      <a href="https://dashboard.stealthpro.ru:8446/" class="card">
+        <div class="icon icon-dashboard">D</div>
+        <div class="info">
+          <div class="title">Dashboard</div>
+          <div class="desc">Мониторинг и состояние сервера</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

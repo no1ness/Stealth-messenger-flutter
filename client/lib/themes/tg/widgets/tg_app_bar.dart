@@ -44,12 +44,19 @@ class TgAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: isLargeTitle
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-                  child: Align(
-                    alignment: Alignment.bottomLeft,
-                    child: DefaultTextStyle(
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, height: 1.2, color: Colors.white),
-                      child: titleWidget ?? Text(title ?? ''),
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomLeft,
+                          child: DefaultTextStyle(
+                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, height: 1.2, color: Colors.white),
+                            child: titleWidget ?? Text(title ?? ''),
+                          ),
+                        ),
+                      ),
+                      if (actions != null) ...actions!,
+                    ],
                   ),
                 )
               : Row(

@@ -34,86 +34,136 @@ class TgChatTile extends StatelessWidget {
     final lastMessage = chat['lastMessage'] as String?;
     final timestamp = chat['timestamp'] as String? ?? '';
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: TgSpacing.screenEdge, vertical: TgSpacing.xxs),
-      decoration: BoxDecoration(
-        color: isSelected ? c.primaryOpacityHover : Colors.transparent,
-        borderRadius: BorderRadius.circular(TgSpacing.radiusXl),
-      ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(TgSpacing.radiusXl)),
+    return Material(
+      color: isSelected ? c.chatActive : Colors.transparent,
+      borderRadius: BorderRadius.circular(TgSpacing.radiusMd),
+      child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        leading: Stack(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: _avatarGradient(name),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _initials(name),
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-              ),
-            ),
-            if (isVerified)
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 16,
-                  height: 16,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.blue),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.check, size: 10, color: Colors.white),
-                ),
-              ),
-          ],
-        ),
-        title: Text(
-          name,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.text, height: 1.4),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Row(
-          children: [
-            if (lastMessage != null && lastMessage.isNotEmpty)
-              Text(
-                '✓ ',
-                style: TextStyle(fontSize: 14, color: c.green, height: 1.35),
-              ),
-            Expanded(
-              child: Text(
-                lastMessage ?? '',
-                style: TextStyle(fontSize: 14, color: c.textSecondary, height: 1.35),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        trailing: SizedBox(
-          width: 58,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
+        borderRadius: BorderRadius.circular(TgSpacing.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+          child: Row(
             children: [
-              Text(timestamp, style: TextStyle(fontSize: 12, color: c.textSecondary, height: 1.2)),
-              if (unreadCount > 0) ...[
-                const SizedBox(height: TgSpacing.xxs),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: TgSpacing.xs, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: c.primary,
-                    borderRadius: BorderRadius.circular(TgSpacing.radiusRound),
+              Stack(
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(27),
+                      gradient: _avatarGradient(name),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _initials(name),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  child: Text('$unreadCount', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                  if (isVerified)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.check, size: 12, color: Colors.white),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected ? Colors.white : c.text,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (isPinned)
+                          Icon(Icons.push_pin, size: 14, color: c.textSecondary),
+                        Text(
+                          timestamp,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: unreadCount > 0
+                                ? (isSelected ? Colors.white70 : c.primary)
+                                : c.textSecondary,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (isSent == true) ...[
+                          Icon(
+                            isRead == true ? Icons.done_all : Icons.done,
+                            size: 16,
+                            color: isRead == true ? c.green : c.textSecondary,
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        Expanded(
+                          child: Text(
+                            lastMessage ?? '',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: c.textSecondary,
+                              height: 1.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (unreadCount > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : c.primary,
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$unreadCount',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected ? c.chatActive : Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -127,8 +177,8 @@ class TgChatTile extends StatelessWidget {
     final hue2 = ((hash.abs() * 7 + 120) % 360).toDouble();
     return LinearGradient(
       colors: [
-        HSLColor.fromAHSL(1, hue1, 0.7, 0.4).toColor(),
-        HSLColor.fromAHSL(1, hue2, 0.7, 0.3).toColor(),
+        HSLColor.fromAHSL(1, hue1, 0.65, 0.45).toColor(),
+        HSLColor.fromAHSL(1, hue2, 0.65, 0.35).toColor(),
       ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,

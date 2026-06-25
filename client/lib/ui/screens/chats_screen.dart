@@ -578,58 +578,6 @@ class _ChatsScreenState extends State<ChatsScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: TgAppBar(
-        isLargeTitle: _selectedChatId == null,
-        titleWidget: _selectedChatId == null
-            ? const Text(
-                'Чаты',
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    currentChat['name'] as String? ?? 'Чат',
-                    style: TgTypography.headline.copyWith(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color:
-                              P2PService.instance.isP2PReady(_selectedChatId!)
-                                  ? c.green
-                                  : c.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        P2PService.instance.isP2PReady(_selectedChatId!)
-                            ? 'P2P'
-                            : 'Локально',
-                        style: TgTypography.caption2.copyWith(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-        showBackButton: _selectedChatId != null,
-        onBack: () {
-          setState(() {
-            _selectedChatId = null;
-            _searchInConversation = false;
-          });
-        },
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop =

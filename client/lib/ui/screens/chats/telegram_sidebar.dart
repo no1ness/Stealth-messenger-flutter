@@ -1,11 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:stealth/local_app_service.dart';
-import 'package:stealth/logging/logger.dart';
 import 'package:stealth/themes/tg/tg_theme_exports.dart';
-import 'package:stealth/services/user_directory/presence_service.dart';
-import 'package:stealth/services/user_directory/user_directory_service.dart';
 
 /// Telegram-style sidebar: search + tabs + chat/contact list.
 ///
@@ -31,26 +26,17 @@ class TelegramSidebar extends StatefulWidget {
   State<TelegramSidebar> createState() => _TelegramSidebarState();
 }
 
-class _TelegramSidebarState extends State<TelegramSidebar>
-    with SingleTickerProviderStateMixin {
+class _TelegramSidebarState extends State<TelegramSidebar> {
   TgThemeColors get c => TgThemeColors.of(context);
   final TextEditingController _searchController = TextEditingController();
   final LocalAppService _appService = LocalAppService();
-  late TabController _tabController;
 
-  List<Map<String, dynamic>> _contacts = [];
   List<Map<String, dynamic>> _filteredChats = [];
-  List<Map<String, dynamic>> _filteredContacts = [];
-  bool _loadingContacts = true;
-  StreamSubscription<Map<String, dynamic>>? _presenceSub;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _filteredChats = widget.chats;
-    _loadContacts();
-    _subscribeToPresence();
   }
 
   @override
@@ -64,94 +50,16 @@ class _TelegramSidebarState extends State<TelegramSidebar>
   @override
   void dispose() {
     _searchController.dispose();
-    _tabController.dispose();
-    _presenceSub?.cancel();
     super.dispose();
-  }
-
-  void _subscribeToPresence() {
-    _presenceSub?.cancel();
-    _presenceSub = PresenceService().onPresenceChange.listen((profile) {
-      final userId = profile['userId'] as String?;
-      if (userId == null || !mounted) return;
-      setState(() {
-        final idx = _contacts.indexWhere(
-          (c) => (c['user_id'] ?? c['contact_user_id']) == userId,
-        );
-        if (idx >= 0) {
-          _contacts[idx]['isOnline'] = profile['isOnline'];
-          _contacts[idx]['lastSeen'] = profile['lastSeen'];
-        }
-      });
-    });
-  }
-
-  Future<void> _loadContacts() async {
-    if (!mounted) return;
-    setState(() => _loadingContacts = true);
-
-    try {
-      final directoryProfiles = UserDirectoryService().getCachedProfiles();
-      final localContacts = await _appService.getContacts();
-      final me = await _appService.getUserId();
-
-      final merged = <String, Map<String, dynamic>>{};
-
-      for (final contact in localContacts.cast<Map<String, dynamic>>()) {
-        final userId =
-            (contact['user_id'] ?? contact['contact_user_id'])?.toString() ?? '';
-        if (userId.isNotEmpty && userId != me) {
-          final profile = directoryProfiles
-              .where((p) => p['userId'] == userId)
-              .firstOrNull;
-          if (profile != null) {
-            contact['isOnline'] = profile['isOnline'] ?? false;
-            contact['lastSeen'] = profile['lastSeen'];
-          }
-          merged[userId] = contact;
-        }
-      }
-
-      for (final profile in directoryProfiles) {
-        final userId = profile['userId']?.toString() ?? '';
-        if (userId.isNotEmpty && userId != me && !merged.containsKey(userId)) {
-          merged[userId] = {
-            'user_id': userId,
-            'nickname': profile['nickname'] ?? userId,
-            'name': profile['nickname'] ?? userId,
-            'isOnline': profile['isOnline'] ?? false,
-            'lastSeen': profile['lastSeen'],
-          };
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _contacts = merged.values.toList();
-          _loadingContacts = false;
-        });
-        _applyFilter();
-      }
-    } catch (e) {
-      Logger.warn('[TelegramSidebar] failed to load contacts', extras: {'error': '$e'});
-      if (mounted) {
-        setState(() => _loadingContacts = false);
-      }
-    }
   }
 
   void _applyFilter() {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) {
       _filteredChats = widget.chats;
-      _filteredContacts = _contacts;
     } else {
       _filteredChats = widget.chats.where((chat) {
         final name = (chat['name'] as String? ?? '').toLowerCase();
-        return name.contains(query);
-      }).toList();
-      _filteredContacts = _contacts.where((contact) {
-        final name = (contact['nickname'] ?? contact['name'] ?? '').toString().toLowerCase();
         return name.contains(query);
       }).toList();
     }
@@ -162,6 +70,7 @@ class _TelegramSidebarState extends State<TelegramSidebar>
 
     return Container(
       decoration: BoxDecoration(
+        color: c.backgroundSecondary,
         border: Border(
           right: BorderSide(
             color: c.dividers,
@@ -171,12 +80,46 @@ class _TelegramSidebarState extends State<TelegramSidebar>
       ),
       child: Column(
         children: [
+          _buildHeader(),
           _buildSearchBar(),
           _buildTabBar(),
           Expanded(
-            child: _tabController.index == 0
-                ? _buildChatList()
-                : _buildContactList(),
+            child: _buildChatList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      height: 56,
+      padding: EdgeInsets.symmetric(horizontal: TgSpacing.sm),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu, size: 24),
+            color: c.textSecondary,
+            onPressed: () {
+              // TODO: Open hamburger menu drawer
+            },
+          ),
+          const SizedBox(width: TgSpacing.xs),
+          Expanded(
+            child: Text(
+              'Stealth',
+              style: TgTypography.title1.copyWith(
+                color: c.text,
+                fontSize: 20,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_square, size: 22),
+            color: c.textSecondary,
+            onPressed: () {
+              // TODO: New message
+            },
           ),
         ],
       ),
@@ -205,20 +148,28 @@ class _TelegramSidebarState extends State<TelegramSidebar>
     return Container(
       height: 40,
       margin: EdgeInsets.symmetric(horizontal: TgSpacing.sm),
-      child: TabBar(
-        controller: _tabController,
-        onTap: (_) => setState(() {}),
-        labelColor: c.primary,
-        unselectedLabelColor: c.textSecondary,
-        indicatorColor: c.primary,
-        indicatorSize: TabBarIndicatorSize.label,
-        labelStyle: TgTypography.subheadlineEmphasis,
-        unselectedLabelStyle: TgTypography.subheadline,
-        dividerHeight: 0,
-        tabs: const [
-          Tab(text: 'Чаты'),
-          Tab(text: 'Контакты'),
+      child: Row(
+        children: [
+          _buildFilterChip('Все'),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.primary,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -256,120 +207,6 @@ class _TelegramSidebarState extends State<TelegramSidebar>
           onTap: () => widget.onChatSelected(chat['id'] as String),
         );
       },
-    );
-  }
-
-  Widget _buildContactList() {
-    if (_loadingContacts) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: c.primary,
-          strokeWidth: 2,
-        ),
-      );
-    }
-
-    if (_filteredContacts.isEmpty) {
-      return Center(
-        child: Text(
-          'Нет контактов',
-          style: TgTypography.subheadline.copyWith(
-            color: c.textSecondary,
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: TgSpacing.xs),
-      itemCount: _filteredContacts.length,
-      itemBuilder: (context, index) {
-        final contact = _filteredContacts[index];
-        return _buildTgContactTile(contact);
-      },
-    );
-  }
-
-  Widget _buildTgContactTile(Map<String, dynamic> contact) {
-    final name = (contact['nickname'] ?? contact['name'] ?? 'Контакт').toString();
-    final isOnline = contact['isOnline'] as bool? ?? false;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => widget.onContactSelected(contact),
-        borderRadius: BorderRadius.circular(TgSpacing.radiusMd),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: TgSpacing.sm,
-            vertical: TgSpacing.xs,
-          ),
-          child: Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: _avatarGradient(name),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _initials(name),
-                      style: TgTypography.calloutEmphasis.copyWith(
-                        color: c.text,
-                      ),
-                    ),
-                  ),
-                  if (isOnline)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: c.green,
-                          border: Border.fromBorderSide(
-                            BorderSide(color: c.background, width: 2),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(width: TgSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: TgTypography.bodyEmphasis.copyWith(
-                        color: c.text,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isOnline ? 'в сети' : 'не в сети',
-                      style: TgTypography.caption1.copyWith(
-                        color: isOnline
-                            ? c.green
-                            : c.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

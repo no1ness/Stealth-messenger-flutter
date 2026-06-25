@@ -53,14 +53,7 @@ class _MainTabsState extends State<MainTabs> {
     final c = TgThemeColors.of(context);
     return Scaffold(
       backgroundColor: c.background,
-      body: Column(
-        children: [
-          _buildDesktopNavRail(),
-          Expanded(
-            child: _screens[_currentIndex],
-          ),
-        ],
-      ),
+      body: _screens[_currentIndex],
     );
   }
 
@@ -83,22 +76,26 @@ class _MainTabsState extends State<MainTabs> {
             icon: Icons.chat_bubble_outline,
             selectedIcon: Icons.chat_bubble,
             index: 0,
+            label: 'Чаты',
           ),
           _buildNavIconButton(
             icon: Icons.call_outlined,
             selectedIcon: Icons.call,
             index: 1,
+            label: 'Звонки',
           ),
           const Spacer(),
           _buildNavIconButton(
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
             index: 2,
+            label: 'Профиль',
           ),
           _buildNavIconButton(
             icon: Icons.settings_outlined,
             selectedIcon: Icons.settings,
             index: 3,
+            label: 'Настройки',
           ),
           const SizedBox(height: 12),
         ],
@@ -110,6 +107,7 @@ class _MainTabsState extends State<MainTabs> {
     required IconData icon,
     required IconData selectedIcon,
     required int index,
+    required String label,
   }) {
     final c = TgThemeColors.of(context);
     final isSelected = _currentIndex == index;
@@ -129,10 +127,24 @@ class _MainTabsState extends State<MainTabs> {
                     borderRadius: BorderRadius.circular(12),
                   )
                 : null,
-            child: Icon(
-              isSelected ? selectedIcon : icon,
-              color: isSelected ? c.primary : c.textSecondary,
-              size: 22,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSelected ? selectedIcon : icon,
+                  color: isSelected ? c.primary : c.textSecondary,
+                  size: 22,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? c.primary : c.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
