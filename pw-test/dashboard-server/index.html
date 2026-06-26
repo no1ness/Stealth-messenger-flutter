@@ -3,357 +3,747 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stealth pw-test Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Stealth Dashboard — Tests · Monitoring · Performance</title>
+  <meta name="description" content="Unified dashboard for Stealth Messenger: E2E tests, global monitoring, performance benchmarks">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
+    /* ───── Design Tokens ───── */
     :root {
-      --bg-gradient-start: #0f172a;
-      --bg-gradient-end: #1e1b4b;
-      --glass-bg: rgba(255, 255, 255, 0.05);
-      --glass-border: rgba(255, 255, 255, 0.1);
+      --bg-deep: #080c14;
+      --bg-surface: #0d1117;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-active: rgba(99,102,241,0.5);
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --text-dim: #484f58;
       --accent: #6366f1;
-      --accent-hover: #4f46e5;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --success: #10b981;
-      --danger: #ef4444;
+      --accent-glow: rgba(99,102,241,0.25);
+      --green: #3fb950;
+      --green-dim: rgba(63,185,80,0.15);
+      --red: #f85149;
+      --red-dim: rgba(248,81,73,0.15);
+      --yellow: #d29922;
+      --yellow-dim: rgba(210,153,34,0.15);
+      --cyan: #39d2c0;
+      --cyan-dim: rgba(57,210,192,0.15);
+      --pink: #db61a2;
+      --sidebar-w: 240px;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --transition: 0.2s cubic-bezier(.4,0,.2,1);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    /* ───── Reset ───── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-deep);
       color: var(--text);
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
+      overflow: hidden;
     }
 
-    /* Abstract shapes in background */
-    body::before, body::after {
-      content: '';
-      position: absolute;
-      width: 500px;
-      height: 500px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, rgba(0,0,0,0) 70%);
-      top: -100px;
-      left: -150px;
-      z-index: -1;
-      animation: float 20s infinite alternate;
-    }
-
-    body::after {
-      background: radial-gradient(circle, rgba(236,72,153,0.15) 0%, rgba(0,0,0,0) 70%);
-      top: auto;
-      bottom: -200px;
-      left: auto;
-      right: -200px;
-      animation-delay: -5s;
-    }
-
-    @keyframes float {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(50px, 50px) scale(1.1); }
-    }
-
-    header {
-      padding: 2rem 4rem;
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--glass-border);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    /* ───── Sidebar ───── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 100;
     }
-
-    h1 {
-      font-weight: 700;
-      font-size: 1.5rem;
-      letter-spacing: -0.05em;
-      background: linear-gradient(90deg, #fff, #a5b4fc);
+    .sidebar-brand {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-brand h1 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-
-    .container {
-      display: flex;
+    .sidebar-brand span {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .sidebar-nav {
       flex: 1;
-      padding: 2rem 4rem;
-      gap: 2rem;
-      max-width: 1600px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .sidebar {
-      width: 300px;
+      padding: 0.75rem 0.75rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.25rem;
     }
-
-    .card {
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 1.5rem;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
-    }
-
-    .card h2 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    .test-list {
-      list-style: none;
+    .nav-item {
       display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .test-item {
-      padding: 0.75rem 1rem;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: var(--radius-sm);
       cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all var(--transition);
       border: 1px solid transparent;
-      transition: all 0.2s;
+      user-select: none;
+    }
+    .nav-item:hover { background: var(--bg-card-hover); color: var(--text); }
+    .nav-item.active {
+      background: var(--accent-glow);
+      color: #fff;
+      border-color: var(--border-active);
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    /* ───── Main Content ───── */
+    .main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .page-header {
+      padding: 1.5rem 2rem 1rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: sticky;
+      top: 0;
+      background: var(--bg-deep);
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
     }
-
-    .test-item:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: var(--glass-border);
+    .page-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
+    .page-content { padding: 1.5rem 2rem 3rem; }
 
-    .test-item.active {
-      background: var(--accent);
-      color: #fff;
+    /* ───── Tab Panels ───── */
+    .tab-panel { display: none; animation: fadeIn 0.3s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ───── Cards ───── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: all var(--transition);
     }
-
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .controls {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
+    .card:hover { background: var(--bg-card-hover); border-color: rgba(255,255,255,0.12); }
+    .card-title {
+      font-size: 0.75rem;
       font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    /* ───── Stat Grids ───── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .stat-card.accent::before { background: var(--accent); }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.cyan::before { background: var(--cyan); }
+    .stat-card.pink::before { background: var(--pink); }
+    .stat-card.yellow::before { background: var(--yellow); }
+    .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.12); }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; margin-top: 0.25rem; }
+    .stat-sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
+
+    /* ───── Buttons ───── */
+    .btn {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition);
     }
-
-    button:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-      transform: translateY(-1px);
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px var(--accent-glow);
     }
-
-    button:disabled {
-      background: #475569;
-      box-shadow: none;
-      cursor: not-allowed;
-      transform: none;
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-primary:disabled { background: #333; color: #666; box-shadow: none; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
     }
+    .btn-ghost:hover { background: var(--bg-card-hover); color: var(--text); }
+    .btn svg { width: 14px; height: 14px; }
 
-    .status-badge {
-      padding: 0.25rem 0.75rem;
+    /* ───── Badge ───── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.6rem;
       border-radius: 999px;
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      background: rgba(255, 255, 255, 0.1);
+      letter-spacing: 0.04em;
     }
+    .badge-idle { background: var(--bg-card); color: var(--text-dim); }
+    .badge-running { background: var(--yellow-dim); color: var(--yellow); animation: pulse 2s infinite; }
+    .badge-success { background: var(--green-dim); color: var(--green); }
+    .badge-error { background: var(--red-dim); color: var(--red); }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-    .status-badge.running { background: #eab308; color: #422006; animation: pulse 2s infinite; }
-    .status-badge.idle { background: #334155; color: var(--text); }
-
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.7; }
-      100% { opacity: 1; }
+    /* ───── Test List ───── */
+    .test-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+    .test-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: all var(--transition);
+      color: var(--text-muted);
     }
+    .test-item:hover { background: var(--bg-card-hover); color: var(--text); border-color: var(--border); }
+    .test-item.active { background: var(--accent-glow); color: #fff; border-color: var(--border-active); }
 
+    /* ───── Terminal ───── */
     .terminal {
-      flex: 1;
-      background: #0f172a;
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 0.9rem;
-      line-height: 1.5;
+      background: #010409;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      max-height: 55vh;
       overflow-y: auto;
       white-space: pre-wrap;
-      color: #e2e8f0;
-      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+      word-break: break-all;
+      color: #8b949e;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .terminal .ok { color: var(--green); }
+    .terminal .err { color: var(--red); }
+    .terminal .warn { color: var(--yellow); }
+
+    /* ───── Charts Area ───── */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .chart-card canvas { max-height: 260px; }
+
+    /* ───── Table ───── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .data-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 0.5rem 0.75rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .data-table tr:hover td { color: var(--text); background: var(--bg-card); }
+
+    /* ───── Perf Gauge ───── */
+    .perf-bar-track {
+      height: 8px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .perf-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.6s ease;
     }
 
-    .terminal .success { color: var(--success); }
-    .terminal .error { color: var(--danger); }
+    /* ───── Responsive ───── */
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar-brand h1, .sidebar-brand span, .nav-item span, .sidebar-footer { display: none; }
+      .nav-item { justify-content: center; padding: 0.75rem; }
+      .main { margin-left: 60px; }
+      .chart-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>Stealth TestRunner</h1>
-    <div id="global-status" class="status-badge idle">Idle</div>
-  </header>
-
-  <div class="container">
-    <div class="sidebar">
-      <div class="card">
-        <h2>Test Suites</h2>
-        <ul class="test-list" id="test-list">
-          <li class="test-item" style="opacity: 0.5;">Loading tests...</li>
-        </ul>
-      </div>
+<!-- ═══ Sidebar ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <h1>Stealth</h1>
+    <span>Dashboard</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-tab="tests" onclick="switchTab('tests', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      <span>E2E Tests</span>
     </div>
+    <div class="nav-item" data-tab="stats" onclick="switchTab('stats', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      <span>Global Stats</span>
+    </div>
+    <div class="nav-item" data-tab="perf" onclick="switchTab('perf', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <span>Performance</span>
+    </div>
+    <div class="nav-item" data-tab="p2p" onclick="switchTab('p2p', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14"/></svg>
+      <span>P2P / WebRTC</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">Stealth Messenger © 2026</div>
+</aside>
 
-    <div class="main-content">
-      <div class="card controls">
-        <button id="run-btn" onclick="runTest()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          Run Selected Test
+<!-- ═══ Main Area ═══ -->
+<main class="main">
+
+  <!-- ────── TAB: E2E Tests ────── -->
+  <div class="tab-panel active" id="tab-tests">
+    <div class="page-header">
+      <h2>🧪 E2E Tests</h2>
+      <div id="test-status" class="badge badge-idle"><div class="badge-dot"></div> Idle</div>
+    </div>
+    <div class="page-content">
+      <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="run-btn" onclick="runTest()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run Selected
         </button>
-        <button id="run-all-btn" onclick="runAll()" style="background: rgba(255,255,255,0.1); box-shadow: none;">Run All</button>
+        <button class="btn btn-ghost" onclick="runAll()">Run All</button>
+        <button class="btn btn-ghost" onclick="loadResults()">Load Last Results</button>
       </div>
 
-      <div class="terminal" id="terminal">Welcome to Stealth pw-test dashboard.
-Select a test on the left and click Run.</div>
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">Test Suites</div>
+        <div class="test-list" id="test-list">
+          <div class="test-item" style="opacity:0.4">Loading...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Output</div>
+        <div class="terminal" id="terminal">Welcome to Stealth Test Dashboard.\nSelect a test suite and click Run.</div>
+      </div>
     </div>
   </div>
 
-  <script>
-    let selectedTest = null;
-    let isRunning = false;
+  <!-- ────── TAB: Global Stats ────── -->
+  <div class="tab-panel" id="tab-stats">
+    <div class="page-header">
+      <h2>📈 Global Monitoring</h2>
+      <button class="btn btn-ghost" onclick="loadStats()">↻ Refresh</button>
+    </div>
+    <div class="page-content">
+      <div class="stat-grid" id="stats-grid">
+        <div class="stat-card accent"><div class="stat-label">Total Users</div><div class="stat-value" id="s-users">—</div></div>
+        <div class="stat-card green"><div class="stat-label">Total Messages</div><div class="stat-value" id="s-messages">—</div></div>
+        <div class="stat-card cyan"><div class="stat-label">Total Chats</div><div class="stat-value" id="s-chats">—</div></div>
+        <div class="stat-card pink"><div class="stat-label">Total Calls</div><div class="stat-value" id="s-calls">—</div></div>
+        <div class="stat-card yellow"><div class="stat-label">Total Contacts</div><div class="stat-value" id="s-contacts">—</div></div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="card-title">Platform Distribution</div>
+          <canvas id="chart-platforms"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Activity Overview</div>
+          <canvas id="chart-activity"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent Records</div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>User</th><th>Platform</th><th>Device</th><th>Version</th><th>Chats</th><th>Messages</th><th>Date</th></tr></thead>
+            <tbody id="stats-table"><tr><td colspan="7" style="text-align:center;opacity:0.4">No data loaded</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── TAB: Performance ────── -->
+  <div class="tab-panel" id="tab-perf">
+    <div class="page-header">
+      <h2>⚡ Performance Benchmarks</h2>
+      <button class="btn btn-ghost" onclick="loadPerf()">↻ Refresh</button>
+    </div>
+    <div class="page-content">
+      <div class="stat-grid" id="perf-grid">
+        <div class="stat-card green">
+          <div class="stat-label">Web Bundle (JS)</div>
+          <div class="stat-value" id="p-bundle">—</div>
+          <div class="stat-sub">Target: &lt; 5 MB</div>
+          <div class="perf-bar-track"><div class="perf-bar-fill" id="p-bundle-bar" style="width:0%; background: var(--green);"></div></div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-label">FPS Benchmark</div>
+          <div class="stat-value" id="p-fps">—</div>
+          <div class="stat-sub">60 frames test</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="card-title">APK Builds</div>
+        <div id="apk-list" style="color:var(--text-muted); font-size:0.82rem;">No APK data loaded</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Performance Notes</div>
+        <ul style="list-style:none; font-size:0.82rem; color:var(--text-muted); display:flex; flex-direction:column; gap:0.5rem;">
+          <li>✓ BackdropFilter audit — clean, no usage in web build</li>
+          <li>✓ Font subsetting (Geist → used-glyph subset, ~90% reduction)</li>
+          <li>✓ Picture cache enabled for complex widgets</li>
+          <li>✓ Crypto operations on isolate</li>
+          <li>✓ Deferred startup I/O</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────── TAB: P2P / WebRTC ────── -->
+  <div class="tab-panel" id="tab-p2p">
+    <div class="page-header">
+      <h2>🔌 P2P / WebRTC Health</h2>
+    </div>
+    <div class="page-content">
+      <div class="stat-grid">
+        <div class="stat-card cyan">
+          <div class="stat-label">Connection API</div>
+          <div class="stat-value" style="font-size:1rem;">getConnectionStats()</div>
+          <div class="stat-sub">totalConnections · openDataChannels · reconnectCount · lastConnectedAt</div>
+        </div>
+        <div class="stat-card pink">
+          <div class="stat-label">TURN/Relay</div>
+          <div class="stat-value" style="font-size:1rem;">Not configured</div>
+          <div class="stat-sub">Milestone M14 — awaiting traversal-failure metrics</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Architecture</div>
+        <ul style="list-style:none; font-size:0.82rem; color:var(--text-muted); display:flex; flex-direction:column; gap:0.5rem;">
+          <li>📡 PocketBase SSE for signaling (offer/answer/candidate/hangup)</li>
+          <li>🔐 E2E encryption via symmetric KDF ratchet chain</li>
+          <li>📞 WebRTC peer-to-peer audio/video calls</li>
+          <li>📁 DataChannel for file transfer (chunked, encrypted)</li>
+          <li>🔄 Auto-reconnect with reconnectCount tracking</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ═══ State ═══
+  let selectedTest = null;
+  let isRunning = false;
+  let platformChart = null;
+  let activityChart = null;
+
+  // ═══ Tab switching ═══
+  function switchTab(tab, el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    // Lazy-load data
+    if (tab === 'stats') loadStats();
+    if (tab === 'perf') loadPerf();
+  }
+
+  // ═══ Tests ═══
+  async function fetchTests() {
+    try {
+      const res = await fetch('/api/tests');
+      const data = await res.json();
+      const list = document.getElementById('test-list');
+      list.innerHTML = '';
+      data.tests.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'test-item';
+        div.textContent = t.replace('.spec.js', '');
+        div.dataset.file = t;
+        div.onclick = () => selectTest(t, div);
+        list.appendChild(div);
+      });
+    } catch (e) {
+      appendLog(`Error loading tests: ${e.message}`, 'err');
+    }
+  }
+
+  function selectTest(name, el) {
+    if (isRunning) return;
+    selectedTest = name;
+    document.querySelectorAll('.test-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function setRunning(v) {
+    isRunning = v;
+    document.getElementById('run-btn').disabled = v;
+    const badge = document.getElementById('test-status');
+    badge.className = `badge ${v ? 'badge-running' : 'badge-idle'}`;
+    badge.innerHTML = `<div class="badge-dot"></div> ${v ? 'Running…' : 'Idle'}`;
+  }
+
+  function appendLog(text, cls) {
     const term = document.getElementById('terminal');
-    const runBtn = document.getElementById('run-btn');
-    const runAllBtn = document.getElementById('run-all-btn');
-    const statusBadge = document.getElementById('global-status');
+    const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const formatted = safe
+      .replace(/(✓|passed|passing|ok)/gi, '<span class="ok">$1</span>')
+      .replace(/(✖|failed|failure|Error|FAIL)/gi, '<span class="err">$1</span>')
+      .replace(/(Warning|WARN|⚠)/gi, '<span class="warn">$1</span>');
+    term.innerHTML += (cls ? `<span class="${cls}">${formatted}</span>` : formatted);
+    term.scrollTop = term.scrollHeight;
+  }
 
-    async function fetchTests() {
-      try {
-        const res = await fetch('/api/tests');
-        const data = await res.json();
-        const list = document.getElementById('test-list');
-        list.innerHTML = '';
-        
-        data.tests.forEach(test => {
-          const li = document.createElement('li');
-          li.className = 'test-item';
-          li.textContent = test;
-          li.onclick = () => selectTest(test, li);
-          list.appendChild(li);
-        });
-      } catch (e) {
-        term.innerHTML = `<span class="error">Failed to load tests: ${e.message}</span>`;
+  async function runTest(testFile) {
+    testFile = testFile || selectedTest;
+    if (isRunning) return;
+    document.getElementById('terminal').innerHTML = '';
+    appendLog(`▶ Starting: ${testFile || 'ALL TESTS'}...\n\n`);
+    setRunning(true);
+
+    try {
+      const resp = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testFile }),
+      });
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        appendLog(dec.decode(value));
+      }
+    } catch (e) {
+      appendLog(`\nError: ${e.message}`, 'err');
+    } finally {
+      setRunning(false);
+      const badge = document.getElementById('test-status');
+      // check last line for exit code
+      const term = document.getElementById('terminal').textContent;
+      if (term.includes('exited with code 0')) {
+        badge.className = 'badge badge-success';
+        badge.innerHTML = '<div class="badge-dot"></div> Passed';
+      } else if (term.includes('exited with code')) {
+        badge.className = 'badge badge-error';
+        badge.innerHTML = '<div class="badge-dot"></div> Failed';
       }
     }
+  }
 
-    function selectTest(testName, element) {
-      if (isRunning) return;
-      selectedTest = testName;
-      document.querySelectorAll('.test-item').forEach(el => el.classList.remove('active'));
-      element.classList.add('active');
-    }
+  function runAll() {
+    selectedTest = null;
+    document.querySelectorAll('.test-item').forEach(i => i.classList.remove('active'));
+    runTest(null);
+  }
 
-    function updateState(running) {
-      isRunning = running;
-      runBtn.disabled = running;
-      runAllBtn.disabled = running;
-      document.querySelectorAll('.test-item').forEach(el => el.style.pointerEvents = running ? 'none' : 'auto');
-      statusBadge.className = `status-badge ${running ? 'running' : 'idle'}`;
-      statusBadge.textContent = running ? 'Running...' : 'Idle';
-    }
-
-    function appendLog(text) {
-      const sanitized = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      
-      const formatted = sanitized
-        .replace(/(passing|✓)/g, '<span class="success">$1</span>')
-        .replace(/(failed|✖|Error)/g, '<span class="error">$1</span>');
-        
-      term.innerHTML += formatted;
-      term.scrollTop = term.scrollHeight;
-    }
-
-    async function runTest(testFile = selectedTest) {
-      if (isRunning) return;
-      term.innerHTML = `Starting test: ${testFile || 'ALL'}...\n\n`;
-      updateState(true);
-
-      try {
-        const response = await fetch('/api/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ testFile })
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          appendLog(decoder.decode(value));
+  async function loadResults() {
+    try {
+      const resp = await fetch('/api/results');
+      const data = await resp.json();
+      document.getElementById('terminal').innerHTML = '';
+      appendLog(`Last results (${data.stats?.suites?.length || 0} suites):\n\n`);
+      if (data.suites) {
+        for (const suite of data.suites) {
+          appendLog(`  ${suite.title}\n`);
+          for (const spec of (suite.specs || [])) {
+            const ok = spec.ok;
+            const icon = ok ? '✓' : '✖';
+            appendLog(`    ${icon} ${spec.title} (${spec.tests?.[0]?.results?.[0]?.duration || '?'}ms)\n`, ok ? 'ok' : 'err');
+          }
         }
-      } catch (err) {
-        appendLog(`\n<span class="error">Error: ${err.message}</span>`);
-      } finally {
-        updateState(false);
       }
+      appendLog(`\nTotal: ${data.stats?.expected||0} passed, ${data.stats?.unexpected||0} failed\n`);
+    } catch (e) {
+      appendLog(`Cannot load results: ${e.message}\n`, 'err');
     }
+  }
 
-    function runAll() {
-      selectedTest = null;
-      document.querySelectorAll('.test-item').forEach(el => el.classList.remove('active'));
-      runTest(null);
+  // ═══ Global Stats ═══
+  async function loadStats() {
+    try {
+      const resp = await fetch('/api/stats');
+      const d = await resp.json();
+      document.getElementById('s-users').textContent = d.totalUsers;
+      document.getElementById('s-messages').textContent = d.totalMessages.toLocaleString();
+      document.getElementById('s-chats').textContent = d.totalChats;
+      document.getElementById('s-calls').textContent = d.totalCalls;
+      document.getElementById('s-contacts').textContent = d.totalContacts;
+
+      // Platform chart
+      const pLabels = Object.keys(d.platforms);
+      const pValues = Object.values(d.platforms);
+      const pColors = ['#6366f1', '#3fb950', '#d29922', '#f85149', '#39d2c0', '#db61a2'];
+
+      if (platformChart) platformChart.destroy();
+      platformChart = new Chart(document.getElementById('chart-platforms'), {
+        type: 'doughnut',
+        data: {
+          labels: pLabels.length ? pLabels : ['No data'],
+          datasets: [{ data: pValues.length ? pValues : [1], backgroundColor: pValues.length ? pColors.slice(0, pLabels.length) : ['#333'], borderWidth: 0 }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom', labels: { color: '#7d8590', font: { family: 'Inter', size: 11 } } } },
+          cutout: '65%',
+        },
+      });
+
+      // Activity chart
+      if (activityChart) activityChart.destroy();
+      activityChart = new Chart(document.getElementById('chart-activity'), {
+        type: 'bar',
+        data: {
+          labels: ['Users', 'Chats', 'Messages', 'Calls', 'Contacts'],
+          datasets: [{
+            data: [d.totalUsers, d.totalChats, d.totalMessages, d.totalCalls, d.totalContacts],
+            backgroundColor: ['#6366f1', '#39d2c0', '#3fb950', '#db61a2', '#d29922'],
+            borderRadius: 6,
+            maxBarThickness: 40,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { color: '#484f58', font: { family: 'Inter', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            x: { ticks: { color: '#7d8590', font: { family: 'Inter', size: 10 } }, grid: { display: false } },
+          },
+        },
+      });
+
+      // Table
+      const tbody = document.getElementById('stats-table');
+      if (d.recentRecords && d.recentRecords.length) {
+        tbody.innerHTML = d.recentRecords.map(r => `
+          <tr>
+            <td>${r.userId}…</td>
+            <td>${r.platform || '—'}</td>
+            <td>${r.device || '—'}</td>
+            <td>${r.appVersion || '—'}</td>
+            <td>${r.chats ?? '—'}</td>
+            <td>${r.messages ?? '—'}</td>
+            <td>${r.created ? new Date(r.created).toLocaleDateString() : '—'}</td>
+          </tr>`).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;opacity:0.4">No records from PocketBase</td></tr>';
+      }
+    } catch (e) {
+      console.error('loadStats error', e);
     }
+  }
 
-    fetchTests();
-  </script>
+  // ═══ Performance ═══
+  async function loadPerf() {
+    try {
+      const resp = await fetch('/api/perf');
+      const d = await resp.json();
+
+      // Bundle size
+      if (d.webBundleSizeKB) {
+        const kb = d.webBundleSizeKB;
+        document.getElementById('p-bundle').textContent = kb > 1024 ? `${(kb/1024).toFixed(1)} MB` : `${kb} KB`;
+        const pct = Math.min((kb / 5120) * 100, 100); // 5MB = 5120KB threshold
+        const bar = document.getElementById('p-bundle-bar');
+        bar.style.width = pct + '%';
+        bar.style.background = pct < 70 ? 'var(--green)' : pct < 90 ? 'var(--yellow)' : 'var(--red)';
+      }
+
+      // FPS
+      document.getElementById('p-fps').textContent = d.fpsBenchmarkExists ? 'Ready' : 'Not built';
+
+      // APKs
+      const apkEl = document.getElementById('apk-list');
+      if (d.apks && d.apks.length) {
+        apkEl.innerHTML = d.apks.map(a => `<div style="padding:0.3rem 0">📦 ${a.name} — <strong>${a.sizeMB} MB</strong></div>`).join('');
+      } else {
+        apkEl.textContent = 'No APK builds found (run flutter build apk first)';
+      }
+    } catch (e) {
+      console.error('loadPerf error', e);
+    }
+  }
+
+  // ═══ Init ═══
+  fetchTests();
+</script>
 </body>
 </html>
