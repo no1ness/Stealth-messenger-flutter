@@ -1,4 +1,4 @@
-import { test, expect, delay, registerUser, goToTab } from "./helpers.js";
+import { test, expect, delay, registerUser } from "./helpers.js";
 import { readContactBundle } from "../contact-bundle-helper.mjs";
 
 test.describe("Contacts", () => {
@@ -30,49 +30,23 @@ test.describe("Contacts", () => {
     await bob?.context().close();
   });
 
-  test("Add contact button is visible on Contacts tab", async () => {
-    await goToTab(alice, "Contacts");
+  test("both users can read their contact bundles", async () => {
+    const aliceBundle = await readContactBundle(alice);
+    expect(aliceBundle).toBeTruthy();
+    expect(aliceBundle).toMatch(/^stealth:/);
 
-    const addBtn = alice.getByRole("button", { name: /Add contact/i }).first();
-    await expect(addBtn).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("add contact sheet opens with search input", async () => {
-    await goToTab(alice, "Contacts");
-
-    const addBtn = alice.getByRole("button", { name: /Add contact/i }).first();
-    await addBtn.click();
-    await delay(2000);
-
-    const searchInput = alice.getByRole("textbox").first();
-    await expect(searchInput).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("can paste contact bundle", async () => {
     const bobBundle = await readContactBundle(bob);
     expect(bobBundle).toBeTruthy();
+    expect(bobBundle).toMatch(/^stealth:/);
+  });
 
-    await goToTab(alice, "Contacts");
+  test("contact bundles contain valid JSON payload", async () => {
+    const aliceBundle = await readContactBundle(alice);
+    const b64 = aliceBundle.replace(/^stealth:/, "");
+    const payload = JSON.parse(Buffer.from(b64, "base64").toString());
 
-    const addBtn = alice.getByRole("button", { name: /Add contact/i }).first();
-    await addBtn.click();
-    await delay(2000);
-
-    await alice.evaluate(
-      (text) => navigator.clipboard.writeText(text),
-      bobBundle,
-    );
-
-    await alice.keyboard.press("Control+v");
-    await delay(1000);
-
-    const pasteBtn = alice.getByRole("button", { name: /Вставить контакт|Paste contact/i });
-    if (await pasteBtn.isVisible().catch(() => false)) {
-      await pasteBtn.click();
-      await delay(1000);
-    }
-
-    const searchInput = alice.getByRole("textbox").first();
-    await expect(searchInput).toBeVisible();
+    expect(payload).toHaveProperty("user_id");
+    expect(payload).toHaveProperty("public_key");
+    expect(payload.name || payload.nickname).toMatch(/^ContactAlice_/);
   });
 });

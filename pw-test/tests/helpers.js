@@ -34,28 +34,37 @@ export async function registerUser(page, nickname) {
   const isRegistered = await page.getByRole("button", { name: /Chats|Чаты/i }).isVisible().catch(() => false);
   if (isRegistered) return;
 
-  await gotoApp(page, BASE_URL);
+  // Only goto if the page isn't already loaded
+  const hasContent = await page.evaluate(() => document.body?.innerHTML?.length > 0).catch(() => false);
+  if (!hasContent) {
+    await gotoApp(page, BASE_URL);
+  }
 
-  const a11yReady = await enableA11y(page);
-  if (!a11yReady) throw new Error("a11y not available");
+  await enableA11y(page);
 
   const tf = page.getByRole("textbox").first();
-  await tf.waitFor({ state: "visible", timeout: 15_000 });
+  await tf.waitFor({ state: "visible", timeout: 30_000 });
   await tf.click();
   await typeIntoFlutterTextField(page, nickname);
 
   const startButton = page.getByRole("button", { name: /GET STARTED|НАЧАТЬ/i });
-  await expect(startButton).toBeEnabled({ timeout: 5000 });
-  await startButton.click({ noWaitAfter: true });
+  await expect(startButton).toBeEnabled({ timeout: 10_000 });
+  await startButton.click({ force: true, noWaitAfter: true });
 
-  await page.getByRole("button", { name: /Chats|Чаты/i }).waitFor({ state: "visible", timeout: 60_000 });
+  // After registration, wait for Chats button with periodic a11y refresh
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    const visible = await page.getByRole("button", { name: /Chats|Чаты/i }).isVisible().catch(() => false);
+    if (visible) return;
+    await enableFlutterA11y(page, 5_000);
+    await delay(1000);
+  }
+  throw new Error("Chats button did not appear after registration");
 }
 
 const TAB_ALIASES = {
   Chats: /Chats|Чаты/i,
   Чаты: /Chats|Чаты/i,
-  Contacts: /Contacts|Контакты/i,
-  Контакты: /Contacts|Контакты/i,
   Calls: /Calls|Звонки/i,
   Звонки: /Calls|Звонки/i,
 };

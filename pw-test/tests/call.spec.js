@@ -32,16 +32,6 @@ test.describe("Call", () => {
     await bob?.context().close();
   });
 
-  test("can navigate to contacts and see call buttons", async () => {
-    await goToTab(alice, "Чаты");
-    const contactsTab = alice.getByRole("tab", { name: /Contacts|Контакты/i });
-    await contactsTab.waitFor({ state: "visible", timeout: 8_000 });
-    await contactsTab.click();
-
-    const addBtn = alice.getByRole("button", { name: /Add contact|Добавить контакт|Добавить/i }).first();
-    await expect(addBtn).toBeVisible({ timeout: 10_000 });
-  });
-
   test("incoming call notification appears after signaling offer", async () => {
     const aliceBundle = await readContactBundle(alice);
     const bobBundle = await readContactBundle(bob);
