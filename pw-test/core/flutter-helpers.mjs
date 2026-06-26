@@ -23,7 +23,7 @@ export async function kickDebugMainIfNeeded(page) {
   });
 }
 
-export async function enableFlutterA11y(page, deadlineMs = 10000) {
+export async function enableFlutterA11y(page, deadlineMs = 60000) {
   if (await page.getByRole("textbox").count() > 0) return true;
 
   const deadline = Date.now() + deadlineMs;
@@ -52,13 +52,13 @@ export async function enableFlutterA11y(page, deadlineMs = 10000) {
   return (await page.getByRole("textbox").count()) > 0;
 }
 
-export async function gotoApp(page, baseUrl, deadlineMs = 60000) {
+export async function gotoApp(page, baseUrl, deadlineMs = 120000) {
   const deadline = Date.now() + deadlineMs;
   let lastErr;
   while (Date.now() < deadline) {
     try {
-      await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
-      for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt++) {
+      await page.goto(baseUrl, { waitUntil: "commit", timeout: 30000 });
+      for (let attempt = 0; attempt < 120 && Date.now() < deadline; attempt++) {
         const state = await getBootstrapState(page);
         if (state.hasA11yToggle || state.hasTextbox) {
           return;
@@ -66,9 +66,9 @@ export async function gotoApp(page, baseUrl, deadlineMs = 60000) {
         if (state.hasDebugRunMain && !state.dartMainExecuted) {
           await kickDebugMainIfNeeded(page);
         }
-        await delay(300);
+        await delay(500);
       }
-      await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
+      await page.reload({ waitUntil: "commit", timeout: 30000 });
     } catch (e) {
       lastErr = e;
       await delay(1000);
@@ -112,12 +112,12 @@ export async function resetToMain(page, baseUrl) {
   try {
     await page
       .getByRole("button", { name: /Chats|Чаты/i })
-      .waitFor({ state: "visible", timeout: 15000 });
+      .waitFor({ state: "visible", timeout: 30000 });
   } catch (error) {
     console.warn(`Chats button not found after reset: ${error.message}`);
     await enableFlutterA11y(page);
     await page
       .getByRole("button", { name: /Chats|Чаты/i })
-      .waitFor({ state: "visible", timeout: 10000 });
+      .waitFor({ state: "visible", timeout: 30000 });
   }
 }

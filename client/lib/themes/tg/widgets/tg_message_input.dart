@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:stealth/constants/accessibility_ids.dart';
 import 'package:stealth/themes/tg/tg_colors.dart';
 import 'package:stealth/themes/tg/tg_spacing.dart';
 
@@ -185,13 +186,17 @@ class _TgMessageInputState extends State<TgMessageInput> {
   }
 
   Widget _buildSendButton(TgThemeColors c) {
-    return GestureDetector(
-      onTap: _handleSendMessage,
-      child: Container(
-        width: _controlSize,
-        height: _controlSize,
-        decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-        child: Icon(Icons.arrow_upward, color: Colors.white, size: TgSpacing.iconSm),
+    return Semantics(
+      label: AccessibilityIds.sendMessage,
+      button: true,
+      child: GestureDetector(
+        onTap: _handleSendMessage,
+        child: Container(
+          width: _controlSize,
+          height: _controlSize,
+          decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+          child: Icon(Icons.arrow_upward, color: Colors.white, size: TgSpacing.iconSm),
+        ),
       ),
     );
   }

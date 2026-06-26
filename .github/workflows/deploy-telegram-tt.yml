@@ -1,0 +1,54 @@
+name: Deploy Telegram-TT (Stealth Web)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/telegram-tt/**'
+      - '.github/workflows/deploy-telegram-tt.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/telegram-tt
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/telegram-tt/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Build production
+        run: npm run build:production
+
+      - name: Deploy to VPS via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz --delete
+          path: web/telegram-tt/dist/
+          remote_path: /var/www/stealth-telegram
+          remote_host: ${{ secrets.VPS_PUBLIC_IP }}
+          remote_user: root
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Reload Caddy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_PUBLIC_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p /etc/caddy
+            grep -qF ':8447' /etc/caddy/Caddyfile || \
+              printf '\n:8447 {\n    root * /var/www/stealth-telegram\n    file_server\n    encode gzip\n}\n' >> /etc/caddy/Caddyfile
+            systemctl reload caddy || true

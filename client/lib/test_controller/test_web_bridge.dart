@@ -49,6 +49,9 @@ class _WebTestBridge {
       window.__test.waitForEvent = function(type, timeout, cb) {
         window.__test._queue.push({cmd: 'waitForEvent', args: [type, String(timeout)], cb: cb});
       };
+      window.__test.createChat = function(uid, cb) {
+        window.__test._queue.push({cmd: 'createChat', args: [uid], cb: cb});
+      };
     '''.toJS);
 
     Timer.periodic(const Duration(milliseconds: 50), (_) {
@@ -94,8 +97,12 @@ class _WebTestBridge {
         });
         break;
       case 'addContact':
-        app.addContact(args[0]).catchError((e) =>
-            Logger.warn('[test-bridge] addContact: $e'));
+        app.addContact(args[0]).then((_) {
+          _evalToString('window.__test._result = "ok"');
+        }).catchError((e) {
+          Logger.warn('[test-bridge] addContact: $e');
+          _evalToString('window.__test._result = null');
+        });
         break;
       case 'getContactBundle':
         app.generateQRCode().then((b) {
@@ -111,6 +118,14 @@ class _WebTestBridge {
         app.getUserId().then((id) {
           _evalToString('window.__test._result = ${jsonEncode(id ?? '')}');
         }).catchError((e) { Logger.warn('[test-bridge] getUserId: $e'); return null; });
+        break;
+      case 'createChat':
+        app.findOrCreatePrivateChatWith(args[0]).then((chatId) {
+          _evalToString('window.__test._result = ${jsonEncode(chatId ?? '')}');
+        }).catchError((e) {
+          Logger.warn('[test-bridge] createChat: $e');
+          _evalToString('window.__test._result = null');
+        });
         break;
       case 'waitForEvent':
         final type = args[0];

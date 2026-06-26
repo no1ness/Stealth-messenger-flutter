@@ -26,8 +26,8 @@ const SCREENSHOT_ON_FAILURE = process.env.STEALTH_SCREENSHOT_ON_FAILURE !== "fal
 // Browser launch arguments
 const LAUNCH_ARGS = [
   "--use-fake-ui-for-media-stream",
-  "--use-fake-device-for-media-stream",
   "--no-sandbox",
+  "--disable-gpu",
 ];
 
 // Viewport for mobile layout (bottom nav visible at < 960px)

@@ -71,10 +71,43 @@ mobile/linux/flutter/ephemeral/
 coverage/
 lib/generated_plugin_registrant.dart
 .tmp/
+
+# pw-test artifacts and debug files
+pw-test/artifacts/
+pw-test/test-results/
+pw-test/test-results.json
 pw-test/*.png
 pw-test/*.html
 pw-test/diag-*.json
 pw-test/*-report.json
+pw-test/debug-*
+pw-test/test-browser*.mjs
+pw-test/test-new.mjs
+pw-test/test7.mjs
+pw-test/check-token-key.mjs
+pw-test/current-state.png
+pw-test/debug-*
+
+# server debug scripts
+server/pb_data/
+server/wget-log
+server/check-*.sh
+server/debug-*.sh
+server/fix-*.sh
+server/setup-*.sh
+server/test-*.sh
+server/verify-*.sh
+server/run-*.sh
+server/dump-*.sh
+server/patch-*.sh
+
+# Playwright MCP
+.playwright-mcp/
+
+# screenshots
+telegram-login.png
+telegram-web.png
+current-state.png
 
 # Environment variables
 .env

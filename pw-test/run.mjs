@@ -4,6 +4,7 @@ const SCENARIOS = {
   registration: () => import("./scenarios/registration.mjs"),
   call: () => import("./scenarios/call-basic.mjs"),
   chat: () => import("./scenarios/chat-basic.mjs"),
+  "chat-e2e": () => import("./scenarios/chat-e2e.mjs"),
 };
 
 const SUITE = "suite";
