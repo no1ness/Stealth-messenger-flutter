@@ -24,5 +24,5 @@ cp "$DOCKER_DIR/Caddyfile.template" "$DEPLOY_DIR/Caddyfile"
 envsubst <"$DOCKER_DIR/coturn/turnserver.conf.template" >"$DEPLOY_DIR/coturn/turnserver.conf"
 cd "$DEPLOY_DIR" && docker compose pull && docker compose up -d
 echo "Stack started in $DEPLOY_DIR
-INFO [caddy] API on :8443, web on ${WEB_FALLBACK_PORT:-8445}, dashboard on ${DASHBOARD_FALLBACK_PORT:-8446}
+INFO [caddy] API on :8443, web on ${WEB_FALLBACK_PORT:-8445} (${WEB_DOMAIN:-app.stealthpro.ru}), dashboard on ${DASHBOARD_FALLBACK_PORT:-8446} (${DASHBOARD_DOMAIN:-dashboard.stealthpro.ru})
 INFO [caddy] port 443 released to sing-box"
