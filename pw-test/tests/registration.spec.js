@@ -27,7 +27,7 @@ test.describe("Registration", () => {
     const textbox = page.getByRole("textbox").first();
     await textbox.waitFor({ state: "visible", timeout: 15_000 });
     await textbox.click();
-    await textbox.type("TempUser");
+    await textbox.fill("TempUser");
 
     const startBtn = page.getByRole("button", { name: /GET STARTED|НАЧАТЬ/i });
     await expect(startBtn).toBeEnabled({ timeout: 10_000 });

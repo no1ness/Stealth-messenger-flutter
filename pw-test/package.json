@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "serve:web": "node scripts/start-web-server.mjs",
+    "serve:dashboard": "node dashboard-server/index.js",
     "serve:web:static": "node serve-static-web.mjs",
     "test": "node run.mjs",
     "test:registration": "node run.mjs registration",

@@ -45,10 +45,7 @@ export async function registerUser(page, nickname) {
   await typeIntoFlutterTextField(page, nickname);
 
   const startButton = page.getByRole("button", { name: /GET STARTED|НАЧАТЬ/i });
-  for (let i = 0; i < 20; i++) {
-    if (await startButton.isEnabled()) break;
-    await delay(200);
-  }
+  await expect(startButton).toBeEnabled({ timeout: 5000 });
   await startButton.click({ noWaitAfter: true });
 
   await page.getByRole("button", { name: /Chats|Чаты/i }).waitFor({ state: "visible", timeout: 60_000 });
