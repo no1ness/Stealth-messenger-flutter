@@ -14,14 +14,21 @@ START_SECONDS=$SECONDS
 BUILD_ELAPSED=$((SECONDS - START_SECONDS))
 echo "[deploy-web] build finished in ${BUILD_ELAPSED}s"
 
-echo "[deploy-web] 2/5 Ensuring remote directory..."
+echo "[deploy-web] 2/5 Syncing web launcher (landing page) to VPS root..."
 ssh "$SSH_HOST" "mkdir -p /var/www/stealth-web"
 
-echo "[deploy-web] 3/5 Syncing build to VPS..."
+SYNC_LAUNCHER_START=$SECONDS
+rsync -avz --delete "$REPO_ROOT/server/docker/web-launcher/" "$SSH_HOST:/var/www/stealth-web/"
+SYNC_LAUNCHER_ELAPSED=$((SECONDS - SYNC_LAUNCHER_START))
+echo "[deploy-web] launcher sync finished in ${SYNC_LAUNCHER_ELAPSED}s"
+
+echo "[deploy-web] 3/5 Syncing Flutter web build to /stealth/ subdirectory..."
+ssh "$SSH_HOST" "mkdir -p /var/www/stealth-web/stealth"
+
 SYNC_START=$SECONDS
-rsync -avz --delete "$REPO_ROOT/client/build/web/" "$SSH_HOST:/var/www/stealth-web/"
+rsync -avz --delete "$REPO_ROOT/client/build/web/" "$SSH_HOST:/var/www/stealth-web/stealth/"
 SYNC_ELAPSED=$((SECONDS - SYNC_START))
-echo "[deploy-web] sync finished in ${SYNC_ELAPSED}s"
+echo "[deploy-web] Flutter build sync finished in ${SYNC_ELAPSED}s"
 
 echo "[deploy-web] 4/5 Ensuring TLS certificate..."
 WEB_PORT="${WEB_FALLBACK_PORT:-8445}"

@@ -7,7 +7,7 @@ import { WEB_URL } from "./config.mjs";
 const _dirname = dirname(fileURLToPath(import.meta.url));
 
 const HOST = process.env.STEALTH_WEB_HOST || "127.0.0.1";
-const PORT = Number(process.env.STEALTH_WEB_PORT || WEB_URL.split(":").pop().replace("/", ""));
+const PORT = Number(process.env.STEALTH_WEB_PORT || new URL(WEB_URL).port || "58585");
 const ROOT = resolve(_dirname, "..", "client", "build", "web");
 
 const MIME_TYPES = {
@@ -26,31 +26,25 @@ const MIME_TYPES = {
 function resolvePath(urlPath) {
   const sanitized = normalize(decodeURIComponent(urlPath).replace(/^\/+/, ""));
   const candidate = resolve(ROOT, sanitized);
-  if (!candidate.startsWith(ROOT)) {
-    return null;
-  }
-
-  if (existsSync(candidate) && statSync(candidate).isFile()) {
+  if (candidate.startsWith(ROOT) && existsSync(candidate) && statSync(candidate).isFile()) {
     return candidate;
   }
 
+  // Directory or not found → SPA fallback to Flutter's index.html
   const fallback = join(ROOT, "index.html");
   return existsSync(fallback) ? fallback : null;
 }
 
 const server = createServer((req, res) => {
   const filePath = resolvePath(req.url || "/");
-  if (!filePath) {
+  if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Not found");
     return;
   }
 
   const mimeType = MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream";
-
-  // Immutable caching for content-hashed build assets
-  const ext = extname(filePath).toLowerCase();
-  const isImmutable = filePath.includes("main.dart.js") || ext === ".wasm";
+  const isImmutable = filePath.includes("main.dart.js") || extname(filePath).toLowerCase() === ".wasm";
   const headers = { "Content-Type": mimeType };
   if (isImmutable) {
     headers["Cache-Control"] = "public, max-age=31536000, immutable";
