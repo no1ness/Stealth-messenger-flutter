@@ -22,7 +22,7 @@ echo "[deploy-dashboard] 3/6 Installing pm2 (if needed)..."
 ssh "$SSH_HOST" "command -v pm2 &>/dev/null || npm install -g pm2"
 
 echo "[deploy-dashboard] 4/6 Starting/restarting dashboard via pm2..."
-ssh "$SSH_HOST" "cd /opt/stealth-dashboard && DASHBOARD_PORT=3001 STEALTH_POCKETBASE_URL=http://127.0.0.1:8443 pm2 start index.js --name stealth-dashboard -- --port 3001 2>/dev/null || pm2 restart stealth-dashboard"
+ssh "$SSH_HOST" "cd /opt/stealth-dashboard && DASHBOARD_PORT=3001 STEALTH_POCKETBASE_URL=http://127.0.0.1:8443 pm2 start index.js --name stealth-dashboard 2>/dev/null || pm2 restart stealth-dashboard --update-env"
 ssh "$SSH_HOST" "pm2 save"
 
 echo "[deploy-dashboard] 5/6 Configuring Caddy reverse proxy for ${DASHBOARD_DOMAIN}..."
@@ -33,7 +33,9 @@ if [[ -n "${DNS_API_TOKEN:-}" ]]; then
   URL_SCHEME="https"
 else
   echo "[deploy-dashboard] WARNING: DNS_API_TOKEN not set — deploying without TLS"
-  URL_SCHEME="http"
+  # Use Caddy auto-TLS with email (works if port 80 is available)
+  TLS_BLOCK="tls admin@${DASHBOARD_DOMAIN}"
+  URL_SCHEME="https"
 fi
 
 ssh "$SSH_HOST" "mkdir -p /etc/caddy"
@@ -44,17 +46,23 @@ ${DASHBOARD_DOMAIN}:${DASHBOARD_FALLBACK_PORT} {
     encode gzip
 }
 CADDY"
-ssh "$SSH_HOST" "grep -qF '${DASHBOARD_DOMAIN}' /etc/caddy/Caddyfile || cat /tmp/caddy-dashboard.conf >> /etc/caddy/Caddyfile; rm /tmp/caddy-dashboard.conf"
+ssh "$SSH_HOST" "if grep -qF '${DASHBOARD_DOMAIN}' /etc/caddy/Caddyfile; then
+  cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
+  sed -i '/^${DASHBOARD_DOMAIN}:${DASHBOARD_FALLBACK_PORT} {/,/^}/c\# replaced by deploy-dashboard.sh on $(date -Iseconds)' /etc/caddy/Caddyfile
+fi; cat /tmp/caddy-dashboard.conf >> /etc/caddy/Caddyfile; rm /tmp/caddy-dashboard.conf"
 ssh "$SSH_HOST" "systemctl reload caddy"
 
-echo "[deploy-dashboard] 6/6 Verifying deployment..."
-HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/" 2>/dev/null || echo "000")
-if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "000" ]]; then
-  echo "[deploy-dashboard] http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/ returned HTTP ${HTTP_CODE}"
+echo "[deploy-dashboard] 6/6 Verifying dashboard is running..."
+# Verify Node.js dashboard responds on :3001 (through SSH to bypass TLS)
+DASH_RESP=$(ssh "$SSH_HOST" "wget -q -O - http://127.0.0.1:3001/ 2>/dev/null | head -c 200" 2>/dev/null || true)
+if echo "$DASH_RESP" | grep -q "Stealth Dashboard" 2>/dev/null; then
+  echo "[deploy-dashboard] Node.js dashboard responds correctly on :3001"
 else
-  echo "[deploy-dashboard] http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/ returned HTTP ${HTTP_CODE} (expected 200)"
+  echo "[deploy-dashboard] WARNING: Node.js dashboard may not be responding"
+  echo "[deploy-dashboard] Response: $(echo "$DASH_RESP" | head -c 100)"
 fi
+echo "[deploy-dashboard] Caddy proxy configured for ${URL_SCHEME}://${DASHBOARD_DOMAIN}:${DASHBOARD_FALLBACK_PORT}/"
 
 echo "[deploy-dashboard] Deploy complete."
-echo "  URL: ${URL_SCHEME}://${DASHBOARD_DOMAIN}/"
-echo "  Fallback: http://${VPS_PUBLIC_IP}:${DASHBOARD_FALLBACK_PORT}/"
+echo "  URL: ${URL_SCHEME}://${DASHBOARD_DOMAIN}:${DASHBOARD_FALLBACK_PORT}/"
+echo "  DNS: ${DASHBOARD_DOMAIN} → ${VPS_PUBLIC_IP}"
