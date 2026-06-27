@@ -8,7 +8,7 @@ REMOTE_DIR="/var/www/stealth-telegram"
 TELEGRAM_PORT="${TELEGRAM_FALLBACK_PORT:-8447}"
 
 if [[ -f "$DOCKER_DIR/.env" ]]; then source "$DOCKER_DIR/.env"; fi
-: "${VPS_PUBLIC_IP:?}" : "${SSH_HOST:=root@${VPS_PUBLIC_IP}}"
+: "${SIGNAL_DOMAIN:?}" : "${VPS_PUBLIC_IP:?}" : "${SSH_HOST:=root@${VPS_PUBLIC_IP}}"
 
 echo "[deploy-telegram-tt] 1/5 Installing dependencies..."
 cd "$PROJECT_DIR"
@@ -16,7 +16,7 @@ npm ci
 
 echo "[deploy-telegram-tt] 2/5 Building production release..."
 START_SECONDS=$SECONDS
-npm run build:production
+VITE_POCKETBASE_URL="https://${SIGNAL_DOMAIN}" npm run build:production
 BUILD_ELAPSED=$((SECONDS - START_SECONDS))
 echo "[deploy-telegram-tt] build finished in ${BUILD_ELAPSED}s"
 

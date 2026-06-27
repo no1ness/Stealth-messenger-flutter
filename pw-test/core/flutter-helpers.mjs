@@ -88,21 +88,33 @@ export async function typeIntoFlutterTextField(page, text) {
 
   await page.evaluate(async (txt) => {
     const inp = document.querySelector("input");
-    if (!inp) return;
-    inp.value = "";
-    for (let i = 0; i < txt.length; i++) {
-      const ch = txt[i];
-      inp.value += ch;
-      inp.dispatchEvent(new InputEvent("beforeinput", {
-        inputType: "insertText", data: ch, bubbles: true,
-      }));
-      inp.dispatchEvent(new InputEvent("input", {
-        inputType: "insertText", data: ch, bubbles: true,
-      }));
+    if (inp) {
+      inp.value = "";
+      for (let i = 0; i < txt.length; i++) {
+        const ch = txt[i];
+        inp.value += ch;
+        inp.dispatchEvent(new InputEvent("beforeinput", {
+          inputType: "insertText", data: ch, bubbles: true,
+        }));
+        inp.dispatchEvent(new InputEvent("input", {
+          inputType: "insertText", data: ch, bubbles: true,
+        }));
+      }
+      inp.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    inp.dispatchEvent(new Event("change", { bubbles: true }));
   }, text);
   await delay(120);
+}
+
+export async function typeIntoConversationTextField(page, text) {
+  // In the conversation panel, Flutter uses a <textarea> for text input.
+  // We need to click it so Flutter attaches it, then type via keyboard.
+  const ta = page.locator("textarea").first();
+  await ta.waitFor({ state: "visible", timeout: 15000 });
+  await ta.click();
+  await delay(500);
+  await page.keyboard.type(text, { delay: 30 });
+  await delay(500);
 }
 
 export async function resetToMain(page, baseUrl) {

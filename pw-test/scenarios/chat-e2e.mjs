@@ -1,6 +1,6 @@
 import { POCKETBASE_URL } from "../config.mjs";
 import { readContactBundle } from "../contact-bundle-helper.mjs";
-import { delay, enableFlutterA11y, typeIntoFlutterTextField } from "../core/flutter-helpers.mjs";
+import { delay, enableFlutterA11y, typeIntoFlutterTextField, typeIntoConversationTextField } from "../core/flutter-helpers.mjs";
 import { pbId, decodeBundle, registerUser } from "../core/scenario-helpers.mjs";
 
 async function bridgeCall(page, cmd, ...args) {
@@ -50,7 +50,7 @@ export default async function chatE2E({ alice, bob }) {
   console.log(`[e2e] Bob:   ${bobPid} (${nickB})`);
 
   console.log("[e2e] === Phase 3: upload profiles to PB ===");
-  const adminResp = await fetch(`${POCKETBASE_URL}/api/admins/auth-with-password`, {
+  const adminResp = await fetch(`${POCKETBASE_URL}/api/collections/_superusers/auth-with-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identity: "test@stealth.local", password: "testpass123" }),
@@ -149,11 +149,10 @@ export default async function chatE2E({ alice, bob }) {
   await delay(3000);
 
   const testMsg = "Hello Bob! This is an E2E encrypted message! " + suffix;
-  await typeIntoFlutterTextField(alice.page, testMsg);
-  await delay(800);
+  await typeIntoConversationTextField(alice.page, testMsg);
 
   const sendBtn = alice.page.getByRole("button", { name: /Send message/i });
-  await sendBtn.waitFor({ state: "visible", timeout: 5000 });
+  await sendBtn.waitFor({ state: "visible", timeout: 30000 });
   console.log("[e2e] send button visible, starting Bob's listener...");
 
   const [received] = await Promise.all([
