@@ -33,10 +33,8 @@ let currentUser: StealthUser | null = null;
 export async function registerUser(nickname: string): Promise<StealthUser> {
   const uuid = generateStealthUuid();
   const keyPair = await generateX25519KeyPair();
-  const [publicKeyB64, privateKeyB64] = await Promise.all([
-    exportKeyBase64(keyPair.publicKey),
-    exportKeyBase64(keyPair.privateKey),
-  ]);
+  const publicKeyB64 = await exportKeyBase64(keyPair.publicKey);
+  const privateKeyB64 = await exportKeyBase64(keyPair.privateKey);
   const pbId = await pbIdFromLocalUuid(uuid);
   const pbPassword = generatePbPassword();
 

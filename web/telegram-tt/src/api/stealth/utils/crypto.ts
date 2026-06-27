@@ -3,18 +3,23 @@ export async function generateX25519KeyPair(): Promise<CryptoKeyPair> {
 }
 
 export async function exportKeyBase64(key: CryptoKey): Promise<string> {
-  const raw = await crypto.subtle.exportKey('raw', key);
-  return btoa(String.fromCharCode(...new Uint8Array(raw)));
+  try {
+    const jwk = await crypto.subtle.exportKey('jwk', key);
+    return btoa(JSON.stringify(jwk));
+  } catch (err) {
+    console.error('[STEALTH] exportKeyBase64 failed for key type:', key.type, 'algorithm:', key.algorithm, err);
+    throw err;
+  }
 }
 
 export async function importX25519PrivateKey(base64Key: string): Promise<CryptoKey> {
-  const raw = Uint8Array.from(atob(base64Key), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey('raw', raw, { name: 'X25519' }, true, ['deriveBits']);
+  const jwk = JSON.parse(atob(base64Key));
+  return crypto.subtle.importKey('jwk', jwk, { name: 'X25519' }, true, ['deriveBits']);
 }
 
 export async function importX25519PublicKey(base64Key: string): Promise<CryptoKey> {
-  const raw = Uint8Array.from(atob(base64Key), (c) => c.charCodeAt(0));
-  return crypto.subtle.importKey('raw', raw, { name: 'X25519' }, true, []);
+  const jwk = JSON.parse(atob(base64Key));
+  return crypto.subtle.importKey('jwk', jwk, { name: 'X25519' }, true, []);
 }
 
 function generatePassword(): string {

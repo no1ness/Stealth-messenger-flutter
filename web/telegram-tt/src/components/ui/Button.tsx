@@ -201,7 +201,7 @@ const Button = ({
     if (isLoading) {
       return (
         <div>
-          <span dir={isRtl ? 'auto' : undefined}>{lang('Cache.ClearProgress')}</span>
+          <span dir={isRtl ? 'auto' : undefined}>{lang('Loading')}</span>
           <Spinner color={isText ? 'blue' : 'white'} />
         </div>
       );

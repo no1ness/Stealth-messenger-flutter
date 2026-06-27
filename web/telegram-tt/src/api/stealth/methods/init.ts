@@ -82,8 +82,8 @@ export async function callApi<T extends keyof Methods>(fnName: T, ...args: Metho
       try {
         await registerUser(nickname);
         emitAuthState('authorizationStateReady');
-      } catch {
-        // TODO: emit error
+      } catch (err) {
+        console.error('[STEALTH] registerUser failed:', err);
       }
       return undefined as MethodResponse<T>;
     }
