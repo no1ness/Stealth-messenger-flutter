@@ -30,23 +30,14 @@ rsync -avz --delete "$REPO_ROOT/client/build/web/" "$SSH_HOST:/var/www/stealth-w
 SYNC_ELAPSED=$((SECONDS - SYNC_START))
 echo "[deploy-web] Flutter build sync finished in ${SYNC_ELAPSED}s"
 
-echo "[deploy-web] 4/5 Ensuring TLS certificate..."
+echo "[deploy-web] 4/5 Setting up Caddy web block with auto-TLS..."
 WEB_PORT="${WEB_FALLBACK_PORT:-8445}"
-if [[ -n "${DNS_API_TOKEN:-}" ]]; then
-  ssh "$SSH_HOST" "WEB_DOMAIN='${WEB_DOMAIN}' DNS_API_TOKEN='${DNS_API_TOKEN}' bash -s" < "$SCRIPT_DIR/ensure-web-cert.sh"
-  TLS_BLOCK="tls /etc/letsencrypt/live/${WEB_DOMAIN}/fullchain.pem /etc/letsencrypt/live/${WEB_DOMAIN}/privkey.pem"
-  URL_SCHEME="https"
-else
-  echo "[deploy-web] ⚠️  DNS_API_TOKEN not set — deploying without TLS"
-  TLS_BLOCK="# tls — set DNS_API_TOKEN in .env for automatic HTTPS"
-  URL_SCHEME="http"
-fi
 
 echo "[deploy-web] 5/5 Updating Caddy web block..."
 ssh "$SSH_HOST" "mkdir -p /etc/caddy"
 ssh "$SSH_HOST" "cat > /tmp/caddy-web.conf <<CADDY
 :${WEB_PORT} {
-    ${TLS_BLOCK}
+    tls admin@stealthpro.ru
     root * /var/www/stealth-web
     file_server
     encode gzip
@@ -56,6 +47,7 @@ ssh "$SSH_HOST" "grep -qF ':${WEB_PORT}' /etc/caddy/Caddyfile || cat /tmp/caddy-
 ssh "$SSH_HOST" "systemctl reload caddy"
 
 echo "[deploy-web] 6/6 Verifying deployment..."
+URL_SCHEME="https"
 HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "${URL_SCHEME}://${VPS_PUBLIC_IP}:${WEB_PORT}/" 2>/dev/null || echo "000")
 if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "000" ]]; then
   echo "[deploy-web] ✅ ${URL_SCHEME}://${VPS_PUBLIC_IP}:${WEB_PORT}/ returned HTTP ${HTTP_CODE}"

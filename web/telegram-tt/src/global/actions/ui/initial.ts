@@ -20,7 +20,6 @@ import { applyPerformanceSettings } from '../../../util/perfomanceSettings';
 import { hasStoredSession, storeSession } from '../../../util/sessions';
 import switchTheme from '../../../util/switchTheme';
 import { getSystemTheme, setSystemThemeChangeCallback } from '../../../util/systemTheme';
-import { startWebsync, stopWebsync } from '../../../util/websync';
 import { callApi } from '../../../api/gramjs';
 import { clearCaching, setupCaching } from '../../cache';
 import { addActionHandler, getGlobal, setGlobal } from '../../index';
@@ -64,7 +63,6 @@ addActionHandler('switchMultitabRole', async (global, actions, payload): Promise
   if (!isMasterTab) {
     void unsubscribe();
     actions.destroyConnection();
-    stopWebsync();
     destroySharedStatePort();
     clearCaching();
     actions.onSomeTabSwitchedMultitabRole();
@@ -91,7 +89,6 @@ addActionHandler('switchMultitabRole', async (global, actions, payload): Promise
       actions.initApi();
     }
 
-    startWebsync();
     if (IS_MULTIACCOUNT_SUPPORTED) {
       initSharedState(global.sharedState);
     }
@@ -109,7 +106,6 @@ addActionHandler('onSomeTabSwitchedMultitabRole', async (global): Promise<void> 
 });
 
 addActionHandler('initShared', (): ActionReturnType => {
-  startWebsync();
 });
 
 addActionHandler('initMain', (global): ActionReturnType => {
@@ -190,8 +186,6 @@ addCallback((global: GlobalState) => {
   switchTheme(theme, canAnimate);
   // Make sure global has the latest theme. Will cause `switchTheme` on change
   global = updateSharedSettings(global, { theme });
-
-  startWebsync();
 
   setGlobal(global);
 });

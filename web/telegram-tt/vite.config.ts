@@ -5,8 +5,8 @@ import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
 import { defineConfig, loadEnv, normalizePath, type Plugin, type PluginOption, type UserConfig } from 'vite';
 import { type Target, viteStaticCopy } from 'vite-plugin-static-copy';
-
 import { watchAndRun } from 'vite-plugin-watch-and-run';
+
 import buildGitInfoPlugin from './plugins/gitInfo';
 import packageJson from './package.json' with { type: 'json' };
 

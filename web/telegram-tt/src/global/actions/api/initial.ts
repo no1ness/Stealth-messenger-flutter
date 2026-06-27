@@ -28,7 +28,6 @@ import {
   loadStoredSession,
   storeSession,
 } from '../../../util/sessions';
-import { forceWebsync } from '../../../util/websync';
 import {
   callApi, callApiLocal, initApi, setShouldEnableDebugLog,
 } from '../../../api/gramjs';
@@ -206,7 +205,6 @@ addActionHandler('signOut', async (global, actions, payload): Promise<void> => {
     resetLocationHash();
     await unsubscribe();
     await Promise.race([callApi('destroy'), pause(3000)]);
-    await forceWebsync(false);
   } catch (err) {
     // Do nothing
   }

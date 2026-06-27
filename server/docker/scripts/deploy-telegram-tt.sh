@@ -33,6 +33,7 @@ echo "[deploy-telegram-tt] 5/5 Updating Caddy telegram block..."
 ssh "$SSH_HOST" "mkdir -p /etc/caddy"
 ssh "$SSH_HOST" "cat > /tmp/caddy-telegram.conf <<CADDY
 :${TELEGRAM_PORT} {
+    tls admin@stealthpro.ru
     root * $REMOTE_DIR
     file_server
     encode gzip
@@ -42,13 +43,13 @@ ssh "$SSH_HOST" "grep -qF ':${TELEGRAM_PORT}' /etc/caddy/Caddyfile || cat /tmp/c
 ssh "$SSH_HOST" "systemctl reload caddy"
 
 echo "[deploy-telegram-tt] Verifying deployment..."
-HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "http://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/" 2>/dev/null || echo "000")
+URL_SCHEME="https"
+HTTP_CODE=$(curl -sSf -o /dev/null -w "%{http_code}" "${URL_SCHEME}://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/" 2>/dev/null || echo "000")
 if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "000" ]]; then
-  echo "[deploy-telegram-tt] http://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/ returned HTTP ${HTTP_CODE}"
+  echo "[deploy-telegram-tt] ${URL_SCHEME}://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/ returned HTTP ${HTTP_CODE}"
 else
-  echo "[deploy-telegram-tt] http://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/ returned HTTP ${HTTP_CODE} (expected 200)"
+  echo "[deploy-telegram-tt] ${URL_SCHEME}://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/ returned HTTP ${HTTP_CODE} (expected 200)"
 fi
 
 echo "[deploy-telegram-tt] Deploy complete."
-echo "  URL: http://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/"
-echo "  Note: Update index.html href to point to https://app.stealthpro.ru:${TELEGRAM_PORT}/"
+echo "  URL: ${URL_SCHEME}://${VPS_PUBLIC_IP}:${TELEGRAM_PORT}/"

@@ -19,7 +19,6 @@ import { oldSetLanguage } from '../../../util/oldLangProvider';
 import { clearWebTokenAuth } from '../../../util/routing';
 import { setServerTimeOffset } from '../../../util/serverTime';
 import { updateSessionUserId } from '../../../util/sessions';
-import { forceWebsync } from '../../../util/websync';
 import {
   addActionHandler, getActions, getGlobal, setGlobal,
 } from '../../index';
@@ -146,8 +145,6 @@ function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: Ap
 
   switch (authState) {
     case 'authorizationStateLoggingOut':
-      void forceWebsync(false);
-
       global = updateAuth(global, {
         isLoggingOut: true,
       });
@@ -183,8 +180,6 @@ function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: Ap
       if (wasAuthReady) {
         break;
       }
-
-      void forceWebsync(true);
 
       global = updateAuth(global, {
         isLoggingOut: false,
